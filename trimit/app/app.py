@@ -1,10 +1,10 @@
 from modal import Volume, App, Mount, Secret, CloudBucketMount
 import os
-from storybook.utils.conf import DOTENV_PATH
+from trimit.utils.conf import DOTENV_PATH
 from pathlib import Path
 
 ROOT_DIR = Path(__file__).parent.parent.parent
-APP_NAME = "storybook"
+APP_NAME = "trimit-human-in-loop"
 SCENE_TRANSCRIPT_PINECONE_INDEX_NAME = os.environ.get("SCENE_TRANSCRIPT_PINECONE_INDEX")
 REPO_HOME = "/app"
 VOLUME_DIR = "/volume"
@@ -14,18 +14,18 @@ AGENT_OUTPUT_CACHE_DIR = os.environ.get(
 )
 HF_HOME = str(Path(VOLUME_DIR) / "huggingface")
 S3_VIDEO_PATH = "/s3-videos"
-S3_BUCKET = os.environ.get("STORYBOOK_VIDEO_S3_BUCKET", "")
-VOLUME_NAME = "storybook-volume"
+S3_BUCKET = os.environ.get("TRIMIT_VIDEO_S3_BUCKET", "")
+VOLUME_NAME = "trimit-human-in-loop-volume"
 LOCAL_CERT_PATH = str(ROOT_DIR / os.environ.get("MONGO_CERT_FILENAME", ""))
 CERT_PATH = str(Path(REPO_HOME) / os.environ.get("MONGO_CERT_FILENAME", ""))
-mounts = [Mount.from_local_dir("./storybook", remote_path=REPO_HOME)]
+mounts = [Mount.from_local_dir("./trimit", remote_path=REPO_HOME)]
 volume = Volume.from_name(VOLUME_NAME, create_if_missing=True)
 volumes = {
     VOLUME_DIR: volume,
     S3_VIDEO_PATH: CloudBucketMount(
         # the get is only necessary because during the image creation process,
         # there are some points where this gets called before the .env file is loaded
-        os.environ.get("STORYBOOK_VIDEO_S3_BUCKET", ""),
+        os.environ.get("TRIMIT_VIDEO_S3_BUCKET", ""),
         secret=Secret.from_dotenv(path=DOTENV_PATH),
     ),
 }
