@@ -5,17 +5,21 @@ export default async function Home() {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const res = await fetch(`${baseUrl}/api/`);
 
-  let initMsg = {}
+  let initMsg = "could not fetch or parse message";
+  let res = {message: initMsg}
   try {
-    initMsg = await res.json();
+    res = await res.json();
   } catch (error) {
     console.error(error);
+  }
+  if (res && res.message) {
+    initMsg = res;
   }
 
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <h3 className="m-0 text-lg font-semibold">Message: {initMsg.message}</h3>
+        <h3 className="m-0 text-lg font-semibold">Message: {initMsg}</h3>
         <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
           <a
             className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
