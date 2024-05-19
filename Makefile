@@ -5,6 +5,10 @@
 	upload_test_fixtures \
 	format \
 	local_webapp \
+	setup-hooks \
+	integration_test \
+	integration_test_with_deploy \
+	step_ephemeral
 
 deploy_prod:
 	@DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
