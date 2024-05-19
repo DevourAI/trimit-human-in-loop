@@ -1,2 +1,2 @@
 #!/bin/bash
-poetry run modal deploy storybook.deploy
+poetry run modal deploy trimit.deploy

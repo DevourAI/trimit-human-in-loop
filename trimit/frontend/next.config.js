@@ -1,4 +1,5 @@
 /** @type {import('next').NextConfig} */
+require('dotenv').config({ path: `./.env.${process.env.NODE_ENV}`});
 const nextConfig = {
   rewrites: async () => {
     return [
@@ -7,7 +8,7 @@ const nextConfig = {
         destination:
           process.env.NODE_ENV === "development"
             ? "http://127.0.0.1:8000/api/:path*"
-            : `${process.env.API_URL}/api/`,
+            : `${process.env.NODE_ENV}/api/`,
       },
     ];
   },

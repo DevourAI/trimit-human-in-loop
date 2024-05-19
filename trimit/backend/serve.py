@@ -34,7 +34,7 @@ running_workflows = Dict.from_name(RUNNING_WORKFLOWS_DICT_NAME, create_if_missin
 async def step_workflow_until_feedback_request(
     workflow: "CutTranscriptLinearWorkflow", user_input: str | None = None
 ):
-    from storybook.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
 
     await maybe_init_mongo()
     user_feedback_request = None
@@ -70,7 +70,7 @@ async def step(
     ignore_running_workflows: bool = False,
     timeout: float = 120,
 ):
-    from storybook.backend.cut_transcript import (
+    from trimit.backend.cut_transcript import (
         CutTranscriptLinearWorkflow,
         CutTranscriptLinearWorkflowStepOutput,
     )
@@ -138,7 +138,7 @@ async def get_step_outputs(
     length_seconds: int,
     step_keys: list[str],
 ):
-    from storybook.backend.cut_transcript import CutTranscriptLinearWorkflow
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
     workflow = await CutTranscriptLinearWorkflow.from_video_hash(
         video_hash=video_hash,
@@ -160,7 +160,7 @@ async def get_step_outputs(
 async def get_all_outputs(
     user_email: str, timeline_name: str, video_hash: str, length_seconds: int
 ):
-    from storybook.backend.cut_transcript import CutTranscriptLinearWorkflow
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
     workflow = await CutTranscriptLinearWorkflow.from_video_hash(
         video_hash=video_hash,
@@ -189,7 +189,7 @@ async def cut_transcript_cli(
     ignore_running_workflows: bool = False,
     timeout: float = 120,
 ):
-    from storybook.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
 
     done = False
     i = 0
