@@ -5,6 +5,10 @@
 	upload_test_fixtures \
 	format \
 	local_webapp \
+	setup-hooks \
+	integration_test \
+	integration_test_with_deploy \
+	step_ephemeral
 
 deploy_prod:
 	@DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
@@ -34,8 +38,12 @@ setup-hooks:
 format:
 	@poetry run black .
 
-local_webapp:
-	@echo "Starting local webapp..."
+local_api:
+	@echo "Starting local api..."
+	@poetry run python -m uvicorn trimit.api.index:web_app --reload
+
+local_ui:
+	@echo "Starting local ui..."
 	@cd trimit/frontend && yarn dev
 
 step_ephemeral:

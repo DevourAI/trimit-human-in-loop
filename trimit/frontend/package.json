@@ -1,11 +1,9 @@
 {
-  "name": "nextjs-fastapi",
+  "name": "trimit-ui",
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "fastapi-dev": "poetry run python -m uvicorn api.index:web_app --reload",
-    "next-dev": "next dev",
-    "dev": "concurrently \"npm run next-dev\" \"npm run fastapi-dev\"",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
