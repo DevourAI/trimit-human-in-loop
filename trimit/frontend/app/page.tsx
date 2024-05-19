@@ -8,7 +8,8 @@ async function getMessage() {
 
   const res = await fetch(`${baseUrl}/api/`);
   if (!res.ok) {
-    throw new Error(`Failed to fetch message: ${error}`);
+    let txt = await res.text();
+    throw new Error(`Failed to fetch message: ${res.status} text=${txt}`);
   }
   const resJson = await res.json();
   if (resJson && resJson.message) {
@@ -18,7 +19,12 @@ async function getMessage() {
 };
 
 export default async function Home() {
-  const message = await getMessage();
+  let message = "could not fetch or parse message";
+  try {
+    message = await getMessage();
+  } catch (e) {
+    console.error(e);
+  }
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
