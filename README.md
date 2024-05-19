@@ -15,3 +15,11 @@ To start the local server, run:
 ```sh
 make local_webapp
 ```
+
+## Deploy server to dev
+
+1. Do this the first time you deploy:
+    ```sh
+    poetry run modal token new
+    ```
+1. ```make deploy_dev```
