@@ -52,8 +52,8 @@ def public(request: Request):
     if user:
         name = user.get("name")
         email = user.get("email")
-        return {"user_name": name, "user_email": email}
-    return {}
+        return {"message": "logged in", "user_name": name, "user_email": email}
+    return {"message": "logged out"}
 
 
 @web_app.route("/api/logout")

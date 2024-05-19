@@ -6,14 +6,14 @@ export default async function Home() {
   const res = await fetch(`${baseUrl}/api/`);
 
   let initMsg = "could not fetch or parse message";
-  let res = {message: initMsg}
+  let resJson = {message: initMsg}
   try {
-    res = await res.json();
+    resJson = await res.json();
   } catch (error) {
     console.error(error);
   }
-  if (res && res.message) {
-    initMsg = res;
+  if (resJson && resJson.message) {
+    initMsg = resJson.message;
   }
 
   return (
