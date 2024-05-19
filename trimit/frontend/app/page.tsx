@@ -4,6 +4,7 @@ import Link from "next/link";
 export default async function Home() {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const res = await fetch(`${baseUrl}/api/`);
+
   let initMsg = {}
   try {
     initMsg = await res.json();
