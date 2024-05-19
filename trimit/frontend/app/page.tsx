@@ -7,6 +7,7 @@ async function getMessage() {
   let defaultMessage = "could not fetch or parse message";
 
   const url = `${baseUrl}/api/`;
+  console.log(`fetching message from ${url}`);
   const res = await fetch(url);
   if (!res.ok) {
     let txt = await res.text();
