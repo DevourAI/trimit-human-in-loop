@@ -3,6 +3,7 @@ import Link from "next/link";
 import { GetServerSideProps } from 'next';
 
 async function getMessage() {
+  // TODO make this client side or make sure that the server renders it each time
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   let defaultMessage = "could not fetch or parse message";
 

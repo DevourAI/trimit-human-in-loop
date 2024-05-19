@@ -52,6 +52,7 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 web_app = FastAPI()
 web_app.add_middleware(SessionMiddleware, secret_key=os.environ["AUTH_SECRET_KEY"])
 frontend_url = os.environ["VERCEL_FRONTEND_URL"]
+# TODO is this necessary?
 web_app.add_middleware(DynamicCORSMiddleware)
 #  allow_origins=[frontend_url],
 #  allow_credentials=True,
