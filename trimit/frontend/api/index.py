@@ -16,6 +16,9 @@ from fastapi import Depends
 from starlette.middleware.sessions import SessionMiddleware
 from modal import asgi_app
 import os
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+import re
 
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # one week
@@ -23,11 +26,38 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # one week
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 
+class DynamicCORSMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        origin = request.headers.get("origin")
+        # Regex to match allowed origins, e.g., any subdomain of trimit.vercel.app
+        if origin and re.match(r"https?://.*-trimit\.vercel\.app", origin):
+            response.headers["Access-Control-Allow-Origin"] = origin
+            response.headers["Access-Control-Allow-Credentials"] = "true"
+            response.headers["Access-Control-Allow-Methods"] = (
+                "GET, POST, PUT, DELETE, OPTIONS"
+            )
+            response.headers["Access-Control-Allow-Headers"] = (
+                "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range"
+            )
+            response.headers["Access-Control-Expose-Headers"] = (
+                "Content-Length,Content-Range"
+            )
+        return response
+
+
 TEMP_DIR = Path("/tmp/uploads")
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 web_app = FastAPI()
 web_app.add_middleware(SessionMiddleware, secret_key=os.environ["AUTH_SECRET_KEY"])
+frontend_url = os.environ["VERCEL_FRONTEND_URL"]
+web_app.add_middleware(DynamicCORSMiddleware)
+#  allow_origins=[frontend_url],
+#  allow_credentials=True,
+#  allow_methods=["*"],  # Allow all methods
+#  allow_headers=["*"],  # Allow all headers
+#  )
 
 
 app_kwargs = dict(
