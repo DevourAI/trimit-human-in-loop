@@ -38,8 +38,12 @@ setup-hooks:
 format:
 	@poetry run black .
 
-local_webapp:
-	@echo "Starting local webapp..."
+local_api:
+	@echo "Starting local api..."
+	@poetry run python -m uvicorn trimit.api.index:web_app --reload
+
+local_ui:
+	@echo "Starting local ui..."
 	@cd trimit/frontend && yarn dev
 
 step_ephemeral:

@@ -6,7 +6,8 @@ async function getMessage() {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   let defaultMessage = "could not fetch or parse message";
 
-  const res = await fetch(`${baseUrl}/api/`);
+  const url = `${baseUrl}/api/`;
+  const res = await fetch(url);
   if (!res.ok) {
     let txt = await res.text();
     throw new Error(`Failed to fetch message: ${res.status} text=${txt}`);

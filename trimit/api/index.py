@@ -78,6 +78,7 @@ def frontend_server():
 
 @web_app.get("/api/")
 def public(request: Request):
+    print("Received request")
     user = request.session.get("user")
     if user:
         name = user.get("name")
