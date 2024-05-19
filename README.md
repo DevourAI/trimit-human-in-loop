@@ -11,9 +11,14 @@
 
 ## Local frontend dev
 
-To start the local server, run:
+To start the local api, run:
 ```sh
-make local_webapp
+make local_api
+```
+
+And the local ui:
+```
+make local_ui
 ```
 
 ## Deploy server to dev
