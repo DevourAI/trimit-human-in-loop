@@ -36,7 +36,7 @@ format:
 
 local_webapp:
 	@echo "Starting local webapp..."
-	@poetry run python trimit/frontend/ui/local_app.py
+	@cd trimit/frontend && yarn dev
 
 step_ephemeral:
 	@echo "Running step function locally..."

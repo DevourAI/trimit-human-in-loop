@@ -29,8 +29,6 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 web_app = FastAPI()
 web_app.add_middleware(SessionMiddleware, secret_key=os.environ["AUTH_SECRET_KEY"])
 
-web_app = FastAPI()
-
 
 app_kwargs = dict(
     _allow_background_volume_commits=True,

@@ -3,11 +3,11 @@ from bson.dbref import DBRef
 import json
 import hashlib
 import os
-from storybook.utils.string import (
+from trimit.utils.string import (
     strip_punctuation_case_whitespace,
     longest_contiguous_match,
 )
-from storybook.utils.model_utils import (
+from trimit.utils.model_utils import (
     filename_from_md5_hash,
     get_upload_folder,
     get_scene_folder,
@@ -1652,7 +1652,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         return obj
 
     async def set_current_step_output_atomic(self, name, results):
-        from storybook.linear_workflow.utils import add_retry_suffix
+        from trimit.linear_workflow.utils import add_retry_suffix
 
         if name in self.dynamic_state:
             i = 1
@@ -1693,7 +1693,7 @@ class TimelineClip(BaseModel):
 
     @classmethod
     def scene_exists_in_db(cls, scene_simple_name):
-        from storybook.models import pymongo_conn
+        from trimit.models import pymongo_conn
 
         db = pymongo_conn()
         scene_collection = db["Scene"]

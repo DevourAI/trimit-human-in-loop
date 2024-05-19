@@ -4,7 +4,14 @@ import Link from "next/link";
 export default async function Home() {
   const baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL;
   const res = await fetch(`${baseUrl}/api/`);
-  const initMsg = await res.json();
+
+  let initMsg = {}
+  try {
+    initMsg = await res.json();
+  } catch (error) {
+    console.error(error);
+  }
+
   return (
     <main className="flex min-h-screen flex-col items-center justify-between p-24">
       <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
