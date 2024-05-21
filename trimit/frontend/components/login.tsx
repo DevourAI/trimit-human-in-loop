@@ -1,4 +1,5 @@
 "use client";
+import { jwtDecode } from "jwt-decode";
 import { cn } from "@/lib/utils"
 import useSWR from 'swr'
 import { Button, buttonVariants } from "@/components/ui/button"
@@ -26,7 +27,6 @@ const getProtectedEndpoint = (url: string, token: string) => {
     ([url, token]) => fetchWithToken(url, token),
   )
   if (!error && !isLoading) {
-    console.log(data);
     return data;
   } else {
     console.log(error, isLoading);
@@ -34,24 +34,27 @@ const getProtectedEndpoint = (url: string, token: string) => {
 }
 
 export default function Login() {
-  const { data, error, isLoading } = useSWR("/cookies", fetcher);
-  let initialToken = "";
-  if (data && data.token && data.token.value) {
-    initialToken = data.token.value;
+  const { data, error, isLoading } = useSWR("/userData", fetcher);
+  let emptyUserData = {'email': '', 'name': '', 'picture': ''};
+  let initialUserData = emptyUserData;
+  if (data && data.userData && data.userData.value) {
+    initialUserData = data.userData.value;
   }
-  const [token, setToken] = useState(initialToken)
+  const [userData, setUserData] = useState(initialUserData)
   const logout = () => {
     googleLogout();
-    setToken("");
+    setUserData(emptyUserData);
   }
-  let loggedIn = token ? true : false;
+  let loggedIn = userData.email ? true : false;
 
   return (
     <div>
         <GoogleOAuthProvider clientId={clientId}>
-            <Button onClick={() => getProtectedEndpoint("/getUserData")} className={cn(buttonVariants())}>
-              Get User Data
-            </Button>
+
+            { loggedIn?
+            <h1>Welcome {userData.given_name}</h1>
+            : null
+            }
 
             { loggedIn?
               <Button onClick={() => logout()} className={cn(buttonVariants())}>
@@ -60,13 +63,21 @@ export default function Login() {
             :
                 <GoogleLogin
                    onSuccess={credentialResponse => {
-                     setToken(credentialResponse.credential);
-                     fetch(`/login?token=${credentialResponse.credential}`).then((res) => {});
+                     const decoded = jwtDecode(credentialResponse.credential);
+                     setUserData(decoded);
+                     fetch(`/userData`, {
+                       body: JSON.stringify({userData: decoded}),
+                       method: 'POST',
+                       headers: {
+                         'Content-Type': 'application/json'
+                       }
+                     }).then((res) => {});
                    }}
                    onError={() => {
                      console.log('Login Failed');
                    }}
                    useOneTap
+                   auto_select
                  />
             }
         </GoogleOAuthProvider>

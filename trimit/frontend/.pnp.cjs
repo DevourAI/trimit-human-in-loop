@@ -41,6 +41,7 @@ const RAW_RUNTIME_STATE =
           ["concurrently", "npm:8.2.2"],\
           ["eslint", "npm:8.41.0"],\
           ["eslint-config-next", "virtual:56f7b6cd8f6f09e66528b92eabf683aa25e96b9c8fb9f4168ecaf3d11b799bd490b18eafac99e40d157a380f7ab600be3971c26d224838e002d70b1dba7ed543#npm:13.4.4"],\
+          ["jwt-decode", "npm:4.0.0"],\
           ["lucide-react", "virtual:56f7b6cd8f6f09e66528b92eabf683aa25e96b9c8fb9f4168ecaf3d11b799bd490b18eafac99e40d157a380f7ab600be3971c26d224838e002d70b1dba7ed543#npm:0.378.0"],\
           ["next", "virtual:56f7b6cd8f6f09e66528b92eabf683aa25e96b9c8fb9f4168ecaf3d11b799bd490b18eafac99e40d157a380f7ab600be3971c26d224838e002d70b1dba7ed543#npm:13.4.4"],\
           ["postcss", "npm:8.4.23"],\
@@ -3575,6 +3576,15 @@ const RAW_RUNTIME_STATE =
         "linkType": "HARD"\
       }]\
     ]],\
+    ["jwt-decode", [\
+      ["npm:4.0.0", {\
+        "packageLocation": "./.yarn/cache/jwt-decode-npm-4.0.0-4cd8e89909-87b569e4a9.zip/node_modules/jwt-decode/",\
+        "packageDependencies": [\
+          ["jwt-decode", "npm:4.0.0"]\
+        ],\
+        "linkType": "HARD"\
+      }]\
+    ]],\
     ["keyv", [\
       ["npm:4.5.4", {\
         "packageLocation": "./.yarn/cache/keyv-npm-4.5.4-4c8e2cf7f7-167eb6ef64.zip/node_modules/keyv/",\
@@ -5346,6 +5356,7 @@ const RAW_RUNTIME_STATE =
           ["concurrently", "npm:8.2.2"],\
           ["eslint", "npm:8.41.0"],\
           ["eslint-config-next", "virtual:56f7b6cd8f6f09e66528b92eabf683aa25e96b9c8fb9f4168ecaf3d11b799bd490b18eafac99e40d157a380f7ab600be3971c26d224838e002d70b1dba7ed543#npm:13.4.4"],\
+          ["jwt-decode", "npm:4.0.0"],\
           ["lucide-react", "virtual:56f7b6cd8f6f09e66528b92eabf683aa25e96b9c8fb9f4168ecaf3d11b799bd490b18eafac99e40d157a380f7ab600be3971c26d224838e002d70b1dba7ed543#npm:0.378.0"],\
           ["next", "virtual:56f7b6cd8f6f09e66528b92eabf683aa25e96b9c8fb9f4168ecaf3d11b799bd490b18eafac99e40d157a380f7ab600be3971c26d224838e002d70b1dba7ed543#npm:13.4.4"],\
           ["postcss", "npm:8.4.23"],\
