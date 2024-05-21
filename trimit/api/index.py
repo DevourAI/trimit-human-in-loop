@@ -1,24 +1,31 @@
+import os
+import re
+from pathlib import Path
+
+from authlib.integrations.starlette_client import OAuthError
+import authlib.jose.errors
+from passlib.context import CryptContext
+import aiofiles
+
+from modal import asgi_app
+from fastapi.responses import StreamingResponse
+from fastapi import Depends, status, HTTPException, FastAPI, Request
+from starlette.responses import RedirectResponse, JSONResponse
+from starlette.middleware.sessions import SessionMiddleware
+from fastapi.middleware.cors import CORSMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+
 from trimit.utils import conf
 from trimit.app import app
 from .image import image
-from fastapi import FastAPI
 from trimit.models import User, maybe_init_mongo
-from fastapi import Request
-from starlette.responses import RedirectResponse
-from authlib.integrations.starlette_client import OAuthError
-from trimit.utils.auth import google_oauth, get_current_user
-import aiofiles
-from pathlib import Path
-from fastapi.responses import StreamingResponse
-import authlib.jose.errors
-from passlib.context import CryptContext
-from fastapi import Depends
-from starlette.middleware.sessions import SessionMiddleware
-from modal import asgi_app
-import os
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
-import re
+from trimit.utils.auth import (
+    google_oauth,
+    get_current_user,
+    CREDENTIALS_EXCEPTION,
+    create_token,
+)
+import secrets
 
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # one week
@@ -31,7 +38,11 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         origin = request.headers.get("origin")
         # Regex to match allowed origins, e.g., any subdomain of trimit.vercel.app
-        if origin and re.match(r"https?://.*-trimit\.vercel\.app", origin):
+        local_origins = ["http://127.0.0.1:3000", "http://localhost:3000"]
+        allow_local = origin and origin in local_origins and os.environ["ENV"] == "dev"
+        allow_remote = origin and re.match(r"https?://.*-trimit\.vercel\.app", origin)
+        origin = origin or ""
+        if allow_local or allow_remote:
             response.headers["Access-Control-Allow-Origin"] = origin
             response.headers["Access-Control-Allow-Credentials"] = "true"
             response.headers["Access-Control-Allow-Methods"] = (
@@ -51,7 +62,7 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 web_app = FastAPI()
 web_app.add_middleware(SessionMiddleware, secret_key=os.environ["AUTH_SECRET_KEY"])
-frontend_url = os.environ["VERCEL_FRONTEND_URL"]
+FRONTEND_URL = os.environ["VERCEL_FRONTEND_URL"]
 # TODO is this necessary?
 web_app.add_middleware(DynamicCORSMiddleware)
 #  allow_origins=[frontend_url],
@@ -69,6 +80,7 @@ app_kwargs = dict(
     _experimental_boost=True,
     _experimental_scheduler=True,
 )
+oauth = google_oauth()
 
 
 @app.function(**app_kwargs)
@@ -77,7 +89,7 @@ def frontend_server():
     return web_app
 
 
-@web_app.get("/api/")
+@web_app.get("/")
 def public(request: Request):
     print("Received request")
     user = request.session.get("user")
@@ -88,26 +100,43 @@ def public(request: Request):
     return {"message": "logged out"}
 
 
-@web_app.route("/api/logout")
+@web_app.get("/logout")
 async def logout(request: Request):
     request.session.pop("user", None)
     return RedirectResponse(url="/")
 
 
-@web_app.get("/api/login/google")
+@web_app.get("/login/google")
 async def login_with_google(request: Request):
-    redirect_uri = request.url_for("authorize_with_google")
-    return await google_oauth().google.authorize_redirect(request, redirect_uri)
+    redirect_uri = FRONTEND_URL
+    # redirect_uri = request.url_for("authorize_with_google")
+
+    state = secrets.token_urlsafe()
+    request.session["oauth_state"] = state
+    print("session in login", request.session)
+    print("state in login", state)
+    return await oauth.google.authorize_redirect(request, redirect_uri, state=state)
 
 
-@web_app.route("/api/auth/google")
+@web_app.get("/token")
 async def authorize_with_google(request: Request):
     await maybe_init_mongo()
+    expected_state = request.session.get("oauth_state")
+    received_state = request.query_params.get("state")
+
+    # Log both states
+    print(f"Expected state from session: {expected_state}")
+    print(f"Received state from Google: {received_state}")
+    print("Cookie from client:", request.cookies.get("session"))
+
+    print("session in authorize", request.session)
     try:
-        access_token = await google_oauth().google.authorize_access_token(request)
-    except OAuthError:
-        print("Error in authorize with google", e)
-        return RedirectResponse(url="/")
+        access_token = await oauth.google.authorize_access_token(request)
+    except OAuthError as e:
+        print(f"Error authorizing access token: {e}")
+        raise CREDENTIALS_EXCEPTION
+    print("GOTG HERE")
+
     user_data = await oauth.google.parse_id_token(request, access_token)
     request.session["user"] = dict(user_data)
 
@@ -118,10 +147,24 @@ async def authorize_with_google(request: Request):
     else:
         user = User(name=user_data["name"], email=email, authorized_with_google=True)
     await user.save()
-    return RedirectResponse(url="/")
+    jwt = create_token(user.email)
+    return JSONResponse(
+        {
+            "result": True,
+            "access_token": jwt,
+            "user_name": user_data["name"],
+            "user_email": user_data["email"],
+        }
+    )
 
 
-@web_app.post("/api/delete_account")
+@web_app.get("/get_user_data")
+async def get_user_data(current_user: User = Depends(get_current_user)):
+    await maybe_init_mongo()
+    return {"user_name": current_user.name, "user_email": current_user.email}
+
+
+@web_app.post("/delete_account")
 async def delete_account(current_user: User = Depends(get_current_user)):
     await maybe_init_mongo()
     await current_user.delete()

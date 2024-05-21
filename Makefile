@@ -40,7 +40,7 @@ format:
 
 local_api:
 	@echo "Starting local api..."
-	@poetry run python -m uvicorn trimit.api.index:web_app --reload
+	@ENV=dev VERCEL_FRONTEND_URL="http://127.0.0.1:3000" poetry run python -m uvicorn trimit.api.index:web_app --reload
 
 local_ui:
 	@echo "Starting local ui..."

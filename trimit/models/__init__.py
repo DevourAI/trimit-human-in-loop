@@ -1,5 +1,6 @@
 from .models import *
 from .models import ALL_MODELS
+from modal import is_local
 from beanie import init_beanie
 from beanie.odm.utils.init import Initializer
 import os
@@ -30,6 +31,8 @@ async def maybe_init_mongo(
     if MONGO_INITIALIZED[0]:
         return
     if not cert_path:
+        if is_local():
+            os.environ["MONGO_CERT_FILEPATH"] = os.environ["MONGO_CERT_FILENAME"]
         cert_path = os.environ["MONGO_CERT_FILEPATH"] or None
     from motor.motor_asyncio import AsyncIOMotorClient
 
