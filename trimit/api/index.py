@@ -138,12 +138,14 @@ def step_endpoint(
     }
     from trimit.backend.serve import step as step_function
 
+    print(f"Starting step with params: {step_params}")
     if streaming:
 
         async def streamer():
+            yield json.dumps({"message": "Starting stream..."})
             async for partial_result in step_function.remote_gen.aio(**step_params):
                 if isinstance(partial_result, str):
-                    yield partial_result
+                    yield json.dumps({"message": partial_result})
                 elif isinstance(partial_result, BaseModel):
                     yield partial_result.model_dump_json()
                 else:

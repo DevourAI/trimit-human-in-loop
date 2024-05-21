@@ -1652,7 +1652,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         return obj
 
     async def set_current_step_output_atomic(self, name, results):
-        from trimit.linear_workflow.utils import add_retry_suffix
+        from trimit.backend.utils import add_retry_suffix
 
         if name in self.dynamic_state:
             i = 1

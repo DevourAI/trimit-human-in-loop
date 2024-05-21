@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button"
 import useSWR from 'swr'
 import axios from 'axios';
 import React, { createContext, useContext, useState } from 'react';
-import { StepperForm } from "@/components/stepper-form"
+import { StepperForm, FormSchema } from "@/components/stepper-form"
+import { createChunkDecoder, createJsonChunkDecoder } from "@/lib/streams";
 
 
 
@@ -22,7 +23,8 @@ const fetcherWithParams = async (url, params) => {
     console.log('fetcherwithparams data', res.data);
     return res.data;
   } catch (error) {
-    throw error
+    console.error('fetcherwithparams error', error);
+    return { error }
   }
 }
 
@@ -82,7 +84,10 @@ interface UserState {
 export default function MainStepper({ userData }) {
   //const [latestState, setLatestState] = useState<UserState>({});
   //setLatestState(initialState);
-  const latestState = getLatestState(userData.email, 'timelineName', 60, '3985222955')
+  const videoHash = '3985222955'
+  const timelineName = 'timelineName'
+  const lengthSeconds = 60
+  const latestState = getLatestState(userData.email, timelineName, lengthSeconds, videoHash)
   console.log('latestState', latestState);
   let steps = [
     { name: "Upload video" },
@@ -96,16 +101,81 @@ export default function MainStepper({ userData }) {
     })
   }
 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    })
+  const [activePrompt, setActivePrompt] = useState<string>('')
+  const [finalResult, setFinalResult] = useState({})
+
+  async function onSubmit(stepIndex: number, data: z.infer<typeof FormSchema>) {
+    const params = {
+      user_email: userData.email,
+      timeline_name: timelineName,
+      length_seconds: lengthSeconds,
+      video_hash: videoHash,
+      user_input: data.feedback,
+      streaming: true,
+      force_restart: true,
+      ignore_running_workflows: true,
+    }
+    const url = new URL(`${API_URL}/step`)
+    const decode = createJsonChunkDecoder();
+    Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+    try {
+      const res = await fetch(
+        url.toString(),
+        {
+          method: "GET",
+        }
+      ).catch((err) => {
+        throw err;
+      });
+      if (!res.ok) {
+          throw new Error((await res.text()) || "Failed to fetch the chat response.");
+      }
+
+      if (!res.body) {
+          throw new Error("The response body is empty.");
+      }
+      const reader = res.body.getReader();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) {
+            break;
+        }
+        const valueDecoded = decode(value);
+        if (valueDecoded && valueDecoded.message) {
+          setActivePrompt(activePrompt + valueDecoded.message)
+        } else if (valueDecoded && valueDecoded.is_last) {
+          setFinalResult(valueDecoded)
+        }
+      }
+    } catch (err: unknown) {
+      console.error(err);
+    }
+
+
+
+    // const eventSource = new EventSource(url);
+    // console.log("eventSource", eventSource);
+    // eventSource.onmessage = function(event) {
+        // console.log('New data:', event.data);
+        // setActivePrompt(activePrompt + event.data)
+    // };
+    // eventSource.onerror = function(error) {
+        // console.log('EventSource failed:', error);
+        // eventSource.close();
+    // };
   }
+  const {
+    nextStep,
+    prevStep,
+    resetSteps,
+    isDisabledStep,
+    hasCompletedAllSteps,
+    isLastStep,
+    isOptionalStep,
+    activeStep
+  } = useStepper()
+  console.log("activeStep", activeStep);
+  console.log("activePrompt", activePrompt);
 
   return (
     <div className="flex w-full flex-col gap-4">
@@ -114,7 +184,8 @@ export default function MainStepper({ userData }) {
           return (
             <Step key={name} label={name}>
               <div className="grid w-full gap-2">
-                <StepperForm userData={userData} step={steps[index]} />
+                <p>{index == activeStep ? activePrompt: ''}</p>
+                <StepperForm stepIndex={index} onSubmit={onSubmit} userData={userData} step={steps[index]} />
               </div>
             </Step>
           )

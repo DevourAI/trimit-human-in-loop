@@ -28,13 +28,13 @@ const FormSchema = z.object({
   //}),
 })
 
-export function StepperForm({ userData, step }) {
+export function StepperForm({ stepIndex, userData, step, onSubmit }) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   })
 
-  function onSubmit(data: z.infer<typeof FormSchema>) {
-    console.log(Data);
+  function innerOnSubmit(data: z.infer<typeof FormSchema>) {
+    onSubmit(stepIndex, data)
     toast({
       title: "You submitted the following values:",
       description: (
@@ -47,10 +47,10 @@ export function StepperForm({ userData, step }) {
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="w-2/3 space-y-6">
+      <form onSubmit={form.handleSubmit(innerOnSubmit)} className="w-2/3 space-y-6">
         <FormField
           control={form.control}
-          name={step.name}
+          name="feedback"
           render={({ field }) => (
             <FormItem>
               <FormLabel>{step.name}</FormLabel>

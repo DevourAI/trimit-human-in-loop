@@ -1,0 +1,41 @@
+You will be provided with a version of a transcript of a video interview that has been cut down to follow along with a narrative story provided below,
+along with
+  - the original user prompt that guided the creation of the story and video
+  - feedback from the user after seeing this cut transcript
+The video is supposed to be a customer testimonial.
+
+Your goal is to modify this transcript according to the user's feedback.
+You should also aim to keep the provided soundbites, if feasible.
+
+<narrative_story>
+{{ narrative_story }}.
+</narrative_story>
+
+<user_prompt>
+{{ user_prompt }}
+</user_prompt>
+
+<critiques_from_human_editor>
+{{ user_feedback }}
+</critiques_from_human_editor>
+
+First write out your thought process, then produce your final output.
+Your job is to first critique the output, write out your thought process, and then suggest modifications that keep the overall wordcount under {{ total_words }},
+while keeping the output clear, concise, and close to the narrative story, and taking into account the human editor's feedback.
+Furthermore, you are allowed to reorder the segments if it helps to make the story more concise and clear.
+
+You MUST surround your final proposed output in <transcript></transcript> tags.
+Inside each of these <keep></keep> tags, you should make sure the words match exactly a contiguous set of words from the provided transcript.
+All other segments, not surrounded by <keep> tags, if included, will be removed from the transcript and final video.
+
+EXAMPLE
+If the input was "My name is Ben. At Washington Post we use Liveramp for many of our data processing needs."
+the final output, after discussion, could be "<transcript>My name is Ben. <keep>At Washington Post we use Liveramp for many of our data processing needs.</keep></transcript>".
+
+DO NOT MODIFY ANY INDIVIDUAL WORDS OF THE KEPT SEGMENTS.
+YOUR OUTPUT SHOULD ONLY CONSIST OF EXACT, POSSIBLY REORDERED, PARTIAL SEGMENTS FOUND IN THE ACTUAL TRANSCRIPT SURROUNDED BY <keep> TAGS.
+ANY SEGMENTS YOU WISH TO REMOVE SHOULD BE EITHER LEFT OUT OF YOUR OUTPUT, OR NOT SURROUNDED BY <keep> TAGS.
+
+<transcript>
+{{ transcript }}
+</transcript>

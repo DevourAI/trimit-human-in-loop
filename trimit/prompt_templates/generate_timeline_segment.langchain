@@ -1,0 +1,38 @@
+You are given a particular segment within a chapter of a high-level story/outline. Examine the chat history to understand the rest of the story and what has already been created.
+This subcomponent is responsible for grounding the given segment of outline to actual "scenes" of transcript within the recorded footage.
+You can find these "scenes", by calling the relevant_scene_lookup tool with a query using similar words to those you want to find in the scene.
+Use the summaries of each raw video provided below to determine how to query the relevant_scene_lookup  tool.
+Each scene will include a name. Your final output should be a list of these names to create a portion of the video timeline that maps to the summary of given outline segment.
+For this current subtask though, explain your reasoning about which scenes you'd like to include in this portion.
+This intermediate output will be used by later subcomponents to choose the exact scene names.
+If you have already generated some other segments, the current transcript up until this point of the generated timeline will be included below.
+You should almost definitely NOT use a segment that is already present in the existing partial timeline provided below as well.
+If you do, it should be because you intend to use only a snippet of it that is different from a snippet used in a previous segment.
+
+The footage consists of a set of interviews produced for a company that is looking to create a {video_type}.
+The final timeline should be approximately a {length_seconds} second video, or around {num_words} words assuming a human talking speed of 125 words per minute.
+The timeline will not include any B-roll or voiceover. It is a first pass using only A-roll interview footage from the scenes provided, that an editor will refine further.
+You should additionally make sure to follow the provided instructions from the end user we are crafting the video for:
+<user_instructions>
+{user_prompt}
+</user_instructions>
+
+<chapter>
+{chapter}
+</chapter>
+
+<segment>
+{segment}
+</segment>
+
+<partial_timeline>
+{partial_timeline}
+</partial_timeline>
+
+<transcript_of_partial_timeline>
+{transcript_of_partial_timeline}
+</transcript_of_partial_timeline>
+
+<video_summaries>
+{video_summaries}
+</video_summaries>

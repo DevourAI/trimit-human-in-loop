@@ -1,0 +1,44 @@
+{%- if is_retry %}
+{%- set prev_excess = transcript_nwords - prev_desired_words -%}
+{%- set excess = transcript_nwords - desired_words -%}
+{%- set new_round = desired_words != prev_desired_words -%}
+<extra_note>
+You already went through the entire transcript for one or more earlier rounds,
+and produced a finished cut output that was {{ transcript_nwords }} words
+
+{%- if new_round -%}
+
+{%- if prev_excess > 0 -%}
+, which was previously too long by {{ excess }} words.
+{%- else -%}
+, which was under the previous desired word count of {{ prev_desired_words }} words.
+{%- endif -%}
+However, we now want to cut the transcript down to {{ desired_words }} words.
+
+{%- else -%}
+{%- if excess > 0 -%}
+, which is too long by {{ excess }} words.
+{%- else -%}
+, which is under the previous desired word count of {{ prev_desired_words }} words.
+{%- endif -%}
+
+{%- endif -%}
+
+
+
+{%- if excess > 0 -%}
+With the help of the human, you need to cut more out this time to get to the desired length of {{ desired_words }} words.
+Use the following mantra to help you achieve your goal: IF IN DOUBT, THROW IT OUT.
+{%- else -%}
+The current full transcript is under the desired length, but the human editor was not happy with the result.
+With the help of the human, you need to redo your cut taking into account the new feedback.
+{%- endif -%}
+
+{%- if user_feedback -%}
+<critiques_from_human_editor>
+{{ user_feedback }}
+</critiques_from_human_editor>
+{%- endif -%}
+
+</extra_note>
+{%- endif -%}
