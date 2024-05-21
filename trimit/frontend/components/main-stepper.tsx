@@ -9,6 +9,10 @@ import { Button } from "@/components/ui/button"
 import useSWR from 'swr'
 import axios from 'axios';
 import React, { createContext, useContext, useState } from 'react';
+import { StepperForm } from "@/components/stepper-form"
+
+
+
 
 const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 
@@ -60,7 +64,7 @@ interface StepInput {
     step_name?: str | null
 
 }
-interface StepInfo {
+interface StepInfo extends StepItem {
   name: string
   user_feedback?: string
   chunked_feedback?: string
@@ -81,24 +85,36 @@ export default function MainStepper({ userData }) {
   const latestState = getLatestState(userData.email, 'timelineName', 60, '3985222955')
   console.log('latestState', latestState);
   let steps = [
-    { label: "Upload video" },
-    { label: "..." },
-    { label: "Profit!" },
-  ] satisfies StepItem[]
+    { name: "Upload video" },
+    { name: "..." },
+    { name: "Profit!" },
+  ] satisfies StepInfo[]
 
   if (latestState && latestState.all_steps) {
     steps = latestState.all_steps.map((step) => {
-      return { label: step.name, userFeedback: step.user_feedback, chunkedFeedback: step.chunked_feedback }
+      return { label: step.name, ...step }
     })
   }
+
+  function onSubmit(data: z.infer<typeof FormSchema>) {
+    toast({
+      title: "You submitted the following values:",
+      description: (
+        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
+          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
+        </pre>
+      ),
+    })
+  }
+
   return (
     <div className="flex w-full flex-col gap-4">
       <Stepper initialStep={0} steps={steps}>
-        {steps.map(({ label }, index) => {
+        {steps.map(({ name, input }, index) => {
           return (
-            <Step key={label} label={label}>
-              <div className="h-40 flex items-center justify-center my-4 border bg-secondary text-primary rounded-md">
-                <h1 className="text-xl">Step {index + 1}</h1>
+            <Step key={name} label={name}>
+              <div className="grid w-full gap-2">
+                <StepperForm userData={userData} step={steps[index]} />
               </div>
             </Step>
           )
