@@ -1,6 +1,3 @@
-import requests
-import json
-from pydantic import BaseModel
 from trimit.app import app, VOLUME_DIR
 from trimit.models import maybe_init_mongo
 from trimit.backend.conf import (
@@ -8,12 +5,9 @@ from trimit.backend.conf import (
     WORKFLOWS_DICT_NAME,
     RUNNING_WORKFLOWS_DICT_NAME,
 )
-import os
 from .image import image
 from modal import Dict, asgi_app
-import time
 import asyncio
-import fastapi
 from fastapi.responses import StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -111,71 +105,6 @@ async def step(
         )
     except StopAsyncIteration:
         return
-
-
-frontend_url = os.environ["MODAL_FRONTEND_BASE_URL"]
-web_app = fastapi.FastAPI()
-web_app.add_middleware(
-    CORSMiddleware,
-    allow_origins=[frontend_url, "http://127.0.0.1:5000"],
-    allow_credentials=True,
-    allow_methods=["*"],  # Allow all methods
-    allow_headers=["*"],  # Allow all headers
-)
-
-
-@app.function(**app_kwargs)
-@asgi_app()
-def backend_server():
-    return web_app
-
-
-@web_app.get("/get_step_outputs")
-async def get_step_outputs(
-    user_email: str,
-    timeline_name: str,
-    video_hash: str,
-    length_seconds: int,
-    step_keys: list[str],
-):
-    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
-
-    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
-        video_hash=video_hash,
-        timeline_name=timeline_name,
-        user_email=user_email,
-        length_seconds=length_seconds,
-        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        volume_dir=VOLUME_DIR,
-        new_state=False,
-    )
-
-    workflow = workflows.get(workflow.id, None)
-    if not workflow:
-        return {"error": "Workflow not found"}
-    return await workflow.get_output_for_keys(step_keys)
-
-
-@web_app.get("/get_all_outputs")
-async def get_all_outputs(
-    user_email: str, timeline_name: str, video_hash: str, length_seconds: int
-):
-    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
-
-    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
-        video_hash=video_hash,
-        timeline_name=timeline_name,
-        user_email=user_email,
-        length_seconds=length_seconds,
-        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        volume_dir=VOLUME_DIR,
-        new_state=False,
-    )
-
-    workflow = workflows.get(workflow.id, None)
-    if not workflow:
-        return {"error": "Workflow not found"}
-    return await workflow.get_all_outputs()
 
 
 @app.local_entrypoint()

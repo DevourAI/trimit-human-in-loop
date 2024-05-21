@@ -39,8 +39,6 @@ image = (
         "torch>=2.3.0,<3.0.0",
         "diskcache>=5.6.3,<6.0.0",
         "pymongo[srv]>=4.7.2,<5.0.0",
-        # "Starlette>=0.36.3,<0.37.0",
-        # "fastapi==0.109.2",
     )
     .copy_local_file(LOCAL_CERT_PATH, CERT_PATH)
     .env(EXTRA_ENV)

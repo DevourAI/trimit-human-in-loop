@@ -1,6 +1,6 @@
-import Image from "next/image";
-import Link from "next/link";
-import { GetServerSideProps } from 'next';
+"use client";
+import useSWR from 'swr'
+import React, { createContext, useContext, useState } from 'react';
 import MainNav from "@/components/main-nav"
 import {
   PageActions,
@@ -10,24 +10,31 @@ import {
 } from "@/components/page-header"
 import { cn } from "@/lib/utils"
 import MainStepper from "@/components/main-stepper"
-import { useSearchParams } from 'next/navigation';
 import Login from '@/components/login';
 
+const fetcher = (url) => fetch(url).then((res) => res.json());
+
 export default function Home() {
+  const { data, error, isLoading } = useSWR("/userData", fetcher);
+  let initialUserData = {'email': '', 'name': '', 'picture': ''};
+  if (data && data.userData && data.userData.value) {
+    initialUserData = data.userData.value;
+  }
+  const [userData, setUserData] = useState(initialUserData)
+
   return (
       <div className="container relative">
         <MainNav />
         <PageHeader>
-          <PageHeaderHeading>Build your component library</PageHeaderHeading>
+          <PageHeaderHeading>TrimIt Interview Builder</PageHeaderHeading>
           <PageHeaderDescription>
-            Beautifully designed components that you can copy and paste into your
-            apps. Accessible. Customizable. Open Source.
+            Raw interview footage to edited video, no timeline required.
           </PageHeaderDescription>
           <PageActions>
-            <Login />
+            <Login userData={userData} setUserData={setUserData}/>
           </PageActions>
         </PageHeader>
-        <MainStepper />
+        <MainStepper userData={userData}/>
       </div>
   )
 }

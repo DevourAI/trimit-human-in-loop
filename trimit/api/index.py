@@ -1,36 +1,26 @@
 import os
 import re
+import asyncio
+import json
+from pydantic import BaseModel
 from pathlib import Path
 
-from authlib.integrations.starlette_client import OAuthError
-import authlib.jose.errors
-from passlib.context import CryptContext
 import aiofiles
 
 from modal import asgi_app
 from fastapi.responses import StreamingResponse
-from fastapi import Depends, status, HTTPException, FastAPI, Request
-from starlette.responses import RedirectResponse, JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
-from fastapi.middleware.cors import CORSMiddleware
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from trimit.utils import conf
-from trimit.app import app
+from trimit.api.utils import load_or_create_workflow, workflows
+from trimit.app import app, VOLUME_DIR
 from .image import image
-from trimit.models import User, maybe_init_mongo
-from trimit.utils.auth import (
-    google_oauth,
-    get_current_user,
-    CREDENTIALS_EXCEPTION,
-    create_token,
-)
-import secrets
+from trimit.backend.conf import LINEAR_WORKFLOW_OUTPUT_FOLDER
+from fastapi import FastAPI, Request
+from starlette.middleware.base import BaseHTTPMiddleware
 
-
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # one week
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+TEMP_DIR = Path("/tmp/uploads")
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
@@ -57,19 +47,9 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
         return response
 
 
-TEMP_DIR = Path("/tmp/uploads")
-TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
 web_app = FastAPI()
 web_app.add_middleware(SessionMiddleware, secret_key=os.environ["AUTH_SECRET_KEY"])
-FRONTEND_URL = os.environ["VERCEL_FRONTEND_URL"]
-# TODO is this necessary?
 web_app.add_middleware(DynamicCORSMiddleware)
-#  allow_origins=[frontend_url],
-#  allow_credentials=True,
-#  allow_methods=["*"],  # Allow all methods
-#  allow_headers=["*"],  # Allow all headers
-#  )
 
 
 app_kwargs = dict(
@@ -80,7 +60,6 @@ app_kwargs = dict(
     _experimental_boost=True,
     _experimental_scheduler=True,
 )
-oauth = google_oauth()
 
 
 @app.function(**app_kwargs)
@@ -89,82 +68,250 @@ def frontend_server():
     return web_app
 
 
-@web_app.get("/")
-def public(request: Request):
-    print("Received request")
-    user = request.session.get("user")
-    if user:
-        name = user.get("name")
-        email = user.get("email")
-        return {"message": "logged in", "user_name": name, "user_email": email}
-    return {"message": "logged out"}
+@web_app.get("/get_step_outputs")
+async def get_step_outputs(
+    user_email: str,
+    timeline_name: str,
+    video_hash: str,
+    length_seconds: int,
+    step_keys: list[str],
+):
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
+
+    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
+        video_hash=video_hash,
+        timeline_name=timeline_name,
+        user_email=user_email,
+        length_seconds=length_seconds,
+        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
+        volume_dir=VOLUME_DIR,
+        new_state=False,
+    )
+
+    workflow = workflows.get(workflow.id, None)
+    if not workflow:
+        return {"error": "Workflow not found"}
+    return await workflow.get_output_for_keys(step_keys)
 
 
-@web_app.get("/logout")
-async def logout(request: Request):
-    request.session.pop("user", None)
-    return RedirectResponse(url="/")
+@web_app.get("/get_all_outputs")
+async def get_all_outputs(
+    user_email: str, timeline_name: str, video_hash: str, length_seconds: int
+):
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
+
+    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
+        video_hash=video_hash,
+        timeline_name=timeline_name,
+        user_email=user_email,
+        length_seconds=length_seconds,
+        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
+        volume_dir=VOLUME_DIR,
+        new_state=False,
+    )
+
+    workflow = workflows.get(workflow.id, None)
+    if not workflow:
+        return {"error": "Workflow not found"}
+    return await workflow.get_all_outputs()
 
 
-@web_app.get("/login/google")
-async def login_with_google(request: Request):
-    redirect_uri = FRONTEND_URL
-    # redirect_uri = request.url_for("authorize_with_google")
+@web_app.get("/step")
+def step_endpoint(
+    user_email: str,
+    timeline_name: str,
+    video_hash: str,
+    length_seconds: int,
+    user_input: str | None = None,
+    streaming: bool = False,
+    force_restart: bool = False,
+    ignore_running_workflows: bool = False,
+):
+    step_params = {
+        "user_email": user_email,
+        "timeline_name": timeline_name,
+        "video_hash": video_hash,
+        "length_seconds": length_seconds,
+        "user_input": user_input,
+        "force_restart": force_restart,
+        "ignore_running_workflows": ignore_running_workflows,
+    }
+    from trimit.backend.serve import step as step_function
 
-    state = secrets.token_urlsafe()
-    request.session["oauth_state"] = state
-    print("session in login", request.session)
-    print("state in login", state)
-    return await oauth.google.authorize_redirect(request, redirect_uri, state=state)
+    if streaming:
 
+        async def streamer():
+            async for partial_result in step_function.remote_gen.aio(**step_params):
+                if isinstance(partial_result, str):
+                    yield partial_result
+                elif isinstance(partial_result, BaseModel):
+                    yield partial_result.model_dump_json()
+                else:
+                    yield json.dumps(partial_result)
+                await asyncio.sleep(0)
 
-@web_app.get("/token")
-async def authorize_with_google(request: Request):
-    await maybe_init_mongo()
-    expected_state = request.session.get("oauth_state")
-    received_state = request.query_params.get("state")
+        return StreamingResponse(streamer(), media_type="text/event-stream")
 
-    # Log both states
-    print(f"Expected state from session: {expected_state}")
-    print(f"Received state from Google: {received_state}")
-    print("Cookie from client:", request.cookies.get("session"))
-
-    print("session in authorize", request.session)
-    try:
-        access_token = await oauth.google.authorize_access_token(request)
-    except OAuthError as e:
-        print(f"Error authorizing access token: {e}")
-        raise CREDENTIALS_EXCEPTION
-    print("GOTG HERE")
-
-    user_data = await oauth.google.parse_id_token(request, access_token)
-    request.session["user"] = dict(user_data)
-
-    email = user_data["email"]
-    user = await User.find_one(User.email == email)
-    if user is not None:
-        user.authorized_with_google = True
     else:
-        user = User(name=user_data["name"], email=email, authorized_with_google=True)
-    await user.save()
-    jwt = create_token(user.email)
-    return JSONResponse(
-        {
-            "result": True,
-            "access_token": jwt,
-            "user_name": user_data["name"],
-            "user_email": user_data["email"],
-        }
+        step_function.spawn(**step_params)
+
+
+@web_app.get("/get_latest_state")
+async def get_latest_state(
+    timeline_name: str,
+    length_seconds: int,
+    user_email: str | None = None,
+    video_hash: str | None = None,
+    user_id: str | None = None,
+    video_id: str | None = None,
+    with_output: bool = False,
+    wait_until_done_running: bool = False,
+    block_until: bool = False,
+    timeout: float = 5,
+    wait_interval: float = 0.1,
+):
+    try:
+        workflow = await load_or_create_workflow(
+            timeline_name=timeline_name,
+            length_seconds=length_seconds,
+            user_email=user_email,
+            video_hash=video_hash,
+            user_id=user_id,
+            video_id=video_id,
+            with_output=with_output,
+            wait_until_done_running=wait_until_done_running,
+            block_until=block_until,
+            timeout=timeout,
+            wait_interval=wait_interval,
+        )
+    except Exception as e:
+        return {"error": str(e)}
+    last_step_obj = await workflow.get_last_step(with_load_state=False)
+    last_step_dict = last_step_obj.to_dict() if last_step_obj else None
+    next_step_obj = await workflow.get_next_step(with_load_state=False)
+    next_step_dict = next_step_obj.to_dict() if next_step_obj else None
+
+    return_dict = {
+        "last_step": last_step_dict,
+        "next_step": next_step_dict,
+        "all_steps": workflow.serializable_steps,
+        "video_id": str(workflow.video.id),
+        "user_id": str(workflow.user.id),
+    }
+    if with_output:
+        return_dict["output"] = await workflow.get_last_output(with_load_state=False)
+    return return_dict
+
+
+@web_app.get("/download_timeline")
+async def download_timeline(
+    timeline_name: str,
+    length_seconds: int,
+    user_email: str | None = None,
+    video_hash: str | None = None,
+    user_id: str | None = None,
+    video_id: str | None = None,
+    wait_until_done_running: bool = False,
+    block_until: bool = False,
+    timeout: float = 5,
+    wait_interval: float = 0.1,
+):
+    try:
+        workflow = await load_or_create_workflow(
+            timeline_name=timeline_name,
+            length_seconds=length_seconds,
+            user_email=user_email,
+            video_hash=video_hash,
+            user_id=user_id,
+            video_id=video_id,
+            with_output=True,
+            wait_until_done_running=wait_until_done_running,
+            block_until=block_until,
+            timeout=timeout,
+            wait_interval=wait_interval,
+        )
+    except Exception as e:
+        return {"error": str(e)}
+
+    most_recent_file = workflow.most_recent_timeline_path
+    if most_recent_file is None:
+        return {"error": "No timeline found"}
+
+    headers = {
+        "Content-Disposition": f"attachment; filename={os.path.basename(most_recent_file)}"
+    }
+    return StreamingResponse(
+        await aiofiles.open(most_recent_file, mode="rb"),
+        media_type="application/xml",
+        headers=headers,
     )
 
 
-@web_app.get("/get_user_data")
-async def get_user_data(current_user: User = Depends(get_current_user)):
-    await maybe_init_mongo()
-    return {"user_name": current_user.name, "user_email": current_user.email}
+@web_app.get("/video")
+async def stream_video(
+    request: Request,
+    timeline_name: str,
+    length_seconds: int,
+    user_email: str | None = None,
+    video_hash: str | None = None,
+    user_id: str | None = None,
+    video_id: str | None = None,
+    wait_until_done_running: bool = False,
+    block_until: bool = False,
+    timeout: float = 5,
+    wait_interval: float = 0.1,
+):
+    try:
+        workflow = await load_or_create_workflow(
+            timeline_name=timeline_name,
+            length_seconds=length_seconds,
+            user_email=user_email,
+            video_hash=video_hash,
+            user_id=user_id,
+            video_id=video_id,
+            with_output=True,
+            wait_until_done_running=wait_until_done_running,
+            block_until=block_until,
+            timeout=timeout,
+            wait_interval=wait_interval,
+        )
+    except Exception as e:
+        return {"error": str(e)}
 
+    video_path = workflow.most_recent_video_path
+    if video_path is None:
+        return {"error": "No video found"}
+    extension = os.path.splitext(video_path)[1]
+    media_type = f"video/{extension[1:]}"
 
-@web_app.post("/delete_account")
-async def delete_account(current_user: User = Depends(get_current_user)):
-    await maybe_init_mongo()
-    await current_user.delete()
+    def iterfile():
+        print("iterfile")
+        with open(video_path, mode="rb") as file_like:  # open the file in binary mode
+            print("opened")
+            yield from file_like  # yield the binary data
+
+    range_header = request.headers.get("range", None)
+    file_size = os.path.getsize(video_path)
+    print(f"range header: {range_header}")
+    if not range_header:
+        return StreamingResponse(iterfile(), media_type=media_type)
+
+    start, end = range_header.replace("bytes=", "").split("-")
+    start = int(start)
+    end = int(end) if end else file_size - 1
+
+    headers = {
+        "Content-Range": f"bytes {start}-{end}/{file_size}",
+        "Accept-Ranges": "bytes",
+        "Content-Length": str(end - start + 1),
+        "Content-Type": "video/mp4",
+    }
+
+    def video_stream():
+        with open(video_path, "rb") as video:
+            print(f"seeking to {start}")
+            video.seek(start)
+            while chunk := video.read(8192):
+                yield chunk
+
+    return StreamingResponse(video_stream(), status_code=206, headers=headers)

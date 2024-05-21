@@ -10,9 +10,9 @@ import asyncio
 from tqdm.asyncio import tqdm as tqdm_async
 from trimit.backend.models import Transcript, TranscriptChunk
 from trimit.backend.image import image
+from trimit.backend.memory import load_memory
 from trimit.utils.prompt_engineering import load_prompt_template_as_string
 from trimit.utils.rate_limit import rate_limited
-from trimit.agent_workflow.memory import load_memory
 from trimit.app import app, AGENT_OUTPUT_CACHE_DIR, LOCAL_AGENT_OUTPUT_CACHE_DIR
 from modal import is_local
 
