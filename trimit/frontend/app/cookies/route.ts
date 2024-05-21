@@ -12,7 +12,7 @@ export async function GET(request: NextApiRequest, response: NextApiResponse) {
   if (!token) {
     return Response.json({'message': 'No token found'}, { status: 401 })
   }
-  return Response.json({'message': 'set cookie'}, {
+  return Response.json({'token': token, 'message': 'set cookie'}, {
     status: 200,
     headers: { 'Set-Cookie': `token=${token.value}` },
   })

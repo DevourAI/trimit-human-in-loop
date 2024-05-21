@@ -3,7 +3,6 @@ import { Inter as FontSans } from 'next/font/google'
 
 import { cn } from "@/lib/utils"
 
-const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
 const fontSans = FontSans({
   subsets: ["latin"],
@@ -29,7 +28,7 @@ export default function RootLayout({
           fontSans.variable
         )}
       >
-        {children}
+          {children}
       </body>
     </html>
   )
