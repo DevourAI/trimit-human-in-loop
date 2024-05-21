@@ -67,6 +67,7 @@ from trimit.utils.model_utils import get_generated_video_folder
 
 
 END_STEP_NAME = "end"
+VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv"]
 
 
 class CutTranscriptLinearWorkflow:
@@ -407,6 +408,47 @@ class CutTranscriptLinearWorkflow:
         return stage_lengths
 
     @property
+    def most_recent_timeline_path(self):
+        most_recent_file = None
+        most_recent_version = -1
+        for stage_num, _ in enumerate(self.stage_lengths):
+            stage_output_dir = Path(self.state.stage_output_dir(stage_num))
+            if stage_output_dir.exists():
+                for path in stage_output_dir.iterdir():
+                    if path.stem.startswith("timeline_") and path.suffix == ".xml":
+                        version_str = path.stem.split("timeline_")[1]
+                        try:
+                            version = int(version_str)
+                        except ValueError:
+                            print(f"skipping {path} unable to parse version")
+                            continue
+                        if version > most_recent_version:
+                            most_recent_file = path
+        return most_recent_file
+
+    @property
+    def most_recent_video_path(self):
+        most_recent_file = None
+        most_recent_version = -1
+        for stage_num, _ in enumerate(self.stage_lengths):
+            stage_output_dir = Path(self.state.stage_output_dir(stage_num))
+            if stage_output_dir.exists():
+                for path in stage_output_dir.iterdir():
+                    if (
+                        path.stem.startswith("video_")
+                        and path.suffix in VIDEO_EXTENSIONS
+                    ):
+                        version_str = path.stem.split("video_")[1]
+                        try:
+                            version = int(version_str)
+                        except ValueError:
+                            print(f"skipping {path} unable to parse version")
+                            continue
+                        if version > most_recent_version:
+                            most_recent_file = path
+        return most_recent_file
+
+    @property
     def steps(self):
         _steps = [
             CurrentStepInfo(
@@ -456,6 +498,17 @@ class CutTranscriptLinearWorkflow:
                 )
             )
         return _steps
+
+    @property
+    def serializable_steps(self):
+        return [
+            {
+                "name": step.name,
+                "user_feedback": step.user_feedback,
+                "chunked_feedback": step.chunked_feedback,
+            }
+            for step in self.steps
+        ]
 
     #### READ STATE/STEP ####
 
