@@ -17,8 +17,9 @@ pytestmark = pytest.mark.asyncio()
 async def test_init_state(mongo_connect, workflow_3909774043_with_transcript_small):
     workflow = workflow_3909774043_with_transcript_small
     step_input = CutTranscriptLinearWorkflowStepInput(user_prompt="make me a video")
-    async for output in workflow.init_state(step_input):
+    async for output, is_last in workflow.init_state(step_input):
         assert output == CutTranscriptLinearWorkflowStepResults()
+        assert is_last
     assert len(workflow.raw_transcript.text) == 22861
     assert workflow.user_messages == ["make me a video"]
 
@@ -27,12 +28,13 @@ async def test_remove_off_screen_speakers(workflow_3909774043_with_state_init):
     workflow = workflow_3909774043_with_state_init
     stream_outputs = []
     final_outputs = []
-    async for output in workflow.remove_off_screen_speakers(
+    async for output, is_last in workflow.remove_off_screen_speakers(
         CutTranscriptLinearWorkflowStepInput(
-            user_prompt="", llm_modified_prompt="", is_retry=False
+            user_prompt="", llm_modified_partial_feedback=None, is_retry=False
         )
     ):
-        if isinstance(output, str):
+        if not is_last:
+            assert isinstance(output, str)
             stream_outputs.append(output)
         else:
             final_outputs.append(output)
@@ -143,12 +145,12 @@ async def test_retry_soundbites_step(workflow_3909774043_with_state_init):
     step_name = "identify_key_soundbites"
     output = None
     while workflow._get_last_step_with_index()[1].name != step_name:
-        async for output in workflow.step():
+        async for output, _ in workflow.step():
             pass
     assert workflow.current_soundbites is not None
     n_soundbites_before = len(workflow.current_soundbites.soundbites)
     all_other_sbs = [sb for i, sb in workflow.current_soundbites.iter_text() if i != 6]
-    async for output in workflow.step("remove soundbite 6"):
+    async for output, _ in workflow.step("remove soundbite 6"):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     n_soundbites_after = len(workflow.current_soundbites.soundbites)
@@ -192,7 +194,7 @@ async def test_retry_partial_transcript_step(workflow_3909774043_with_state_init
     step_name = "stage_0_cut_partial_transcripts_with_critiques"
     output = None
     while workflow._get_last_step_with_index()[1].name != step_name:
-        async for output in workflow.step():
+        async for output, _ in workflow.step():
             pass
     assert workflow.current_transcript is not None
     chunks_before = workflow.current_transcript.chunks
@@ -220,7 +222,7 @@ async def test_retry_transcript_no_chunks(workflow_3909774043_with_state_init):
     step_name = "stage_0_modify_transcript_holistically"
     output = None
     while workflow._get_last_step_with_index()[1].name != step_name:
-        async for output in workflow.step():
+        async for output, _ in workflow.step():
             pass
     assert workflow.current_transcript is not None
     async for output in workflow.step(
@@ -259,10 +261,11 @@ async def test_step_until_finish(workflow_3909774043_with_transcript):
     i = 0
     while True:
         assert i < len(user_inputs)
-        async for output in step_workflow_until_feedback_request(
+        async for output, is_last in step_workflow_until_feedback_request(
             workflow, user_inputs[i]
         ):
-            if isinstance(output, CutTranscriptLinearWorkflowStepOutput):
+            if is_last:
+                assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
                 step_outputs.append(output)
             else:
                 str_outputs.append(output)

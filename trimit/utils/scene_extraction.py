@@ -62,3 +62,9 @@ async def extract_scenes_to_disk(
             future.result()
             paths.append(str(Path(output_dir) / scene.filename))
     return paths
+
+
+async def create_scenes_from_video(
+    video: "Video", volume_dir: str, min_scene_len_seconds: float = 10
+):
+    raise NotImplementedError("need to copy from old repo")

@@ -3,10 +3,8 @@ from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
 from trimit.backend.diarization import Diarization
 from trimit.backend.transcription import Transcription
 from trimit.utils.fs_utils import ensure_audio_path_on_volume
-from .conftest import TEST_VOLUME_DIR, TEST_CACHE_DIR, TEST_MODEL_DIR
-from pyannote.core import Segment
+from ..conftest import TEST_VOLUME_DIR, TEST_CACHE_DIR, TEST_MODEL_DIR
 import diskcache as dc
-import numpy as np
 
 pytestmark = pytest.mark.asyncio(scope="session")
 

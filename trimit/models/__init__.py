@@ -31,7 +31,7 @@ async def maybe_init_mongo(
     if MONGO_INITIALIZED[0]:
         return
     if not cert_path:
-        if is_local():
+        if is_local() and not os.environ["ENV"] == "test":
             os.environ["MONGO_CERT_FILEPATH"] = os.environ["MONGO_CERT_FILENAME"]
         cert_path = os.environ["MONGO_CERT_FILEPATH"] or None
     from motor.motor_asyncio import AsyncIOMotorClient

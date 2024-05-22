@@ -140,11 +140,18 @@ export default function MainStepper({ userData }) {
         if (done) {
             break;
         }
-        const valueDecoded = decode(value);
-        if (valueDecoded && valueDecoded.message) {
-          setActivePrompt(activePrompt + valueDecoded.message)
-        } else if (valueDecoded && valueDecoded.is_last) {
-          setFinalResult(valueDecoded)
+        const valuesDecoded = decode(value);
+        const newMessagePart = valuesDecoded.map((valueDecoded) => {
+          if (valueDecoded && valueDecoded.message && !valueDecoded.is_last) {
+            return valueDecoded.message
+          }
+        }).join('')
+        setActivePrompt(activePrompt + newMessagePart)
+        if (valuesDecoded.length > 0) {
+          const lastValue = valuesDecoded[valuesDecoded.length - 1]
+          if (lastValue.is_last) {
+            setFinalResult(lastValue)
+          }
         }
       }
     } catch (err: unknown) {

@@ -142,14 +142,21 @@ def step_endpoint(
     if streaming:
 
         async def streamer():
-            yield json.dumps({"message": "Starting stream..."})
-            async for partial_result in step_function.remote_gen.aio(**step_params):
-                if isinstance(partial_result, str):
-                    yield json.dumps({"message": partial_result})
+            yield json.dumps({"message": "Starting stream...", "is_last": False}) + "\n"
+            async for partial_result, is_last in step_function.remote_gen.aio(
+                **step_params
+            ):
+                if not is_last:
+                    yield json.dumps(
+                        {"message": partial_result, "is_last": False}
+                    ) + "\n"
                 elif isinstance(partial_result, BaseModel):
-                    yield partial_result.model_dump_json()
-                else:
-                    yield json.dumps(partial_result)
+                    yield json.dumps(
+                        {
+                            "result": json.loads(partial_result.model_dump_json()),
+                            "is_last": True,
+                        }
+                    ) + "\n"
                 await asyncio.sleep(0)
 
         return StreamingResponse(streamer(), media_type="text/event-stream")

@@ -1532,6 +1532,12 @@ class CutTranscriptLinearWorkflowStepOrderProjection(BaseModel, StepOrderMixin):
     dynamic_state_step_order: list[str] = []
     dynamic_state_retries: dict = {}
 
+    @property
+    def id(self):
+        if not hasattr(self, "_id"):
+            self._id = self.static_state.create_object_id()
+        return self._id
+
 
 async def load_step_order(state_id):
     return await CutTranscriptLinearWorkflowState.find_one(

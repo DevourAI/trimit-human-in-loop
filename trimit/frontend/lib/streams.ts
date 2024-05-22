@@ -7,10 +7,13 @@ export function createJsonChunkDecoder() {
     const decoder = new TextDecoder();
     return (chunk: Uint8Array): string => {
         const decoded_str = decoder.decode(chunk, { stream: true })
+        const parts = decoded_str.split('\n')
         try {
-            return JSON.loads(decoded_str)
+            return parts.map((part) => JSON.parse(part))
         } catch (e) {
-            return {"message": decoded_str}
+            console.error(e)
+            console.log(decoded_str)
+            return []
         }
     };
 }

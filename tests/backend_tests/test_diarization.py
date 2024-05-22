@@ -1,7 +1,7 @@
 import pytest
 from trimit.backend.diarization import Diarization
 from trimit.utils.fs_utils import ensure_audio_path_on_volume
-from .conftest import TEST_VOLUME_DIR, TEST_CACHE_DIR
+from ..conftest import TEST_VOLUME_DIR, TEST_CACHE_DIR
 from pyannote.core import Segment
 import diskcache as dc
 import numpy as np

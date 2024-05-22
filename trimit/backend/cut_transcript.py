@@ -598,7 +598,7 @@ class CutTranscriptLinearWorkflow:
                 step_name=END_STEP_NAME, done=True
             )
             await self.state.set_current_step_output_atomic(END_STEP_NAME, step_result)
-            yield step_result
+            yield step_result, True
             return
         assert isinstance(
             current_step, CurrentStepInfo
@@ -608,7 +608,7 @@ class CutTranscriptLinearWorkflow:
         result = None
         async for result, is_last in current_step.method(current_step.input):
             if not is_last:
-                yield result
+                yield result, False
         assert result is not None
 
         step_output_parsed = await self._parse_step_output_from_step_result(
@@ -620,7 +620,7 @@ class CutTranscriptLinearWorkflow:
         # this allows the entire state update to be atomic
         # so that we don't end up with a partially saved state
         await self._save_output_state(result, step_output_parsed)
-        yield step_output_parsed
+        yield step_output_parsed, True
 
     #### STEP METHODS ####
 
