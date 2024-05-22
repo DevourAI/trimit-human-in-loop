@@ -10,7 +10,7 @@ import useSWR from 'swr'
 import axios from 'axios';
 import React, { createContext, useContext, useState } from 'react';
 import { StepperForm, FormSchema } from "@/components/stepper-form"
-import { createChunkDecoder, createJsonChunkDecoder } from "@/lib/streams";
+import { decodeStreamAsJSON } from "@/lib/streams";
 
 
 
@@ -116,7 +116,6 @@ export default function MainStepper({ userData }) {
       ignore_running_workflows: true,
     }
     const url = new URL(`${API_URL}/step`)
-    const decode = createJsonChunkDecoder();
     Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
     try {
       const res = await fetch(
@@ -135,25 +134,10 @@ export default function MainStepper({ userData }) {
           throw new Error("The response body is empty.");
       }
       const reader = res.body.getReader();
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) {
-            break;
-        }
-        const valuesDecoded = decode(value);
-        const newMessagePart = valuesDecoded.map((valueDecoded) => {
-          if (valueDecoded && valueDecoded.message && !valueDecoded.is_last) {
-            return valueDecoded.message
-          }
-        }).join('')
-        setActivePrompt(activePrompt + newMessagePart)
-        if (valuesDecoded.length > 0) {
-          const lastValue = valuesDecoded[valuesDecoded.length - 1]
-          if (lastValue.is_last) {
-            setFinalResult(lastValue)
-          }
-        }
-      }
+      const lastValue = await decodeStreamAsJSON(reader, (value) => {
+        setActivePrompt(activePrompt + value)
+      });
+      setFinalResult(lastValue)
     } catch (err: unknown) {
       console.error(err);
     }
