@@ -44,7 +44,7 @@ local_api:
 
 local_ui:
 	@echo "Starting local ui..."
-	@cd trimit/frontend && yarn dev
+	@cd frontend && yarn dev
 
 step_ephemeral:
 	@echo "Running step function locally..."

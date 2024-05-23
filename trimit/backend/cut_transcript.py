@@ -95,10 +95,7 @@ class CutTranscriptLinearWorkflow:
         video_id: str | PydanticObjectId | None = None,
         **cut_transcript_linear_workflow_static_state_params,
     ):
-        start = time.time()
         await maybe_init_mongo()
-        print(f"id_from_params: init mongo: {time.time() - start}")
-        start = time.time()
         if not video_id:
             if user_email is None:
                 raise ValueError(
@@ -115,8 +112,6 @@ class CutTranscriptLinearWorkflow:
             )
             video_id = video.id
             user_id = video.user.id
-        print(f"id_from_params: fetch_video mongo: {time.time() - start}")
-        start = time.time()
         state = CutTranscriptLinearWorkflowStaticState(
             user=Link(user_id, User),
             video=Link(video_id, Video),
@@ -126,10 +121,7 @@ class CutTranscriptLinearWorkflow:
             length_seconds=length_seconds,
             **cut_transcript_linear_workflow_static_state_params,
         )
-        print(f"id_from_params: create state: {time.time() - start}")
-        start = time.time()
         obj_id = state.create_object_id()
-        print(f"id_from_params: create obj_id: {time.time() - start}")
         return obj_id
 
     @classmethod
@@ -1806,12 +1798,12 @@ class CutTranscriptLinearWorkflow:
             assert is_first_round
 
         # return transcript, True, user_feedback
-        print(
-            add_complete_format(
-                '\nUsing transcript expansion tool to search for previously removed scenes that match "introduce; my name is"\n',
-                ["bold", "yellow"],
-            )
-        )
+        #  print(
+        #  add_complete_format(
+        #  '\nUsing transcript expansion tool to search for previously removed scenes that match "introduce; my name is"\n',
+        #  ["bold", "yellow"],
+        #  )
+        #  )
         # TODO
         #  tools = [
         #  # this tool allows the agent to find previously removed segments of the transcript

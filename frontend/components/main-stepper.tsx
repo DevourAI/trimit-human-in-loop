@@ -50,7 +50,7 @@ function stepsFromState(state: UserState): StepInfo[] {
 function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
   const actionStepNames = actionSteps.map((step) => step.name)
   console.log('actionStepNames', actionStepNames);
-  for (let i = allStepIndex + 1; i < allSteps.length; i++) {
+  for (let i = allStepIndex; i < allSteps.length; i++) {
     console.log('allStepName', allSteps[i].name);
     const actionStepIndex = actionStepNames.indexOf(allSteps[i].name)
     if (actionStepIndex > -1) {
@@ -59,6 +59,24 @@ function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
   }
   return actionSteps.length
 }
+function stepIndexFromState(state: UserState): number {
+  const [allSteps, actionSteps] = stepsFromState(state)
+  if (state && state.next_step) {
+    const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(state.next_step.name))
+    console.log('currentAllStepIndex', _currentAllStepIndex);
+    if (_currentAllStepIndex !== -1) {
+      const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
+      if (nextActionStepIndex >= actionSteps.length) {
+        console.log('All action steps completed');
+      }
+      return nextActionStepIndex
+    } else {
+      console.error(`Could not find step ${state.next_step.name} in steps array ${allSteps}`)
+    }
+  }
+  return 0
+}
+
 
 export default function MainStepper({ userData }) {
   const videoHash = '3985222955'
@@ -73,6 +91,7 @@ export default function MainStepper({ userData }) {
 
   const [latestState, setLatestState] = useState(null)
   const [userFeedbackRequest, setUserFeedbackRequest] = useState(null)
+  const [trueStepIndex, setTrueStepIndex] = useState(0)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
   const [finalResult, setFinalResult] = useState({})
   const [isLoading, setIsLoading] = useState(false)
@@ -81,6 +100,7 @@ export default function MainStepper({ userData }) {
   console.log('allSteps', allSteps);
   console.log('actionSteps', actionSteps);
   console.log('latestState', latestState);
+  console.log('trueStepIndex', trueStepIndex);
   console.log('currentStepIndex', currentStepIndex);
   console.log('needsRevert', needsRevert);
 
@@ -89,6 +109,7 @@ export default function MainStepper({ userData }) {
         const data = await getLatestState(userParams as GetLatestStateParams);
         console.log('Fetched _latestState', data);
         setLatestState(data);
+        setCurrentStepIndex(stepIndexFromState(data))
     }
 
     fetchLatestState();
@@ -96,19 +117,7 @@ export default function MainStepper({ userData }) {
 
   useEffect(() => {
     setUserFeedbackRequest(latestState?.output?.user_feedback_request)
-    if (latestState && latestState.last_step) {
-      const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(latestState.last_step.name))
-      if (_currentAllStepIndex !== -1) {
-        const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
-        if (nextActionStepIndex >= actionSteps.length) {
-          console.log('All action steps completed');
-        }
-        setCurrentStepIndex(nextActionStepIndex)
-        console.log('setting step to:', nextActionStepIndex);
-      } else {
-        console.error(`Could not find step ${latestState.last_step.name} in steps array ${allSteps}`)
-      }
-    }
+    setTrueStepIndex(stepIndexFromState(latestState))
 
   }, [latestState]);
 
@@ -132,7 +141,9 @@ export default function MainStepper({ userData }) {
     setIsLoading(true)
     if (needsRevert) {
       console.log('reverting step');
-      await undoLastStepBeforeRetries()
+      for (let i = 0; i < trueStepIndex - stepIndex; i++) {
+        await undoLastStepBeforeRetries()
+      }
       setNeedsRevert(false)
     }
     const params = {
@@ -158,9 +169,6 @@ export default function MainStepper({ userData }) {
     })
   }
 
-  // TODOs: split chunks on UI
-  // Implement "redo" or "go back to previous"
-  // userData as single params object passed to all backend calls
 
 
   async function restart() {
@@ -170,7 +178,11 @@ export default function MainStepper({ userData }) {
     setFinalResult({})
     console.log('finalResult', finalResult);
     await resetWorkflow(userParams as ResetWorkflowParams)
-    setLatestState(await getLatestState(userParams as GetLatestStateParams))
+    console.log("workflow was reset")
+    const newState = await getLatestState(userParams as GetLatestStateParams)
+    console.log("new state:", newState)
+    setLatestState(newState)
+    setCurrentStepIndex(0)
     setIsLoading(false)
   }
 
@@ -179,10 +191,9 @@ export default function MainStepper({ userData }) {
     activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult({})
     await revertStepInBackend({to_before_retries: toBeforeRetries, ...userParams} as RevertStepParams)
-    setLatestState(await getLatestState(userParams as GetLatestStateParams))
-    if (currentStepIndex > 0) {
-      setCurrentStepIndex(currentStepIndex - 1)
-    }
+    const latestState = await getLatestState(userParams as GetLatestStateParams)
+    setLatestState(latestState)
+    setCurrentStepIndex(stepIndexFromState(latestState))
     setIsLoading(false)
   }
   async function undoLastStep() {
@@ -214,7 +225,6 @@ export default function MainStepper({ userData }) {
             <Step key={name} label={name}>
               <div className="grid w-full gap-2">
                 <StepperForm
-                  stepIndex={index}
                   systemPrompt={activePrompt}
                   undoLastStep={undoLastStep}
                   isLoading={isLoading}
@@ -276,5 +286,9 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
   )
 }
 
-// TODO prev/next step state not in sync
+// TODO We show next step too early. It should happen after first part of output comes through.
+// Or maybe backend should notify that we are moving on to the next step
+// When we revert, we end up doing steps twice somehow.
 // setStep showing errors
+//  // TODOs: split chunks on UI
+

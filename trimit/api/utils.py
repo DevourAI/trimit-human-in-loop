@@ -53,7 +53,6 @@ async def load_or_create_workflow(
             running = running_workflows.get(workflow_id, False)
             if time.time() - start_time > timeout:
                 return {"error": "Timeout (workflow still running)"}
-    start = time.time()
     workflow = workflows.get(workflow_id, None)
     if not workflow:
         if with_output:
@@ -65,26 +64,20 @@ async def load_or_create_workflow(
                 workflow = await CutTranscriptLinearWorkflow.from_video_id(
                     video_id=video_id, **workflow_params
                 )
-                print(f"after from_video_id {time.time() - start}")
             else:
                 workflow = await CutTranscriptLinearWorkflow.from_video_hash(
                     **workflow_params
                 )
-                print("from video_hash")
-                print(f"after from_video_hash {time.time() - start}")
         else:
             workflow = await CutTranscriptLinearWorkflow.with_only_step_order(
                 video_id=video_id or None, user_id=user_id or None, **workflow_params
             )
-            print(f"after with_only_step_order {time.time() - start}")
         assert workflow_id == workflow.id
         workflows[workflow_id] = workflow
     else:
         if with_output:
             await workflow.load_state()
-            print(f"after load_state {time.time() - start}")
         else:
             await workflow.load_step_order()
-            print(f"after load_step_order {time.time() - start}")
 
     return workflow

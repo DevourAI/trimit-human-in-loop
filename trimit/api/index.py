@@ -269,6 +269,8 @@ async def get_latest_state(
         "video_id": str(workflow.video.id),
         "user_id": str(workflow.user.id),
     }
+    print("last step", last_step_dict.get("name") if last_step_dict else None)
+    print("next step", next_step_dict.get("name") if next_step_dict else None)
     if with_output:
         return_dict["output"] = await workflow.get_last_output(with_load_state=False)
     return return_dict
