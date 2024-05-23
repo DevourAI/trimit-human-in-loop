@@ -51,6 +51,10 @@ export async function decodeStreamAsJSON(
             break;
         }
     }
+    if (!lastValue) {
+        console.error("No last value found in stream");
+        console.error("Buffer: ", buffer);
+    }
     return lastValue;
 }
 export function createJsonChunkDecoder() {

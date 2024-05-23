@@ -546,10 +546,14 @@ class CutTranscriptLinearWorkflow:
             await self.load_state()
         return self._get_output_for_key(key)
 
-    async def get_output_for_keys(self, keys: list[str], with_load_state=True):
+    async def get_output_for_keys(
+        self, keys: list[str], with_load_state=True, latest_retry=False
+    ):
         if with_load_state:
             await self.load_state()
-        return [self._get_output_for_key(key) for key in keys]
+        return [
+            self._get_output_for_key(key, latest_retry=latest_retry) for key in keys
+        ]
 
     async def get_all_outputs(self, with_load_state=True):
         if with_load_state:
@@ -576,6 +580,7 @@ class CutTranscriptLinearWorkflow:
             return Transcript.load_from_state(current_transcript_state)
 
     def get_step_by_name(self, step_name: str):
+        step_name = remove_retry_suffix(step_name)
         for step in self.steps:
             if step.name == step_name:
                 return step
@@ -584,7 +589,12 @@ class CutTranscriptLinearWorkflow:
     #### WRITE STATE/STEP ####
 
     async def restart_state(self):
+        await self.load_state()
         await self.state.restart()
+
+    async def revert_step(self, before_retries: bool = False):
+        await self.load_state()
+        await self.state.revert_step(before_retries=before_retries)
 
     async def delete(self):
         await self.state.delete()
@@ -949,7 +959,7 @@ class CutTranscriptLinearWorkflow:
         stage_num = parse_stage_num_from_step_name(step_input.step_name)
         assert stage_num is not None
         desired_words = self._desired_words_for_stage(stage_num)
-        first_round = not user_prompt and stage_num == 0 and not step_input.is_retry
+        first_round = stage_num == 0 and not step_input.is_retry
         stage_num = parse_stage_num_from_step_name(step_input.step_name)
         assert isinstance(stage_num, int)
         transcript = self.current_transcript
@@ -1136,7 +1146,11 @@ class CutTranscriptLinearWorkflow:
         next_step_index = last_step_index + 1
         next_step = self.steps[next_step_index]
         next_step.input = CutTranscriptLinearWorkflowStepInput(
-            user_prompt=user_feedback, is_retry=False, step_name=next_step.name
+            # We don't want to pass the user_feedback to the next step,
+            # user feedback is currently only for retry (and the first step)
+            user_prompt=None,
+            is_retry=False,
+            step_name=next_step.name,
         )
         return next_step
 
@@ -1190,7 +1204,11 @@ class CutTranscriptLinearWorkflow:
             retry=result.retry,
         )
 
-    def _get_output_for_key(self, key: str):
+    def _get_output_for_key(self, key: str, latest_retry=False):
+        if latest_retry:
+            for step_key in self.state.dynamic_state_step_order[::-1]:
+                if remove_retry_suffix(step_key) == key:
+                    key = step_key
         results = self.state.dynamic_state.get(key, None)
         if results is None:
             return CutTranscriptLinearWorkflowStepOutput(
@@ -1784,6 +1802,8 @@ class CutTranscriptLinearWorkflow:
         elif stage_num > 0:
             prev_length_seconds = self._get_stage_length_seconds(stage_num - 1)
             prev_desired_words = desired_words_from_length(prev_length_seconds)
+        else:
+            assert is_first_round
 
         # return transcript, True, user_feedback
         print(

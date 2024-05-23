@@ -397,7 +397,9 @@ class DocumentWithSaveRetry(Document):
     async def save_with_retry(self):
         try:
             await self.save_changes()
+            print("Document saved changes")
         except (DocumentWasNotSaved, StateNotSaved):
+            print("Document was not saved. Retrying...")
             await self.save()
 
 
@@ -1600,9 +1602,42 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             raise ValueError("run_output_dir is None")
         return os.path.join(self.run_output_dir, f"stage_{stage}")
 
+    async def revert_step(self, before_retries: bool = False):
+        if len(self.dynamic_state_step_order) == 0:
+            print("no steps to revert")
+            return
+        if before_retries and "retry" in self.dynamic_state_step_order[-1]:
+            while "retry" in self.dynamic_state_step_order[-1]:
+                await self._revert_step()
+        else:
+            await self._revert_step()
+        await self.save()
+
+    async def _revert_step(self):
+        last_step = self.dynamic_state_step_order.pop()
+        del self.dynamic_state[last_step]
+        self.dynamic_state_retries = {
+            k: v for k, v in self.dynamic_state_retries.items() if k != last_step
+        }
+        new_last_step = self.dynamic_state_step_order[-1]
+        new_last_step_outputs = self.dynamic_state[new_last_step]
+        if "current_transcript_state" in new_last_step_outputs:
+            print("revert current transcript state")
+            self.current_transcript_state = new_last_step_outputs[
+                "current_transcript_state"
+            ]
+        if "current_soundbites_state" in new_last_step_outputs:
+            print("revert current soundbites state")
+            self.current_soundbites_state = new_last_step_outputs[
+                "current_soundbites_state"
+            ]
+
     async def restart(self):
+        # TODO understand save_changes and why it doesnt work here
+        self.on_screen_speakers = None
+        self.run_output_dir = None
         self.on_screen_transcript_state = None
-        self.soundbites_state = None
+        self.current_soundbites_state = None
         self.story = None
         self.raw_transcript_state = None
         self.current_transcript_state = None
@@ -1610,7 +1645,12 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         self.dynamic_state = {}
         self.dynamic_state_retries = {}
         self.dynamic_state_step_order = []
-        await self.save_with_retry()
+        #  print("len dynamic state before save_with_retry", len(self.dynamic_state))
+        #  print("is_changed", self.is_changed)
+        #  print("changes", self.get_changes())
+        #  await self.save_with_retry()
+        await self.save()
+        # print("len dynamic state end of restart", len(self.dynamic_state))
 
     @classmethod
     async def find_or_create(

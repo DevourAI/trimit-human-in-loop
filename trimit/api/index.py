@@ -74,9 +74,12 @@ async def get_step_outputs(
     timeline_name: str,
     video_hash: str,
     length_seconds: int,
-    step_keys: list[str],
+    step_keys: str,
+    latest_retry: bool = False,
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
+
+    step_keys = step_keys.split(",")
 
     workflow = await CutTranscriptLinearWorkflow.from_video_hash(
         video_hash=video_hash,
@@ -91,7 +94,11 @@ async def get_step_outputs(
     workflow = workflows.get(workflow.id, None)
     if not workflow:
         return {"error": "Workflow not found"}
-    return await workflow.get_output_for_keys(step_keys)
+    return {
+        "outputs": await workflow.get_output_for_keys(
+            step_keys, latest_retry=latest_retry
+        )
+    }
 
 
 @web_app.get("/get_all_outputs")
@@ -142,7 +149,7 @@ def step_endpoint(
     if streaming:
 
         async def streamer():
-            yield json.dumps({"message": "Starting stream...", "is_last": False}) + "\n"
+            yield json.dumps({"message": "Running step...\n", "is_last": False}) + "\n"
             async for partial_result, is_last in step_function.remote_gen.aio(
                 **step_params
             ):
@@ -163,6 +170,61 @@ def step_endpoint(
 
     else:
         step_function.spawn(**step_params)
+
+
+@web_app.get("/reset_workflow")
+async def reset_workflow(
+    timeline_name: str,
+    length_seconds: int,
+    user_email: str | None = None,
+    video_hash: str | None = None,
+    user_id: str | None = None,
+    video_id: str | None = None,
+):
+    try:
+        workflow = await load_or_create_workflow(
+            timeline_name=timeline_name,
+            length_seconds=length_seconds,
+            user_email=user_email,
+            video_hash=video_hash,
+            user_id=user_id,
+            video_id=video_id,
+            with_output=False,
+            wait_until_done_running=False,
+        )
+    except Exception as e:
+        return {"error": str(e)}
+    print(f"Resetting workflow {workflow.id}")
+    await workflow.restart_state()
+    print(f"Workflow {workflow.id} reset")
+
+
+@web_app.get("/revert_workflow_step")
+async def revert_workflow_step(
+    timeline_name: str,
+    length_seconds: int,
+    user_email: str | None = None,
+    video_hash: str | None = None,
+    user_id: str | None = None,
+    video_id: str | None = None,
+    to_before_retries: bool = False,
+):
+    try:
+        workflow = await load_or_create_workflow(
+            timeline_name=timeline_name,
+            length_seconds=length_seconds,
+            user_email=user_email,
+            video_hash=video_hash,
+            user_id=user_id,
+            video_id=video_id,
+            with_output=False,
+            wait_until_done_running=False,
+        )
+    except Exception as e:
+        return {"error": str(e)}
+    print(f"Reverting workflow {workflow.id}")
+    await workflow.revert_step(before_retries=to_before_retries)
+    print(f"Workflow {workflow.id} reverted")
 
 
 @web_app.get("/get_latest_state")

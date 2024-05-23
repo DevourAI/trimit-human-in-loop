@@ -70,6 +70,7 @@ def agent_output_cache_key_from_args(
     model: str,
     context: str,
     prompt: str | None = None,
+    return_formatted: bool = False,
     conversation: list[Message] | None = None,
 ):
     assert (
@@ -86,6 +87,7 @@ def agent_output_cache_key_from_args(
         f"rules-{rules}",
         f"schema-{schema}",
         f"{prompt_key}-{prompt}",
+        f"formatted-{return_formatted}",
         f"{context}",
     )
 
@@ -199,6 +201,7 @@ async def get_agent_output_modal(
     model: str = "gpt-4o",
     from_cache: bool = True,
     stream: bool = True,
+    return_formatted: bool = False,
     **context,
 ):
     async for output, is_last in get_agent_output(
@@ -210,6 +213,7 @@ async def get_agent_output_modal(
         model=model,
         from_cache=from_cache,
         stream=stream,
+        return_formatted=return_formatted,
         **context,
     ):
         yield output, is_last
@@ -224,6 +228,7 @@ async def get_agent_output(
     model: str = "gpt-4o",
     from_cache: bool = True,
     stream: bool = True,
+    return_formatted: bool = False,
     **context,
 ):
     cache_key = agent_output_cache_key_from_args(
@@ -233,13 +238,14 @@ async def get_agent_output(
         schema=schema,
         rules=rules,
         model=model,
+        return_formatted=return_formatted,
         context=str(context),
     )
     if from_cache and cache_key in AGENT_OUTPUT_CACHE:
-        output, formatted_outputs = AGENT_OUTPUT_CACHE[cache_key]
-        for formatted_output in formatted_outputs:
-            yield formatted_output, False
-        yield output, True
+        last_output, outputs = AGENT_OUTPUT_CACHE[cache_key]
+        for _output in outputs:
+            yield _output, False
+        yield last_output, True
         return
 
     async_gen = get_agent_output_no_cache(
@@ -250,21 +256,22 @@ async def get_agent_output(
         rules=rules,
         model=model,
         stream=stream,
+        return_formatted=return_formatted,
         **context,
     )
     if stream:
-        formatted_outputs = []
-        async for formatted_output_chunk in async_gen:
-            if isinstance(formatted_output_chunk, str):
-                yield formatted_output_chunk, False
-            formatted_outputs.append(formatted_output_chunk)
+        outputs = []
+        async for output_chunk in async_gen:
+            if isinstance(output_chunk, str):
+                yield output_chunk, False
+            outputs.append(output_chunk)
         output = None
-        if len(formatted_outputs):
-            output = formatted_outputs.pop(-1)
+        if len(outputs):
+            output = outputs.pop(-1)
     else:
-        output, formatted_outputs = await async_gen.__anext__()
+        output, outputs = await async_gen.__anext__()
 
-    AGENT_OUTPUT_CACHE[cache_key] = (output, formatted_outputs)
+    AGENT_OUTPUT_CACHE[cache_key] = (output, outputs)
     yield output, True
 
 
@@ -277,6 +284,7 @@ async def get_agent_output_no_cache(
     rules: list[Rule] | None = None,
     model: str = "gpt-4o",
     stream: bool = True,
+    return_formatted: bool = False,
     **context,
 ):
     if prompt is not None:
@@ -310,7 +318,10 @@ async def get_agent_output_no_cache(
     formatted_outputs = []
     async for raw, formatted in format_text_wrapper(run_fn()):
         if stream:
-            yield formatted
+            if return_formatted:
+                yield formatted
+            else:
+                yield raw
         outputs.append(raw)
         formatted_outputs.append(formatted)
     output = "".join(outputs)
