@@ -260,15 +260,11 @@ export default function MainStepper({ userData }) {
       setVideoProcessingCallId(respData.callId)
     }
   }
-  async function selectVideo(videoHash) {
-    console.log("selected video", videoHash)
-    setVideoHash(videoHash)
-  }
 
   return (
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
-       <VideoSelector userData={userData} selectVideo={selectVideo}/>
+       <VideoSelector userData={userData} setVideoHash={setVideoHash}/>
        <Stepper initialStep={currentStepIndex} steps={actionSteps}>
          {actionSteps.map(({ name, input }, index) => {
            return (
@@ -288,7 +284,7 @@ export default function MainStepper({ userData }) {
              </Step>
            )
          })}
-         <Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />
+  {/*<Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />*/}
        </Stepper>
     </div>
   )
@@ -336,11 +332,12 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
   )
 }
 
-// upload button
 // download buttons
-// setStep showing errors
+// setStep showing errors when footer is uncommented
 //  // TODOs: split chunks on UI
 // undo should go to previous action step, not all step
   // TODO select amongst uploaded video files
 //
-// speaker detection not working
+// Test speaker detection working (see comment in the file- I also added a break statement to just do one scene that is deleted from source but not deployed)
+// wait till call id finishes in upload video
+// then trigger refresh of uploaded videos

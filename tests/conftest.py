@@ -103,12 +103,17 @@ DAVE_UPLOADS_DIR = get_upload_folder(TEST_VOLUME_DIR, DAVE_EMAIL, DAVE_VIDEO_DAT
 TIMELINE_NAME = "test_timeline"
 
 
-# TODO change md5_hashes to crc hashes in file names to get these tests to pass again
-async def _seed_mock_data():
+async def create_user():
     user1 = User(
         name="brian armstrong", email="brian@coinbase.com", password="password"
     )
     await user1.insert()
+    return user1
+
+
+# TODO change md5_hashes to crc hashes in file names to get these tests to pass again
+async def _seed_mock_data():
+    user1 = await create_user()
     await save_video_with_details(
         user_email=user1.email,
         timeline_name=TIMELINE_NAME,
@@ -193,6 +198,11 @@ async def mongo_connect():
     os.environ["MONGO_CERT_FILEPATH"] = ""
     os.environ["INIT_MONGO_WITH_INDEXES"] = "true"
     await maybe_init_mongo(io_loop=loop)
+
+
+@pytest.fixture(scope="session")
+async def seed_user(mongo_connect, drop_collections):
+    return await create_user()
 
 
 @pytest.fixture(autouse=auto_seed_mock_data, scope="session")

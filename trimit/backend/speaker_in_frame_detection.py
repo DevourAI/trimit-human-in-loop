@@ -1,3 +1,6 @@
+import io
+from tqdm.asyncio import tqdm as tqdm_async
+from schema import Schema
 from trimit.utils.openai import GPTMixin
 from trimit.app import VOLUME_DIR
 from trimit.utils.frame_extraction import extract_frames, encode_image
@@ -5,9 +8,9 @@ from trimit.utils.prompt_engineering import parse_prompt_template
 from trimit.models import Video, Scene
 from trimit.utils.scene_extraction import extract_scenes_to_disk
 from trimit.utils.model_utils import get_scene_folder, get_frame_folder
+from trimit.backend.utils import get_agent_output_modal_or_local
 from beanie import BulkWriter
 from pathlib import Path
-from tqdm import tqdm
 import os
 
 
@@ -17,7 +20,8 @@ class SpeakerInFrameDetection(GPTMixin):
         self.volume_dir = volume_dir
         self.min_scene_length_words = min_scene_length_words
 
-    # TODO should the video writing go here or outside?
+    # TODO keep this in a branch but simplify for interview to just using frames from across entire video
+    # and assuming a single scene (single speaker) per video
     async def detect_speaker_in_frame_from_videos(
         self, videos: list[Video], nframes=10, use_existing_output=True
     ):
@@ -92,10 +96,12 @@ class SpeakerInFrameDetection(GPTMixin):
                 for scene in video_scenes:
                     if not use_existing_output or scene.speaker_in_frame is None:
                         scenes_to_detect_speaker.append(scene)
-                scene_to_speaker_in_frame = self.detect_speaker_in_frame_from_scenes(
-                    scenes_to_detect_speaker,
-                    nframes=nframes,
-                    use_existing_output=use_existing_output,
+                scene_to_speaker_in_frame = (
+                    await self.detect_speaker_in_frame_from_scenes(
+                        scenes_to_detect_speaker,
+                        nframes=nframes,
+                        use_existing_output=use_existing_output,
+                    )
                 )
                 for scene in scenes_to_detect_speaker:
                     scene.speaker_in_frame = scene_to_speaker_in_frame[scene.name]
@@ -105,19 +111,25 @@ class SpeakerInFrameDetection(GPTMixin):
         await bulk_writer.commit()
         return all_scenes
 
-    def detect_speaker_in_frame_from_scenes(
+    async def detect_speaker_in_frame_from_scenes(
         self, scenes: list[Scene], nframes=10, use_existing_output=True
     ):
-        # TODO parallelize once we have bumped our openai subscription to allow that
         scene_to_speaker_in_frame = {}
-        for scene in tqdm(scenes, desc="Detecting speakers in frame"):
-            speaker_in_frame = self.detect_speaker_in_frame_from_scene(
-                scene, nframes=nframes, use_existing_output=use_existing_output
+        tasks = []
+        for scene in scenes:
+            tasks.append(
+                self.detect_speaker_in_frame_from_scene(
+                    scene, nframes=nframes, use_existing_output=use_existing_output
+                )
             )
+        task_results = await tqdm_async.gather(
+            *tasks, desc="Detecting speakers in frame"
+        )
+        for scene, speaker_in_frame in zip(scenes, task_results):
             scene_to_speaker_in_frame[scene.name] = speaker_in_frame
         return scene_to_speaker_in_frame
 
-    def detect_speaker_in_frame_from_scene(
+    async def detect_speaker_in_frame_from_scene(
         self, scene: Scene, nframes=10, use_existing_output=True
     ):
         print(f"detecting speaker in frame for scene {scene.name}")
@@ -126,10 +138,10 @@ class SpeakerInFrameDetection(GPTMixin):
             if is_speaking is not None:
                 print(f"found is_speaking in cache for scene {scene.name}")
                 return is_speaking
-        frame_buffer = None
+        frame_bytes = None
         if use_existing_output:
-            frame_buffer = self.get_frame_buffer_from_cache(scene)
-        if frame_buffer is None:
+            frame_bytes = self.get_frame_bytes_from_cache(scene)
+        if frame_bytes is None:
             print(f"getting frame buffer for scene {scene.name}")
             output_folder = (
                 Path(
@@ -152,31 +164,34 @@ class SpeakerInFrameDetection(GPTMixin):
             if frame_buffer is None:
                 print(f"Could not extract frames for scene {scene.name}")
                 return False
-            self.save_frame_buffer_to_cache(scene, frame_buffer)
-        base64_frame = encode_image(frame_buffer)
+            assert isinstance(frame_buffer, io.BytesIO)
+            frame_bytes = frame_buffer.read()
+            self.save_frame_bytes_to_cache(scene, frame_bytes)
         prompt = parse_prompt_template("speaker_in_frame")
         print(f"calling gpt for scene {scene.name}")
-        response = self.call_gpt(
-            prompt,
-            use_existing_output=use_existing_output,
-            model="gpt-4o",
-            base64_images=[base64_frame],
-        )
+
+        schema = Schema({"is_speaking": [str]}).json_schema("SpeakerInFrameDetection")
+        output = None
+        async for output, is_last in get_agent_output_modal_or_local(
+            prompt, json_mode=True, schema=schema, images=[frame_bytes]
+        ):
+            if is_last:
+                break
+        if not isinstance(output, dict) or "is_speaking" not in output:
+            print(f"Unexpected response from GPT, returning False: {output}")
+            return False
         # TODO perhaps more complex parsing
-        is_speaking = '{"speaking": true}' in response
+        is_speaking = output["is_speaking"]
         print(f"is_speaking: {is_speaking}")
-        if not is_speaking:
-            if '{"speaking": false}' not in response:
-                print(f"Unexpected response from GPT, returning False: {response}")
         self.save_is_speaking_to_cache(scene, is_speaking)
         print(f"saved is_spaking to cache for scene {scene.name}")
         return is_speaking
 
-    def save_frame_buffer_to_cache(self, scene, frame_buffer):
-        self.cache.set(f"frame_buffer/{scene.name}", frame_buffer)
+    def save_frame_bytes_to_cache(self, scene, frame_bytes):
+        self.cache.set(f"frame_bytes/{scene.name}", frame_bytes)
 
-    def get_frame_buffer_from_cache(self, scene):
-        return self.cache.get(f"frame_buffer/{scene.name}")
+    def get_frame_bytes_from_cache(self, scene):
+        return self.cache.get(f"frame_bytes/{scene.name}")
 
     def save_is_speaking_to_cache(self, scene, is_speaking):
         self.cache.set(f"is_speaking/{scene.name}", is_speaking)

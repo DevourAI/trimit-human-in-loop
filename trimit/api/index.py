@@ -16,16 +16,21 @@ from fastapi import FastAPI, Form, UploadFile, File, Request, Query, HTTPExcepti
 from fastapi.responses import StreamingResponse
 
 from trimit.utils import conf
-from trimit.utils.fs_utils import async_copy_to_s3
+from trimit.utils.fs_utils import (
+    async_copy_to_s3,
+    save_file_to_volume_as_crc_hash,
+    get_volume_file_path,
+    get_s3_key,
+    get_audio_file_path,
+)
 from trimit.utils.model_utils import (
     hash_ext_from_filename,
-    get_upload_folder,
-    get_audio_folder,
     save_video_with_details,
+    check_existing_video,
 )
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_or_create_workflow, workflows
-from trimit.app import app, VOLUME_DIR, S3_BUCKET, S3_VIDEO_PATH
+from trimit.app import app, get_volume_dir, S3_BUCKET, S3_VIDEO_PATH
 from trimit.models import (
     maybe_init_mongo,
     Video,
@@ -109,7 +114,7 @@ async def get_step_outputs(
         user_email=user_email,
         length_seconds=length_seconds,
         output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        volume_dir=VOLUME_DIR,
+        volume_dir=get_volume_dir(),
         new_state=False,
     )
 
@@ -135,7 +140,7 @@ async def get_all_outputs(
         user_email=user_email,
         length_seconds=length_seconds,
         output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        volume_dir=VOLUME_DIR,
+        volume_dir=get_volume_dir(),
         new_state=False,
     )
 
@@ -460,7 +465,7 @@ async def uploaded_videos(user_email: str = Query(...)):
         {
             "filename": video.high_res_user_file_path,
             "video_hash": video.md5_hash,
-            "path": video.path(VOLUME_DIR),
+            "path": video.path(get_volume_dir()),
         }
         for video in await Video.find(Video.user.email == user_email)
         .project(VideoFileProjection)
@@ -486,19 +491,34 @@ async def upload_multiple_files(
     print(f"Received upload request for {len(files)} files")
     print(f"high_res_user_file_paths: {high_res_user_file_paths}")
 
-    current_user = await get_current_user(user_email)
+    current_user = await get_current_user_or_raise(user_email)
     upload_datetime = datetime.now()
 
     video_details = []
 
     # TODO allow same video for different users
+
+    volume_dir = get_volume_dir()
     resp_msgs = []
     for file, high_res_user_file_path in zip(files, high_res_user_file_paths):
-        video_hash, ext = hash_ext_from_filename(file.filename)
+        volume_file_dir = Path(
+            get_volume_file_path(
+                current_user, upload_datetime, "temp", volume_dir=volume_dir
+            )
+        ).parent
+        volume_file_path = await save_file_to_volume_as_crc_hash(file, volume_file_dir)
+        print(f"Saved file to {volume_file_path}")
+
+        filename = Path(volume_file_path).name
+        video_hash = Path(volume_file_path).stem
+        ext = Path(volume_file_path).suffix
+
         video = await check_existing_video(video_hash, high_res_user_file_path, force)
         existing = False
         if video is not None:
             existing = True
+            video_hash = video.md5_hash
+            ext = video.ext
             if not reprocess:
                 resp_msgs.append(
                     f"video {video_hash} ({high_res_user_file_path}) already exists"
@@ -508,32 +528,17 @@ async def upload_multiple_files(
                 )
                 continue
             upload_datetime = video.upload_datetime
-            volume_file_path = video.path(VOLUME_DIR)
-            s3_mount_file_path = video.path(S3_VIDEO_PATH)
-            audio_file_path = video.audio_path(VOLUME_DIR)
+            volume_file_path = video.path(volume_dir)
+            audio_file_path = video.audio_path(volume_dir)
         else:
-            volume_file_path = get_volume_file_path(
-                current_user, upload_datetime, file.filename
+            s3_key = get_s3_key(
+                current_user, upload_datetime, Path(volume_file_path).name
             )
-            s3_mount_file_path = get_s3_mount_file_path(
-                current_user, upload_datetime, file.filename
-            )
-            audio_file_path = get_audio_file_path(
-                current_user, upload_datetime, file.filename
-            )
-
-        if not existing:
-            s3_key = get_s3_key(current_user, upload_datetime, file.filename)
-            print(f"Saving file to {volume_file_path}")
-            await save_file_to_volume(file, volume_file_path)
-            print(f"Saving file to {s3_mount_file_path}")
+            print(f"Saving file to {S3_BUCKET}/{s3_key}")
             await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
-        print(
-            f"s3 file size of {s3_mount_file_path}:",
-            os.stat(s3_mount_file_path).st_size,
-        )
-
-        if not existing:
+            audio_file_path = get_audio_file_path(
+                current_user, upload_datetime, filename, volume_dir=volume_dir
+            )
             convert_video_to_audio(str(volume_file_path), str(audio_file_path))
 
         video_details.append(
@@ -582,60 +587,8 @@ async def upload_multiple_files(
     }
 
 
-async def get_current_user(user_email: str) -> User:
+async def get_current_user_or_raise(user_email: str) -> User:
     current_user = await User.find_one(User.email == user_email)
     if current_user is None:
         raise HTTPException(status_code=400, detail="User not found")
     return current_user
-
-
-async def check_existing_video(
-    video_hash: str, high_res_user_file_path: str, force: bool
-):
-    existing_by_hash = await Video.find_one(Video.md5_hash == video_hash)
-    if existing_by_hash is not None and not force:
-        path = existing_by_hash.path(VOLUME_DIR)
-        if os.path.exists(path) and os.stat(path).st_size > 0:
-            return existing_by_hash
-
-    existing_by_high_res_user_file_path = await Video.find_one(
-        Video.high_res_user_file_path == high_res_user_file_path
-    )
-    if existing_by_high_res_user_file_path is not None and not force:
-        path = existing_by_high_res_user_file_path.path(VOLUME_DIR)
-        if os.path.exists(path) and os.stat(path).st_size > 0:
-            return existing_by_high_res_user_file_path
-
-
-async def save_file_to_volume(file: UploadFile, volume_file_path: Path | str):
-    if os.path.exists(volume_file_path):
-        os.remove(volume_file_path)
-    else:
-        Path(volume_file_path).parent.mkdir(parents=True, exist_ok=True)
-    async with aiofiles.open(volume_file_path, "wb") as volume_buffer:
-        while content := await file.read(1024):
-            await volume_buffer.write(content)
-
-
-def get_volume_file_path(current_user, upload_datetime, filename):
-    volume_upload_folder = get_upload_folder(
-        VOLUME_DIR, current_user.email, upload_datetime
-    )
-    return volume_upload_folder / filename
-
-
-def get_s3_mount_file_path(current_user, upload_datetime, filename):
-    s3_upload_mount_folder = get_upload_folder(
-        S3_VIDEO_PATH, current_user.email, upload_datetime
-    )
-    return s3_upload_mount_folder / filename
-
-
-def get_s3_key(current_user, upload_datetime, filename):
-    s3_key_prefix = get_upload_folder("", current_user.email, upload_datetime)
-    return s3_key_prefix / filename
-
-
-def get_audio_file_path(current_user, upload_datetime, filename):
-    audio_folder = get_audio_folder(VOLUME_DIR, current_user.email, upload_datetime)
-    return audio_folder / filename

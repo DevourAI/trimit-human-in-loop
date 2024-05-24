@@ -1,5 +1,4 @@
 from trimit.app import app, VOLUME_DIR
-from trimit.models import maybe_init_mongo
 from trimit.backend.conf import (
     LINEAR_WORKFLOW_OUTPUT_FOLDER,
     WORKFLOWS_DICT_NAME,
@@ -27,6 +26,7 @@ async def step_workflow_until_feedback_request(
     workflow: "CutTranscriptLinearWorkflow", user_input: str | None = None
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
+    from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
     user_feedback_request = None

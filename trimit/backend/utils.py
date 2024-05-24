@@ -1,4 +1,5 @@
 import trimit.utils.conf
+import base64
 import logging
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from pydantic import BaseModel
@@ -23,6 +24,10 @@ from griptape.rules import Rule
 from griptape.tasks import PromptTask
 from griptape.config import StructureConfig, StructureGlobalDriversConfig
 from griptape.drivers import OpenAiChatPromptDriver
+from griptape.engines import ImageQueryEngine
+from griptape.drivers import OpenAiVisionImageQueryDriver
+from griptape.tasks import ImageQueryTask
+from griptape.loaders import ImageLoader
 from rapidfuzz.distance.JaroWinkler import normalized_distance
 from schema import Schema
 import json
@@ -64,6 +69,10 @@ TEXT_TAG_FORMAT_MAP = {
 ANSI_CODE_PREFIX = "\033["
 
 
+def to_base64(img):
+    return base64.b64encode(img).decode("utf-8")
+
+
 def agent_output_cache_key_from_args(
     json_mode: bool,
     schema: dict | None,
@@ -73,7 +82,9 @@ def agent_output_cache_key_from_args(
     prompt: str | None = None,
     return_formatted: bool = False,
     conversation: list[Message] | None = None,
+    images: list[bytes] | None = None,
 ):
+    base64_images = "".join([to_base64(img) for img in images]) if images else ""
     assert (
         prompt is not None or conversation is not None
     ), "Must provide prompt or conversation"
@@ -89,6 +100,7 @@ def agent_output_cache_key_from_args(
         f"schema-{schema}",
         f"{prompt_key}-{prompt}",
         f"formatted-{return_formatted}",
+        f"images-{base64_images}" if base64_images else "",
         f"{context}",
     )
 
@@ -203,6 +215,7 @@ async def get_agent_output_modal(
     from_cache: bool = True,
     stream: bool = True,
     return_formatted: bool = False,
+    images: list[bytes] | None = None,
     **context,
 ):
     async for output, is_last in get_agent_output(
@@ -215,6 +228,7 @@ async def get_agent_output_modal(
         from_cache=from_cache,
         stream=stream,
         return_formatted=return_formatted,
+        images=images,
         **context,
     ):
         yield output, is_last
@@ -230,6 +244,7 @@ async def get_agent_output(
     from_cache: bool = True,
     stream: bool = True,
     return_formatted: bool = False,
+    images: list[bytes] | None = None,
     **context,
 ):
     cache_key = agent_output_cache_key_from_args(
@@ -240,6 +255,7 @@ async def get_agent_output(
         rules=rules,
         model=model,
         return_formatted=return_formatted,
+        images=images,
         context=str(context),
     )
     if from_cache and cache_key in AGENT_OUTPUT_CACHE:
@@ -258,6 +274,7 @@ async def get_agent_output(
         model=model,
         stream=stream,
         return_formatted=return_formatted,
+        images=images,
         **context,
     )
     if stream:
@@ -286,8 +303,17 @@ async def get_agent_output_no_cache(
     model: str = "gpt-4o",
     stream: bool = True,
     return_formatted: bool = False,
+    images: list[bytes] | None = None,
     **context,
 ):
+    if images is not None:
+        driver = OpenAiVisionImageQueryDriver(model="gpt-4o")
+        engine = ImageQueryEngine(image_query_driver=driver)
+        image_artifacts = [ImageLoader().load(img) for img in images]
+        task = ImageQueryTask(
+            input=("{% for arg in args %}{{ arg }}{% endfor %}", image_artifacts),
+            image_query_engine=engine,
+        )
     if prompt is not None:
         task = PromptTask(prompt, context=context)
     elif conversation is not None:

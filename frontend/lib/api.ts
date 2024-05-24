@@ -132,11 +132,9 @@ export async function getUploadedVideos(params: GetUploadedVideoParams) {
   if (params.user_email === '') return {}
   const respData = await fetcherWithParams('uploaded_videos', params)
 
-  console.log('uploadedVideos', respData)
   if (respData && respData.error) {
     console.error(respData)
   } else if (respData && respData.length > 0) {
-    console.log('got uploaded videos', respData)
     return respData.map(video => {
       return {
         filename: video.filename,

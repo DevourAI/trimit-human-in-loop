@@ -1,7 +1,7 @@
 import os
 import requests
 import fire
-from storybook.utils import conf
+from trimit.utils import conf
 
 
 def run_against_webapp(

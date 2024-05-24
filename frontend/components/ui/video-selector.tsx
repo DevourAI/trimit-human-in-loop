@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table"
 
 
-export default function VideoSelector({userData, selectVideo}) {
+export default function VideoSelector({userData, setVideoHash}) {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [uploadedVideos, setUploadedVideos] = useState([]);
 
@@ -28,13 +28,11 @@ export default function VideoSelector({userData, selectVideo}) {
     fetchUploadedVideos();
   }, [userData]);
 
-  const handleVideoChange = (event) => {
-    const videoData = event.target.videos[0];
-    if (videoData) {
-      setSelectedVideo(videoData);
-      selectVideo(videoData.hash);
+  useEffect(() => {
+    if (selectedVideo && selectedVideo.hash) {
+      setVideoHash(selectedVideo.hash);
     }
-  };
+  }, [selectedVideo]);
 
   return (
     <div className="rounded-md border">

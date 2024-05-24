@@ -328,6 +328,25 @@ class BackgroundProcessor:
             video.user.email, [video], use_existing_output
         )
 
+    @method()
+    async def detect_speaker_in_frame_from_hashes(
+        self, user_email: str, video_hashes: list[str], use_existing_output=True
+    ):
+        await maybe_init_mongo()
+        videos = await Video.find(
+            Video.user.email == user_email, In(Video.md5_hash, video_hashes)
+        ).to_list()
+        print(videos)
+        print(use_existing_output)
+        return await self._detect_speaker_in_frame(videos, use_existing_output)
+
+    @method()
+    async def detect_speaker_in_frame(
+        self, videos: list[Video], use_existing_output=True
+    ):
+        await maybe_init_mongo()
+        return await _detect_speaker_in_frame(videos, use_existing_output)
+
     async def _detect_speaker_in_frame(
         self, videos: list[Video], use_existing_output=True
     ):

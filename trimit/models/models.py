@@ -15,7 +15,6 @@ from trimit.utils.model_utils import (
     get_generated_video_folder,
     get_audio_folder,
 )
-from trimit.backend.utils import remove_retry_suffix
 from tenacity import retry, stop_after_attempt, wait_random_exponential
 from beanie.exceptions import DocumentWasNotSaved, StateNotSaved
 from pymongo import IndexModel
@@ -1706,6 +1705,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     async def set_current_step_output_atomic(self, name, results):
         from trimit.backend.utils import add_retry_suffix
+        from trimit.backend.utils import remove_retry_suffix
 
         name = remove_retry_suffix(name)
         retry_name = name
