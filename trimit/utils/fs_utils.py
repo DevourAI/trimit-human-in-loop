@@ -89,7 +89,7 @@ async def save_file_to_volume(file: UploadFile, volume_file_path: Path | str):
 
 
 async def save_file_to_volume_as_crc_hash(file: UploadFile, save_dir: Path | str):
-    Path(save_dir).parent.mkdir(parents=True, exist_ok=True)
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
     ext = Path(file.filename).suffix
     temp_file_name = str(uuid.uuid4())
     temp_path = Path(save_dir) / temp_file_name

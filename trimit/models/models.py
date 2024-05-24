@@ -395,7 +395,10 @@ class DocumentWithSaveRetry(Document):
     #  stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=1, max=60)
     #  )
     async def save_with_retry(self):
-        await self.save()
+        try:
+            await self.save()
+        except:
+            await self.insert()
         #  try:
         #  await self.save_changes()
         #  print("Document saved changes")
@@ -418,9 +421,6 @@ class User(DocumentWithSaveRetry):
     password: Optional[str] = Field(default=None, min_length=8)
     name: str
     authorized_with_google: bool = False
-
-    class Settings:
-        use_state_management = True
 
     def __repr__(self):
         return f"User(email={self.email}, name={self.name})"
@@ -608,7 +608,6 @@ class Video(DocumentWithSaveRetry, PathMixin):
 
     class Settings:
         name = "Video"
-        use_state_management = True
         bson_encoders = {Annotation: annotation_to_list}
         indexes = [
             IndexModel([("md5_hash", pymongo.ASCENDING)], unique=True),
@@ -870,7 +869,6 @@ class Scene(DocumentWithSaveRetry):
 
     class Settings:
         name = "Scene"
-        use_state_management = True
         indexes = [
             IndexModel([("name", pymongo.ASCENDING)], unique=True),
             [("simple_name", pymongo.ASCENDING)],
@@ -1158,9 +1156,6 @@ class Timeline(DocumentWithSaveRetry):
     name: str
     user: User
 
-    class Settings:
-        use_state_management = True
-
     def __repr__(self):
         return f"Timeline(user={self.user}, name={self.name})"
 
@@ -1234,9 +1229,6 @@ class TimelineVersion(DocumentWithSaveRetry):
     timeline: Timeline
     scenes: list[Scene]
 
-    class Settings:
-        use_state_management = True
-
     def video_path(self, volume_dir):
         video_folder = get_generated_video_folder(
             volume_dir, self.timeline.user_email, self.timeline.name
@@ -1260,7 +1252,6 @@ class Frame(DocumentWithSaveRetry):
 
     class Settings:
         name = "Frame"
-        use_state_management = True
         indexes = [
             IndexModel([("name", pymongo.ASCENDING)], unique=True),
             [("user", pymongo.ASCENDING)],
@@ -1353,7 +1344,6 @@ class Take(DocumentWithSaveRetry):
     # take_items: BackLink['TakeItem']
     class Settings:
         name = "Take"
-        use_state_management = True
         indexes = [[("user", pymongo.ASCENDING)]]
 
 
@@ -1367,7 +1357,6 @@ class TakeItem(DocumentWithSaveRetry):
 
     class Settings:
         name = "TakeItem"
-        use_state_management = True
         indexes = [
             [("take.user", pymongo.ASCENDING), ("video.md5_hash", pymongo.ASCENDING)],
             IndexModel(
@@ -1570,7 +1559,6 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     class Settings:
         name = "CutTranscriptLinearWorkflowState"
-        use_state_management = True
         use_revision = True
 
     def __init__(self, **data):
