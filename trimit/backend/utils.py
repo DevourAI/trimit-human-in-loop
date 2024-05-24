@@ -368,17 +368,6 @@ async def get_agent_output_no_cache(
         yield output, formatted_outputs
 
 
-def get_parsed_transcript_diarization(video):
-    parsed = []
-    for segment in video.transcription["segments"]:
-        speaker = segment.get("speaker", "speaker_UNKNOWN")
-        if not speaker.lower().startswith("speaker_"):
-            speaker = f"speaker_{speaker}"
-        parsed_segment = f'<{speaker.lower()}>{segment["text"]}</{speaker.lower()}>'
-        parsed.append(parsed_segment)
-    return "".join(parsed)
-
-
 async def find_leftover_transcript_offsets_using_llm(
     segment_words_without_keep,
     leftover_transcript,

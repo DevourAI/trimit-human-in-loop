@@ -338,6 +338,7 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
 // undo should go to previous action step, not all step
   // TODO select amongst uploaded video files
 //
-// Test speaker detection working (see comment in the file- I also added a break statement to just do one scene that is deleted from source but not deployed)
+// In remove speakers backend step function, make sure to start by removing the segments that dont include the speaker from speaker_in_frame detection
 // wait till call id finishes in upload video
 // then trigger refresh of uploaded videos
+//
