@@ -11,21 +11,26 @@ from trimit.utils.model_utils import get_scene_folder, get_frame_folder
 from trimit.backend.utils import get_agent_output_modal_or_local
 from beanie import BulkWriter
 from pathlib import Path
+import random
+from collections import defaultdict
 import os
 
 
 class SpeakerInFrameDetection(GPTMixin):
-    def __init__(self, cache=None, volume_dir=VOLUME_DIR, min_scene_length_words=10):
+    def __init__(self, cache=None, volume_dir=VOLUME_DIR):
         super().__init__(cache=cache, cache_prefix="speaker_in_frame/")
         self.volume_dir = volume_dir
-        self.min_scene_length_words = min_scene_length_words
 
     # TODO keep this in a branch but simplify for interview to just using frames from across entire video
     # and assuming a single scene (single speaker) per video
     async def detect_speaker_in_frame_from_videos(
-        self, videos: list[Video], nframes=10, use_existing_output=True
+        self,
+        videos: list[Video],
+        nframes=10,
+        use_existing_output=True,
+        nsamples_per_speaker=5,
+        min_word_count_per_scene=10,
     ):
-        all_scenes = []
         async with BulkWriter() as bulk_writer:
             for video in videos:
                 if not video.transcription:
@@ -39,47 +44,56 @@ class SpeakerInFrameDetection(GPTMixin):
                     )
                     continue
                 print(f"Detecting speakers in frame for video {video.md5_hash}")
-                # TODO scene creation should go elsewhere, just pass in scenes here
-                video_scenes = []
-                cur_start_frame = 0
-                cur_end_frame = 0
-                cur_num_words = 0
-                next_start_is_cur_start = True
-                for segment in video.transcription["segments"]:
-                    cur_num_words += len(segment["words"])
-                    if next_start_is_cur_start:
-                        cur_start_frame = int(
-                            round(segment["start"] * video.frame_rate)
-                        )
-                    end_frame = int(round(segment["end"] * video.frame_rate))
-                    next_start_is_cur_start = False
-                    if cur_num_words > self.min_scene_length_words:
-                        cur_end_frame = end_frame
-                        scene = await Scene.from_video(
-                            video, cur_start_frame, cur_end_frame, save=True
-                        )
-                        video_scenes.append(scene)
-                        cur_start_frame = cur_end_frame + 1
-                        cur_end_frame = cur_start_frame
-                        cur_num_words = 0
-                        next_start_is_cur_start = True
-
-                if end_frame > cur_end_frame:
-                    scene = await Scene.from_video(
-                        video, cur_start_frame, end_frame, save=True
+                if use_existing_output and video.speakers_in_frame:
+                    print(
+                        f"Skipping video {video.md5_hash} because speakers in frame already detected"
                     )
-                    video_scenes.append(scene)
+                    continue
 
                 video_path = video.path(self.volume_dir)
                 output_dir = get_scene_folder(
                     self.volume_dir, video.user_email, video.upload_datetime
                 )
                 output_dir.mkdir(parents=True, exist_ok=True)
+                # TODO scene creation should go elsewhere, just pass in scenes here
+                speakers_to_segments = defaultdict(list)
+                all_speakers = set()
+                for segment in video.transcription["segments"]:
+                    speaker = segment.get("speaker")
+                    all_speakers.add(speaker)
+                    speakers_in_segment = set(
+                        [word["speaker"] for word in segment["words"]]
+                    )
+                    # Assume all actual interviewees (speakers) will have an entire segment that's just them speaking
+                    if len(speakers_in_segment) == 1:
+                        speaker = list(speakers_in_segment)[0]
+                        speakers_to_segments[speaker].append(segment)
+                speaker_segment_samples = {
+                    speaker: random.sample(
+                        segments, min(nsamples_per_speaker, len(segments))
+                    )
+                    for speaker, segments in speakers_to_segments.items()
+                    if len(segments)
+                }
+                speaker_to_scenes = defaultdict(list)
+
                 scenes_to_write_to_disk = []
-                for scene in video_scenes:
-                    output_file = str(Path(output_dir) / scene.filename)
-                    if not use_existing_output or not os.path.exists(output_file):
-                        scenes_to_write_to_disk.append(scene)
+                scenes_to_detect_speaker = defaultdict(list)
+
+                # Assumes only the same speakers are in or out of frame for whole video
+                for speaker, segments in speaker_segment_samples.items():
+                    for segment in segments:
+                        start_frame = int(round(segment["start"] * video.frame_rate))
+                        end_frame = int(round(segment["end"] * video.frame_rate))
+                        scene = await Scene.from_video(
+                            video, start_frame, end_frame, save=True
+                        )
+                        speaker_to_scenes[speaker].append(scene)
+                        output_file = str(Path(output_dir) / scene.filename)
+                        scenes_to_detect_speaker[speaker].append(scene)
+                        if not os.path.exists(output_file):
+                            scenes_to_write_to_disk.append(scene)
+
                 if len(scenes_to_write_to_disk) > 0:
                     print(
                         f"Writing {len(scenes_to_write_to_disk)} scenes for video {video.md5_hash} to disk"
@@ -92,56 +106,55 @@ class SpeakerInFrameDetection(GPTMixin):
                         codec=video.codec,
                     )
 
-                scenes_to_detect_speaker = []
-                for scene in video_scenes:
-                    if not use_existing_output or scene.speaker_in_frame is None:
-                        scenes_to_detect_speaker.append(scene)
-                scene_to_speaker_in_frame = (
-                    await self.detect_speaker_in_frame_from_scenes(
+                speaker_to_speaker_in_frame = (
+                    await self.detect_all_speakers_from_speaker_scene_dict(
                         scenes_to_detect_speaker,
                         nframes=nframes,
                         use_existing_output=use_existing_output,
                     )
                 )
-                for scene in scenes_to_detect_speaker:
-                    scene.speaker_in_frame = scene_to_speaker_in_frame[scene.name]
-                    await scene.save_with_retry()
-                all_scenes.extend(video_scenes)
+                video.speakers_in_frame = []
+                for speaker, in_frame in speaker_to_speaker_in_frame.items():
+                    if in_frame:
+                        existing_speakers_in_frame = video.speakers_in_frame or []
+                        video.speakers_in_frame = sorted(
+                            list(set(existing_speakers_in_frame + [speaker]))
+                        )
+                await video.save_with_retry()
 
         await bulk_writer.commit()
-        return all_scenes
 
-    async def detect_speaker_in_frame_from_scenes(
-        self, scenes: list[Scene], nframes=10, use_existing_output=True
+    async def detect_all_speakers_from_speaker_scene_dict(
+        self,
+        speaker_to_scenes: dict[str, list[Scene]],
+        nframes=10,
+        use_existing_output=True,
     ):
-        scene_to_speaker_in_frame = {}
         tasks = []
-        for scene in scenes:
+        for speaker, scenes in speaker_to_scenes.items():
             tasks.append(
-                self.detect_speaker_in_frame_from_scene(
-                    scene, nframes=nframes, use_existing_output=use_existing_output
+                self.detect_speaker_in_frame_from_scenes(
+                    scenes, nframes=nframes, use_existing_output=use_existing_output
                 )
             )
         task_results = await tqdm_async.gather(
             *tasks, desc="Detecting speakers in frame"
         )
-        for scene, speaker_in_frame in zip(scenes, task_results):
-            scene_to_speaker_in_frame[scene.name] = speaker_in_frame
-        return scene_to_speaker_in_frame
+        speaker_to_speaker_in_frame = {}
+        for speaker, speaker_in_frame in zip(speaker_to_scenes.keys(), task_results):
+            speaker_to_speaker_in_frame[speaker] = speaker_in_frame
+        return speaker_to_speaker_in_frame
 
-    async def detect_speaker_in_frame_from_scene(
-        self, scene: Scene, nframes=10, use_existing_output=True
+    async def detect_speaker_in_frame_from_scenes(
+        self, scenes: list[Scene], nframes=10, use_existing_output=True
     ):
-        print(f"detecting speaker in frame for scene {scene.name}")
-        if use_existing_output:
-            is_speaking = self.get_is_speaking_from_cache(scene)
-            if is_speaking is not None:
-                print(f"found is_speaking in cache for scene {scene.name}")
-                return is_speaking
-        frame_bytes = None
-        if use_existing_output:
-            frame_bytes = self.get_frame_bytes_from_cache(scene)
-        if frame_bytes is None:
+        frame_bytes = [None] * len(scenes)
+        for i, scene in enumerate(scenes):
+            if use_existing_output:
+                _frame_bytes = self.get_frame_bytes_from_cache(scene)
+                if _frame_bytes:
+                    frame_bytes[i] = _frame_bytes
+                    continue
             print(f"getting frame buffer for scene {scene.name}")
             output_folder = (
                 Path(
@@ -165,26 +178,21 @@ class SpeakerInFrameDetection(GPTMixin):
                 print(f"Could not extract frames for scene {scene.name}")
                 return False
             assert isinstance(frame_buffer, io.BytesIO)
-            frame_bytes = frame_buffer.read()
-            self.save_frame_bytes_to_cache(scene, frame_bytes)
+            _frame_bytes = frame_buffer.read()
+            self.save_frame_bytes_to_cache(scene, _frame_bytes)
+            frame_bytes[i] = _frame_bytes
         prompt = parse_prompt_template("speaker_in_frame")
-        print(f"calling gpt for scene {scene.name}")
-
-        schema = Schema({"is_speaking": [str]}).json_schema("SpeakerInFrameDetection")
+        schema = Schema({"is_speaking": bool}).json_schema("SpeakerInFrameDetection")
         output = None
         async for output, is_last in get_agent_output_modal_or_local(
-            prompt, json_mode=True, schema=schema, images=[frame_bytes]
+            prompt, json_mode=True, schema=schema, images=frame_bytes
         ):
             if is_last:
                 break
         if not isinstance(output, dict) or "is_speaking" not in output:
             print(f"Unexpected response from GPT, returning False: {output}")
             return False
-        # TODO perhaps more complex parsing
         is_speaking = output["is_speaking"]
-        print(f"is_speaking: {is_speaking}")
-        self.save_is_speaking_to_cache(scene, is_speaking)
-        print(f"saved is_spaking to cache for scene {scene.name}")
         return is_speaking
 
     def save_frame_bytes_to_cache(self, scene, frame_bytes):
@@ -192,9 +200,3 @@ class SpeakerInFrameDetection(GPTMixin):
 
     def get_frame_bytes_from_cache(self, scene):
         return self.cache.get(f"frame_bytes/{scene.name}")
-
-    def save_is_speaking_to_cache(self, scene, is_speaking):
-        self.cache.set(f"is_speaking/{scene.name}", is_speaking)
-
-    def get_is_speaking_from_cache(self, scene):
-        return self.cache.get(f"is_speaking/{scene.name}")

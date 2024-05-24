@@ -1,4 +1,3 @@
-from trimit.backend.diarization import Diarization
 from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
 from trimit.app import app, volume, VOLUME_DIR
 from beanie.operators import In, Set, Not
@@ -7,10 +6,9 @@ from trimit.models import maybe_init_mongo, Video, User, transcription_text
 import asyncio
 from .image import image, MODEL_DIR
 import os
-from modal import method, enter, Cls
+from modal import method, enter
 from trimit.backend.transcription import Transcription
-from trimit.utils.fs_utils import ensure_audio_path_on_volume, async_copy_to_s3
-from trimit.utils.prompt_engineering import parse_prompt_template
+from trimit.utils.fs_utils import ensure_audio_path_on_volume
 from tenacity import retry, retry_if_exception_type, wait_fixed, stop_after_delay
 
 
@@ -48,7 +46,6 @@ class BackgroundProcessor:
         # volume_reload_with_catch()
         self.cache = dc.Cache(CACHE_DIR)
         self._transcription = None
-        self._diarization = None
         self.speaker_in_frame_detection = SpeakerInFrameDetection(
             cache=self.cache, volume_dir=VOLUME_DIR
         )
@@ -62,13 +59,6 @@ class BackgroundProcessor:
                     MODEL_DIR, cache=self.cache, volume_dir=VOLUME_DIR
                 )
         return self._transcription
-
-    @property
-    async def diarization(self):
-        async with self._lock:
-            if self._diarization is None:
-                self._diarization = Diarization(cache=self.cache, volume_dir=VOLUME_DIR)
-        return self._diarization
 
     @method()
     async def process_videos_generic_from_video_hashes(
@@ -150,112 +140,7 @@ class BackgroundProcessor:
         videos.extend(extra_videos)
         print(f"Processing audio for {len(videos)} videos")
 
-        videos = await self._diarize_videos(
-            user_email,
-            videos,
-            min_speakers=min_speakers,
-            use_existing_output=use_existing_output,
-        )
-        if any(video.diarization is None for video in videos):
-            missing_diarization_video_hashes = [
-                video.md5_hash for video in videos if video.diarization is None
-            ]
-            raise ValueError(
-                f"Diarization failed for {missing_diarization_video_hashes}"
-            )
         videos = await self._transcribe_videos(user_email, videos, use_existing_output)
-        return videos
-
-    @method()
-    async def diarize_videos_from_video_hashes(
-        self,
-        user_email: str,
-        video_hashes: list[str],
-        min_speakers: int | None = None,
-        use_existing_output: bool = True,
-    ):
-        return await self._diarize_videos_from_video_hashes(
-            user_email,
-            video_hashes,
-            min_speakers=min_speakers,
-            use_existing_output=use_existing_output,
-        )
-
-    async def _diarize_videos_from_video_hashes(
-        self,
-        user_email: str,
-        video_hashes: list[str],
-        min_speakers: int | None = None,
-        use_existing_output: bool = True,
-    ):
-        await maybe_init_mongo()
-        videos = await Video.find(
-            In(Video.md5_hash, video_hashes), Video.user.email == user_email
-        ).to_list()
-        return await self._diarize_videos(
-            user_email,
-            videos,
-            min_speakers=min_speakers,
-            use_existing_output=use_existing_output,
-        )
-
-    async def _diarize_videos(
-        self,
-        user_email: str,
-        videos: list[Video],
-        min_speakers: int | None = None,
-        use_existing_output: bool = True,
-    ):
-        volume_download_tasks = [ensure_audio_path_on_volume(video) for video in videos]
-        await asyncio.gather(*volume_download_tasks)
-
-        diarizations = {video.md5_hash: video.diarization for video in videos}
-        if use_existing_output:
-            missing_diarization_videos = [
-                video for video in videos if not video.diarization
-            ]
-            print(
-                f"Missing diarization video hashes: {[video.md5_hash for video in missing_diarization_videos]}"
-            )
-        else:
-            missing_diarization_videos = videos
-
-        print(
-            f"Diarizing the following video hashes: {[video.md5_hash for video in missing_diarization_videos]}"
-        )
-        if len(missing_diarization_videos) == 0:
-            missing_diarizations = {}
-        else:
-            missing_diarizations = (await self.diarization).diarize_videos(
-                [video for video in missing_diarization_videos],
-                min_speakers=min_speakers,
-                use_existing_output=use_existing_output,
-            )
-
-        async with BulkWriter() as bulk_writer:
-            for video in missing_diarization_videos:
-                video_hash = video.md5_hash
-                if video_hash not in missing_diarizations:
-                    continue
-                diarization = missing_diarizations[video_hash]
-                video.diarization = diarization
-                if any(
-                    [
-                        speaker is None
-                        for (_, _, speaker) in diarization.itertracks(yield_label=True)
-                    ]
-                ):
-                    raise ValueError(
-                        f"diarization.$.speaker is None for video {video.md5_hash}"
-                    )
-                await Video.find_one(
-                    Video.md5_hash == video_hash, Video.user.email == user_email
-                ).update(Set({Video.diarization: diarization}))
-                diarizations[video_hash] = diarization
-            await bulk_writer.commit()
-            print(
-                f"wrote missing diarizations for hashes {[v.md5_hash for v in missing_diarization_videos]}"
-            )
         return videos
 
     @method()

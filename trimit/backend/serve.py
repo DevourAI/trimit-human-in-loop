@@ -66,6 +66,7 @@ async def step(
         CutTranscriptLinearWorkflow,
         CutTranscriptLinearWorkflowStepOutput,
     )
+    from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
     workflow = await CutTranscriptLinearWorkflow.from_video_hash(

@@ -1,4 +1,7 @@
-Based on mouth movement in the provided set of frames from a single video, is the person who is on camera most likely the one currently talking?
+You will receive a set of frames from a single video of an interview.
+Based on mouth movement, is the person who is on camera most likely the one currently talking?
 If the person on camera's mouth is moving in a portion of the frames, they are the one talking.
 If there is no person viewable in the frames, or you cannot see the person's mouth, they are not talking.
-Respond with a JSON-parseable `{"speaking": true}` or `{"speaking": false}`
+If you receive multiple images, they each come from different sampled portions of the same video.
+You should assume that the same person is speaking in each set of frames.
+Respond with a JSON-parseable `{"is_speaking": true}` or `{"is_speaking": false}`

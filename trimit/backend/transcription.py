@@ -4,114 +4,8 @@ from trimit.utils.audio_utils import load_audio
 from trimit.utils.cache import CacheMixin
 from typing import Optional
 import tempfile
+import os
 import subprocess
-
-
-def estimate_time(words_from_segments, i, transcript_start, transcript_end):
-    """adapted from https://github.com/m-bain/whisperX/issues/349"""
-    word = words_from_segments[i]
-    prev_word_end = transcript_start
-    pointer = 1  # let the pointer to the next word start at 1
-    if i > 0:
-        prev_word_end = words_from_segments[i - 1][
-            "end"
-        ]  # grab the end from the last one (should always work)
-
-    if i + pointer >= len(words_from_segments):
-        next_word_start = transcript_end
-    else:
-        next_word_start = None
-        try:
-            next_word_start = words_from_segments[i + pointer][
-                "start"
-            ]  # try to grab the start from the next one
-        except KeyError:  # if trying to grab results in the error
-            pointer += 1  # we'll increment pointer to next
-
-        while next_word_start is None and i + pointer < len(words_from_segments):
-            try:
-                next_word_start = words_from_segments[i + pointer][
-                    "start"
-                ]  # grab the start time from the next word
-                # if successful: find difference, and then divide to find increment. Add increment to prev_word_end and assign.
-                next_word_start = (
-                    (next_word_start - prev_word_end) / pointer
-                ) + prev_word_end
-            except KeyError:
-                pointer += 1  # if another error, increment the pointer
-        if i + pointer >= len(words_from_segments):  # if we reach the end of the list
-            next_word_start = transcript_end
-
-    if next_word_start is None:
-        next_word_start = transcript_end
-    word["start"] = word.get("start", prev_word_end + 0.01)
-    word["end"] = word.get("end", next_word_start - 0.01)
-    word["score"] = word.get("score", 0.5)
-
-
-def add_missing_times(align_result):
-    for segment in align_result["segments"]:
-        for i, word in enumerate(segment["words"]):
-            if "start" not in word or "end" not in word:
-                estimate_time(segment["words"], i, segment["start"], segment["end"])
-            word["score"] = word.get("score", 0.5)
-
-    if "start" not in align_result:
-        align_result["start"] = align_result["segments"][0]["start"]
-    if "end" not in align_result:
-        align_result["end"] = align_result["segments"][-1]["end"]
-
-    for i, word_segment in enumerate(align_result["word_segments"]):
-        if "start" not in word_segment or "end" not in word_segment:
-            estimate_time(
-                align_result["word_segments"],
-                i,
-                align_result["start"],
-                align_result["end"],
-            )
-
-
-# TODO overlapping speech
-# TODO use cropping from pyannote:
-# from pyannote.core import Segment
-# excerpt = Segment(start=2.0, end=5.0)
-#
-# from pyannote.audio import Audio
-# waveform, sample_rate = Audio().crop("file.wav", excerpt)
-# pipeline({"waveform": waveform, "sample_rate": sample_rate})
-def diarize_align_result(align_result, diarization):
-    if diarization is None:
-        print("No diarization provided. Skipping diarization.")
-        return
-    elif not diarization:
-        print(
-            f"Empty diarization provided: {list(diarization.itertracks(yield_label=True))}. Skipping diarization."
-        )
-        return
-    current_diarization_index = 0
-    diarization_segments = [
-        (seg, speaker) for seg, _, speaker in diarization.itertracks(yield_label=True)
-    ]
-    current_diarization = diarization_segments[current_diarization_index]
-    for segment in align_result["segments"]:
-        if segment["start"] >= current_diarization[0].end:
-            current_diarization_index += 1
-            if current_diarization_index >= len(diarization_segments):
-                break
-            current_diarization = diarization_segments[current_diarization_index]
-        segment["speaker"] = current_diarization[1]
-        for word in segment["words"]:
-            word["speaker"] = current_diarization[1]
-
-    current_diarization_index = 0
-    current_diarization = diarization_segments[current_diarization_index]
-    for word_segment in align_result["word_segments"]:
-        if word_segment["start"] >= current_diarization[0].end:
-            current_diarization_index += 1
-            if current_diarization_index >= len(diarization_segments):
-                break
-            current_diarization = diarization_segments[current_diarization_index]
-        word_segment["speaker"] = current_diarization[1]
 
 
 class Transcription(CacheMixin):
@@ -148,6 +42,10 @@ class Transcription(CacheMixin):
                 language_code="en", device=self.device, model_dir=self.model_dir
             )
         }
+        self.diarize_model = whisperx.DiarizationPipeline(
+            use_auth_token=os.environ["HF_API_KEY"], device=self.device
+        )
+        self.assign_word_speakers = whisperx.assign_word_speakers
         self.subprocess = subprocess
         self.tempfile = tempfile
         self.initialized = True
@@ -193,9 +91,9 @@ class Transcription(CacheMixin):
             self.device,
             return_char_alignments=False,
         )
-        add_missing_times(align_result)
-        if diarization is not None:
-            diarize_align_result(align_result, diarization)
+        diarize_segments = self.diarize_model(waveform)
+        align_result = self.assign_word_speakers(diarize_segments, align_result)
+
         return align_result
 
     def transcribe_video(self, video: Video, with_cache: bool = True):

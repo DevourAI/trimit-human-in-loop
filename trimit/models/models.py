@@ -605,6 +605,7 @@ class Video(DocumentWithSaveRetry, PathMixin):
     user: User
     timelines: Optional[list[Link["Timeline"]]] = None
     summary: Optional[str] = None
+    speakers_in_frame: Optional[list[str]] = None
 
     class Settings:
         name = "Video"

@@ -311,15 +311,15 @@ async def get_agent_output_no_cache(
         engine = ImageQueryEngine(image_query_driver=driver)
         image_artifacts = [ImageLoader().load(img) for img in images]
         task = ImageQueryTask(
-            input=("{% for arg in args %}{{ arg }}{% endfor %}", image_artifacts),
-            image_query_engine=engine,
+            input=(prompt, image_artifacts), image_query_engine=engine
         )
-    if prompt is not None:
+    elif prompt is not None:
         task = PromptTask(prompt, context=context)
     elif conversation is not None:
         task = CustomConversationPromptTask(conversation, context=context)
     else:
         raise ValueError("Must provide either prompt or conversation")
+
     if json_mode:
         if not schema:
             raise ValueError("Must provide schema for JSON output")
@@ -352,8 +352,16 @@ async def get_agent_output_no_cache(
         outputs.append(raw)
         formatted_outputs.append(formatted)
     output = "".join(outputs)
+    if not output and stream:
+        output = agent.structure.task.output.value
     if json_mode:
-        output = json.loads(output)
+        try:
+            output = json.loads(output)
+        except:
+            if "```json" in output:
+                output = output.split("```json")[1]
+                output = output.split("```")[0]
+                output = json.loads(output)
     if stream:
         yield output
     else:
