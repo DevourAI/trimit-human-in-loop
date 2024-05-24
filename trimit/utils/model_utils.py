@@ -3,27 +3,24 @@ from datetime import datetime
 from pathlib import Path
 
 
-def filename_from_md5_hash(
-    md5_hash: str,
-    ext: str,
-    start_frame: int | None = None,
-    end_frame: int | None = None,
+def filename_from_hash(
+    hash: str, ext: str, start_frame: int | None = None, end_frame: int | None = None
 ) -> str:
     if start_frame is not None and end_frame is not None:
-        return f"{md5_hash}-{start_frame}-{end_frame}{ext}"
+        return f"{hash}-{start_frame}-{end_frame}{ext}"
     elif start_frame is not None:
-        return f"{md5_hash}-{start_frame}{ext}"
+        return f"{hash}-{start_frame}{ext}"
     elif end_frame is not None:
-        return f"{md5_hash}-{end_frame}{ext}"
+        return f"{hash}-{end_frame}{ext}"
     else:
-        return f"{md5_hash}{ext}"
+        return f"{hash}{ext}"
 
 
-def md5_hash_from_filename(filename: str) -> str:
+def hash_from_filename(filename: str) -> str:
     return Path(filename).stem
 
 
-def md5_hash_ext_from_filename(filename: str) -> tuple[str, str]:
+def hash_ext_from_filename(filename: str) -> tuple[str, str]:
     return os.path.splitext(filename)
 
 
@@ -98,3 +95,24 @@ async def save_video_with_details(
     except ValueError as e:
         print(f"Error saving video {md5_hash}: {e}")
         raise HTTPException(status_code=500, detail=str(e))
+
+
+async def check_existing_video(
+    video_hash: str, high_res_user_file_path: str, force: bool
+):
+    from trimit.models.models import Video, VideoMetadata
+    from trimit.app import VOLUME_DIR
+
+    existing_by_hash = await Video.find_one(Video.md5_hash == video_hash)
+    if existing_by_hash is not None and not force:
+        path = existing_by_hash.path(VOLUME_DIR)
+        if os.path.exists(path) and os.stat(path).st_size > 0:
+            return existing_by_hash
+
+    existing_by_high_res_user_file_path = await Video.find_one(
+        Video.high_res_user_file_path == high_res_user_file_path
+    )
+    if existing_by_high_res_user_file_path is not None and not force:
+        path = existing_by_high_res_user_file_path.path(VOLUME_DIR)
+        if os.path.exists(path) and os.stat(path).st_size > 0:
+            return existing_by_high_res_user_file_path

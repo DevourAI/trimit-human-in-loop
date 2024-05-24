@@ -8,7 +8,7 @@ from trimit.utils.string import (
     longest_contiguous_match,
 )
 from trimit.utils.model_utils import (
-    filename_from_md5_hash,
+    filename_from_hash,
     get_upload_folder,
     get_scene_folder,
     get_frame_folder,
@@ -391,14 +391,20 @@ def find_subsegment_start_end(
 
 
 class DocumentWithSaveRetry(Document):
-    @retry(
-        stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=1, max=60)
-    )
+    #  @retry(
+    #  stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=1, max=60)
+    #  )
     async def save_with_retry(self):
         try:
-            await self.save_changes()
-        except (DocumentWasNotSaved, StateNotSaved):
             await self.save()
+        except:
+            await self.insert()
+        #  try:
+        #  await self.save_changes()
+        #  print("Document saved changes")
+        #  except (DocumentWasNotSaved, StateNotSaved):
+        #  print("Document was not saved. Retrying...")
+        #  await self.save()
 
 
 class PathMixin:
@@ -415,9 +421,6 @@ class User(DocumentWithSaveRetry):
     password: Optional[str] = Field(default=None, min_length=8)
     name: str
     authorized_with_google: bool = False
-
-    class Settings:
-        use_state_management = True
 
     def __repr__(self):
         return f"User(email={self.email}, name={self.name})"
@@ -591,7 +594,7 @@ class Video(DocumentWithSaveRetry, PathMixin):
     upload_datetime: datetime.datetime
     details: Optional[VideoMetadata] = None
     high_res_user_file_path: str
-    high_res_user_file_hash: str
+    high_res_user_file_hash: Optional[str] = None
     # transcription: Optional[Link[VideoTranscription]] = None
     # TODO
     transcription: Optional[dict] = None
@@ -602,10 +605,10 @@ class Video(DocumentWithSaveRetry, PathMixin):
     user: User
     timelines: Optional[list[Link["Timeline"]]] = None
     summary: Optional[str] = None
+    speakers_in_frame: Optional[list[str]] = None
 
     class Settings:
         name = "Video"
-        use_state_management = True
         bson_encoders = {Annotation: annotation_to_list}
         indexes = [
             IndexModel([("md5_hash", pymongo.ASCENDING)], unique=True),
@@ -746,7 +749,7 @@ class Video(DocumentWithSaveRetry, PathMixin):
 
     @property
     def filename(self):
-        return filename_from_md5_hash(self.md5_hash, self.ext)
+        return filename_from_hash(self.md5_hash, self.ext)
 
     @property
     def frame_rate(self):
@@ -796,6 +799,11 @@ class Video(DocumentWithSaveRetry, PathMixin):
         return await Frame.find(Frame.video.md5_hash == self.md5_hash).to_list()
 
 
+class VideoHighResPathProjection(BaseModel):
+    md5_hash: str
+    high_res_user_file_path: str
+
+
 class VideoSummaryProjection(BaseModel):
     md5_hash: str
     summary: Optional[str] = None
@@ -811,11 +819,12 @@ class VideoFileProjection(BaseModel, PathMixin):
     md5_hash: str
     user: UserEmailProjection
     upload_datetime: datetime.datetime
+    high_res_user_file_path: str
     ext: str
 
     @property
     def filename(self):
-        return filename_from_md5_hash(self.md5_hash, self.ext)
+        return filename_from_hash(self.md5_hash, self.ext)
 
     @property
     def user_email(self):
@@ -861,7 +870,6 @@ class Scene(DocumentWithSaveRetry):
 
     class Settings:
         name = "Scene"
-        use_state_management = True
         indexes = [
             IndexModel([("name", pymongo.ASCENDING)], unique=True),
             [("simple_name", pymongo.ASCENDING)],
@@ -910,7 +918,7 @@ class Scene(DocumentWithSaveRetry):
 
     @property
     def filename(self):
-        return filename_from_md5_hash(
+        return filename_from_hash(
             self.video_hash,
             self.ext,
             start_frame=self.start_frame,
@@ -1149,9 +1157,6 @@ class Timeline(DocumentWithSaveRetry):
     name: str
     user: User
 
-    class Settings:
-        use_state_management = True
-
     def __repr__(self):
         return f"Timeline(user={self.user}, name={self.name})"
 
@@ -1225,9 +1230,6 @@ class TimelineVersion(DocumentWithSaveRetry):
     timeline: Timeline
     scenes: list[Scene]
 
-    class Settings:
-        use_state_management = True
-
     def video_path(self, volume_dir):
         video_folder = get_generated_video_folder(
             volume_dir, self.timeline.user_email, self.timeline.name
@@ -1251,7 +1253,6 @@ class Frame(DocumentWithSaveRetry):
 
     class Settings:
         name = "Frame"
-        use_state_management = True
         indexes = [
             IndexModel([("name", pymongo.ASCENDING)], unique=True),
             [("user", pymongo.ASCENDING)],
@@ -1267,7 +1268,7 @@ class Frame(DocumentWithSaveRetry):
 
     @property
     def filename(self):
-        return filename_from_md5_hash(
+        return filename_from_hash(
             self.video.md5_hash, self.ext, start_frame=self.frame_number
         )
 
@@ -1344,7 +1345,6 @@ class Take(DocumentWithSaveRetry):
     # take_items: BackLink['TakeItem']
     class Settings:
         name = "Take"
-        use_state_management = True
         indexes = [[("user", pymongo.ASCENDING)]]
 
 
@@ -1358,7 +1358,6 @@ class TakeItem(DocumentWithSaveRetry):
 
     class Settings:
         name = "TakeItem"
-        use_state_management = True
         indexes = [
             [("take.user", pymongo.ASCENDING), ("video.md5_hash", pymongo.ASCENDING)],
             IndexModel(
@@ -1440,10 +1439,6 @@ class StepOrderMixin:
                     return self.dynamic_state_step_order[-2]
                 return None
         return None
-
-    def current_step_retry(self):
-        current_step_key = self.get_current_step_key_atomic()
-        return self.dynamic_state_retries.get(current_step_key, False)
 
     @property
     def length_seconds(self):
@@ -1532,6 +1527,12 @@ class CutTranscriptLinearWorkflowStepOrderProjection(BaseModel, StepOrderMixin):
     dynamic_state_step_order: list[str] = []
     dynamic_state_retries: dict = {}
 
+    @property
+    def id(self):
+        if not hasattr(self, "_id"):
+            self._id = self.static_state.create_object_id()
+        return self._id
+
 
 async def load_step_order(state_id):
     return await CutTranscriptLinearWorkflowState.find_one(
@@ -1559,7 +1560,6 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     class Settings:
         name = "CutTranscriptLinearWorkflowState"
-        use_state_management = True
         use_revision = True
 
     def __init__(self, **data):
@@ -1594,9 +1594,45 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             raise ValueError("run_output_dir is None")
         return os.path.join(self.run_output_dir, f"stage_{stage}")
 
+    async def revert_step(self, before_retries: bool = False):
+        if len(self.dynamic_state_step_order) == 0:
+            print("no steps to revert")
+            return
+        if before_retries and "retry" in self.dynamic_state_step_order[-1]:
+            while "retry" in self.dynamic_state_step_order[-1]:
+                await self._revert_step()
+        else:
+            await self._revert_step()
+        await self.save()
+
+    async def _revert_step(self):
+        print("dynamic_state_step_order before revert", self.dynamic_state_step_order)
+        last_step = self.dynamic_state_step_order.pop()
+        print("last step", last_step)
+        del self.dynamic_state[last_step]
+        self.dynamic_state_retries = {
+            k: v for k, v in self.dynamic_state_retries.items() if k != last_step
+        }
+        new_last_step = self.dynamic_state_step_order[-1]
+        print("new last step", new_last_step)
+        new_last_step_outputs = self.dynamic_state[new_last_step]
+        if "current_transcript_state" in new_last_step_outputs:
+            print("revert current transcript state")
+            self.current_transcript_state = new_last_step_outputs[
+                "current_transcript_state"
+            ]
+        if "current_soundbites_state" in new_last_step_outputs:
+            print("revert current soundbites state")
+            self.current_soundbites_state = new_last_step_outputs[
+                "current_soundbites_state"
+            ]
+
     async def restart(self):
+        # TODO understand save_changes and why it doesnt work here
+        self.on_screen_speakers = None
+        self.run_output_dir = None
         self.on_screen_transcript_state = None
-        self.soundbites_state = None
+        self.current_soundbites_state = None
         self.story = None
         self.raw_transcript_state = None
         self.current_transcript_state = None
@@ -1604,7 +1640,12 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         self.dynamic_state = {}
         self.dynamic_state_retries = {}
         self.dynamic_state_step_order = []
-        await self.save_with_retry()
+        #  print("len dynamic state before save_with_retry", len(self.dynamic_state))
+        #  print("is_changed", self.is_changed)
+        #  print("changes", self.get_changes())
+        #  await self.save_with_retry()
+        await self.save()
+        # print("len dynamic state end of restart", len(self.dynamic_state))
 
     @classmethod
     async def find_or_create(
@@ -1625,7 +1666,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         if existing is not None:
             return existing
         print("did not find, creating")
-        await obj.save_with_retry()
+        await obj.save()
         return obj
 
     @classmethod
@@ -1647,29 +1688,33 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         if existing is not None:
             print("deleting")
             await existing.delete()
-        await obj.save_with_retry()
+        await obj.save()
         print("recreated")
         return obj
 
     async def set_current_step_output_atomic(self, name, results):
-        from trimit.linear_workflow.utils import add_retry_suffix
+        from trimit.backend.utils import add_retry_suffix
+        from trimit.backend.utils import remove_retry_suffix
 
-        if name in self.dynamic_state:
+        name = remove_retry_suffix(name)
+        retry_name = name
+        if name in self.dynamic_state_step_order:
             i = 1
             while True:
-                name = add_retry_suffix(name, i)
-                if name in self.dynamic_state:
+                retry_name = add_retry_suffix(name, i)
+                if retry_name in self.dynamic_state_step_order:
                     i += 1
                 else:
                     break
-        self.dynamic_state[name] = results
+        print("set current step output", name, retry_name)
+        self.dynamic_state[retry_name] = results
         try:
             retry = results.retry
         except AttributeError:
             retry = results.get("retry", False)
-        self.dynamic_state_retries[name] = retry
-        self.dynamic_state_step_order.append(name)
-        await self.save_with_retry()
+        self.dynamic_state_retries[retry_name] = retry
+        self.dynamic_state_step_order.append(retry_name)
+        await self.save()
 
 
 class TimelineClip(BaseModel):

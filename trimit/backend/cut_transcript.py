@@ -95,10 +95,7 @@ class CutTranscriptLinearWorkflow:
         video_id: str | PydanticObjectId | None = None,
         **cut_transcript_linear_workflow_static_state_params,
     ):
-        start = time.time()
         await maybe_init_mongo()
-        print(f"id_from_params: init mongo: {time.time() - start}")
-        start = time.time()
         if not video_id:
             if user_email is None:
                 raise ValueError(
@@ -115,8 +112,6 @@ class CutTranscriptLinearWorkflow:
             )
             video_id = video.id
             user_id = video.user.id
-        print(f"id_from_params: fetch_video mongo: {time.time() - start}")
-        start = time.time()
         state = CutTranscriptLinearWorkflowStaticState(
             user=Link(user_id, User),
             video=Link(video_id, Video),
@@ -126,10 +121,7 @@ class CutTranscriptLinearWorkflow:
             length_seconds=length_seconds,
             **cut_transcript_linear_workflow_static_state_params,
         )
-        print(f"id_from_params: create state: {time.time() - start}")
-        start = time.time()
         obj_id = state.create_object_id()
-        print(f"id_from_params: create obj_id: {time.time() - start}")
         return obj_id
 
     @classmethod
@@ -546,10 +538,14 @@ class CutTranscriptLinearWorkflow:
             await self.load_state()
         return self._get_output_for_key(key)
 
-    async def get_output_for_keys(self, keys: list[str], with_load_state=True):
+    async def get_output_for_keys(
+        self, keys: list[str], with_load_state=True, latest_retry=False
+    ):
         if with_load_state:
             await self.load_state()
-        return [self._get_output_for_key(key) for key in keys]
+        return [
+            self._get_output_for_key(key, latest_retry=latest_retry) for key in keys
+        ]
 
     async def get_all_outputs(self, with_load_state=True):
         if with_load_state:
@@ -576,6 +572,7 @@ class CutTranscriptLinearWorkflow:
             return Transcript.load_from_state(current_transcript_state)
 
     def get_step_by_name(self, step_name: str):
+        step_name = remove_retry_suffix(step_name)
         for step in self.steps:
             if step.name == step_name:
                 return step
@@ -584,7 +581,12 @@ class CutTranscriptLinearWorkflow:
     #### WRITE STATE/STEP ####
 
     async def restart_state(self):
+        await self.load_state()
         await self.state.restart()
+
+    async def revert_step(self, before_retries: bool = False):
+        await self.load_state()
+        await self.state.revert_step(before_retries=before_retries)
 
     async def delete(self):
         await self.state.delete()
@@ -598,17 +600,20 @@ class CutTranscriptLinearWorkflow:
                 step_name=END_STEP_NAME, done=True
             )
             await self.state.set_current_step_output_atomic(END_STEP_NAME, step_result)
-            yield step_result
+            yield step_result, True
             return
+
         assert isinstance(
             current_step, CurrentStepInfo
         ), f"current_step: {current_step}"
+
+        yield current_step, False
 
         step_output_parsed = None
         result = None
         async for result, is_last in current_step.method(current_step.input):
             if not is_last:
-                yield result
+                yield result, False
         assert result is not None
 
         step_output_parsed = await self._parse_step_output_from_step_result(
@@ -620,7 +625,7 @@ class CutTranscriptLinearWorkflow:
         # this allows the entire state update to be atomic
         # so that we don't end up with a partially saved state
         await self._save_output_state(result, step_output_parsed)
-        yield step_output_parsed
+        yield step_output_parsed, True
 
     #### STEP METHODS ####
 
@@ -928,9 +933,10 @@ class CutTranscriptLinearWorkflow:
             final_transcript = Transcript.merge(*new_cut_transcript_chunks)
         if new_kept_soundbites_chunks:
             kept_soundbites = Soundbites.merge(*new_kept_soundbites_chunks)
-        yield "Here is the new cut transcript from this stage before modifying holistically\n", False
-        for cut in final_transcript.iter_kept_cuts():
-            yield f"```json\n{cut.model_dump_json()}\n```", False
+        # TODO figure out some way to include this output
+        #  yield "Here is the new cut transcript from this stage before modifying holistically\n", False
+        #  for cut in final_transcript.iter_kept_cuts():
+        #  yield f"```json\n{cut.model_dump_json()}\n```", False
 
         yield CutTranscriptLinearWorkflowStepResults(
             output={
@@ -949,7 +955,7 @@ class CutTranscriptLinearWorkflow:
         stage_num = parse_stage_num_from_step_name(step_input.step_name)
         assert stage_num is not None
         desired_words = self._desired_words_for_stage(stage_num)
-        first_round = not user_prompt and stage_num == 0 and not step_input.is_retry
+        first_round = stage_num == 0 and not step_input.is_retry
         stage_num = parse_stage_num_from_step_name(step_input.step_name)
         assert isinstance(stage_num, int)
         transcript = self.current_transcript
@@ -1124,6 +1130,7 @@ class CutTranscriptLinearWorkflow:
         assert isinstance(last_step, CurrentStepInfo)
         retry, retry_input = await self._decide_retry(last_step.name, user_feedback)
         if retry:
+            print("retrying", retry_input)
             last_step.input = retry_input or CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_feedback, is_retry=True
             )
@@ -1136,7 +1143,11 @@ class CutTranscriptLinearWorkflow:
         next_step_index = last_step_index + 1
         next_step = self.steps[next_step_index]
         next_step.input = CutTranscriptLinearWorkflowStepInput(
-            user_prompt=user_feedback, is_retry=False, step_name=next_step.name
+            # We don't want to pass the user_feedback to the next step,
+            # user feedback is currently only for retry (and the first step)
+            user_prompt=None,
+            is_retry=False,
+            step_name=next_step.name,
         )
         return next_step
 
@@ -1190,7 +1201,11 @@ class CutTranscriptLinearWorkflow:
             retry=result.retry,
         )
 
-    def _get_output_for_key(self, key: str):
+    def _get_output_for_key(self, key: str, latest_retry=False):
+        if latest_retry:
+            for step_key in self.state.dynamic_state_step_order[::-1]:
+                if remove_retry_suffix(step_key) == key:
+                    key = step_key
         results = self.state.dynamic_state.get(key, None)
         if results is None:
             return CutTranscriptLinearWorkflowStepOutput(
@@ -1202,11 +1217,8 @@ class CutTranscriptLinearWorkflow:
         return results
 
     async def _decide_retry(self, step_name: str, user_prompt: str | None):
-        retry = False
-        if self.state.current_step_retry():
-            retry = True
         if not user_prompt:
-            return retry, None
+            return False, None
         if step_name == "init_state":
             return False, None
 
@@ -1264,6 +1276,9 @@ class CutTranscriptLinearWorkflow:
                 if is_last:
                     break
             assert isinstance(output, bool)
+            print(
+                f"retry step: {step_name}, retry_output: {output}, user_prompt: {user_prompt}"
+            )
 
             return output, CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt, is_retry=True
@@ -1784,14 +1799,16 @@ class CutTranscriptLinearWorkflow:
         elif stage_num > 0:
             prev_length_seconds = self._get_stage_length_seconds(stage_num - 1)
             prev_desired_words = desired_words_from_length(prev_length_seconds)
+        else:
+            assert is_first_round
 
         # return transcript, True, user_feedback
-        print(
-            add_complete_format(
-                '\nUsing transcript expansion tool to search for previously removed scenes that match "introduce; my name is"\n',
-                ["bold", "yellow"],
-            )
-        )
+        #  print(
+        #  add_complete_format(
+        #  '\nUsing transcript expansion tool to search for previously removed scenes that match "introduce; my name is"\n',
+        #  ["bold", "yellow"],
+        #  )
+        #  )
         # TODO
         #  tools = [
         #  # this tool allows the agent to find previously removed segments of the transcript

@@ -1,8 +1,7 @@
 import pytest
-from trimit.backend.diarization import Diarization
-from trimit.backend.transcription import Transcription, add_missing_times
+from trimit.backend.transcription import Transcription
 from trimit.utils.fs_utils import ensure_audio_path_on_volume
-from .conftest import TEST_VOLUME_DIR, TEST_MODEL_DIR, TEST_CACHE_DIR
+from ..conftest import TEST_VOLUME_DIR, TEST_MODEL_DIR, TEST_CACHE_DIR
 import diskcache as dc
 import numpy as np
 
@@ -21,114 +20,13 @@ def check_expected_segments(expected_segments, actual_segments):
 
 
 @pytest.mark.long
-async def test_add_missing_times():
-    align_result = {
-        "segments": [
-            {
-                "start": 5.189,
-                "end": 18.074,
-                "text": " Or, my favorite... Queso.",
-                "words": [
-                    {"word": "Or,", "start": 5.189, "end": 5.309, "score": 0.672},
-                    {"word": "my", "start": 5.689, "end": 5.909, "score": 0.884},
-                    {
-                        "word": "favorite...",
-                        "start": 6.009,
-                        "end": 6.51,
-                        "score": 0.839,
-                    },
-                    {"word": "Queso.", "start": 17.634, "end": 18.074, "score": 0.68},
-                ],
-            },
-            {
-                "start": 20.795,
-                "end": 21.256,
-                "text": "Queso.",
-                "words": [
-                    {"word": "Queso.", "start": 20.795, "end": 21.256, "score": 0.639}
-                ],
-            },
-            {
-                "start": 26.218,
-                "end": 26.698,
-                "text": "Queso.",
-                "words": [
-                    {"word": "Queso.", "start": 26.218, "end": 26.698, "score": 0.779}
-                ],
-            },
-        ],
-        "word_segments": [
-            {"word": "Or,", "start": 5.189, "end": 5.309, "score": 0.672},
-            {"word": "my", "start": 5.689, "end": 5.909, "score": 0.884},
-            {"word": "favorite...", "start": 6.009, "end": 6.51, "score": 0.839},
-            {"word": "Queso.", "start": 17.634, "end": 18.074, "score": 0.68},
-            {"word": "Queso.", "start": 20.795, "end": 21.256, "score": 0.639},
-            {"word": "Queso.", "start": 26.218, "end": 26.698, "score": 0.779},
-        ],
-        "start": 5.18,
-        "end": 29.20925,
-    }
-    del align_result["segments"][0]["words"][2]["start"]
-    del align_result["segments"][0]["words"][3]["end"]
-    del align_result["word_segments"][3]["start"]
-    del align_result["word_segments"][4]["end"]
-    add_missing_times(align_result)
-
-    assert align_result["segments"][0]["words"][2]["start"] == 5.919
-    assert align_result["segments"][0]["words"][3]["end"] == 18.064
-    assert align_result["word_segments"][3]["start"] == 6.52
-    assert align_result["word_segments"][4]["end"] == 26.208
-
-    del align_result["start"]
-    del align_result["end"]
-    add_missing_times(align_result)
-    assert align_result["start"] == 5.189
-    assert align_result["end"] == 26.698
-
-
-# this test should only be run on GPU
-#  async def test_transcribe_dave_videos(dave_videos):
-#  [
-#  await ensure_audio_path_on_volume(vid, volume_dir=TEST_VOLUME_DIR)
-#  for vid in dave_videos
-#  ]
-
-#  diarization = Diarization(
-#  volume_dir=TEST_VOLUME_DIR, cache=dc.Cache(TEST_CACHE_DIR)
-#  )
-
-#  md5_hash_to_diarization_segments = diarization.diarize_videos(
-#  dave_videos, use_existing_output=False
-#  )
-
-#  dave_videos_dict = {vid.md5_hash: vid for vid in dave_videos}
-#  for hash, segments in md5_hash_to_diarization_segments.items():
-#  dave_videos_dict[hash].diarization = segments
-#  await dave_videos_dict[hash].save_with_retry()
-#  transcription = Transcription(
-#  TEST_MODEL_DIR, volume_dir=TEST_VOLUME_DIR, cache=dc.Cache(TEST_CACHE_DIR)
-#  )
-#  md5_hash_to_transcription = transcription.transcribe_videos(dave_videos, with_cache=False)
-#  no_speaker = [(md5_hash, t) for (md5_hash, t) in md5_hash_to_transcription.items() if len([ seg for seg in t['segments'] if seg.get("speaker") is not None])== 0]
-#  assert len(no_speaker) == 0
-
-
-@pytest.mark.long
 async def test_transcribe_videos(test_video_1, test_video_2):
     await ensure_audio_path_on_volume(test_video_1, volume_dir=TEST_VOLUME_DIR)
     await ensure_audio_path_on_volume(test_video_2, volume_dir=TEST_VOLUME_DIR)
-    diarization = Diarization(
-        volume_dir=TEST_VOLUME_DIR, cache=dc.Cache(TEST_CACHE_DIR)
-    )
     transcription = Transcription(
         TEST_MODEL_DIR, volume_dir=TEST_VOLUME_DIR, cache=dc.Cache(TEST_CACHE_DIR)
     )
-    md5_hash_to_diarization = diarization.diarize_videos(
-        [test_video_1, test_video_2], use_existing_output=True
-    )
-    test_video_1.diarization = md5_hash_to_diarization[test_video_1.md5_hash]
     await test_video_1.save_with_retry()
-    test_video_2.diarization = md5_hash_to_diarization[test_video_2.md5_hash]
     await test_video_2.save_with_retry()
 
     md5_hash_to_transcription = transcription.transcribe_videos(

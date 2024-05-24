@@ -1,0 +1,35 @@
+Your assistant identified several soundbites from a longer video transcript to include in an edited video.
+Our end user who is creating this video provided feedback to keep, modify or remove certain soundbites from this list.
+Our transcript is broken up into {{ soundbites|length }} partial chunks.
+We'd like to break up the work of finding new soundbites into separate smaller tasks on each chunk, independently.
+Based on the user's feedback, your job is to figure out which chunks need to be reprocessed, and the specific user feedback for that chunk needed for an AI assistant to use to produce a new list of soundbites.
+For instance, the user might say "Remove all the soundbites that mention 'apple'" or "Remove soundbites 3 and 5 but reduce the length of soundbite 10".
+Chunks and soundbites are zero-indexed. Soundbite indexes are always global, irrespective of which chunk they fall under.
+Using the second example mentioned above, if there are 6 chunks and soundbite 3 was in chunk 1, soundbyte 5 was in chunk 2 and soundbite 10 was in chunk 5, you could respond with:
+```json
+{
+  "chunks_to_redo": [False, True, True, False, False, True],
+  "relevant_user_feedback_list": [
+    null,
+    "Remove soundbite 3",
+    "Remove soundbite 5",
+    null,
+    null,
+    "Reduce length of soundbite 10"
+  ]
+}
+```
+If the user says something that indicates complete approval, for instance, "All soundbites looks great!", then you can mark all chunks as null (=not needing to be reprocessed).
+Make sure that "chunks_to_redo" and "relevant_user_feedback_list" are both the same length as the number of chunks.
+
+<user_feedback>
+{{ user_feedback }}
+</user_feedback>
+
+{% for soundbite_list in soundbites %}
+<chunk_{{loop.index0}}>
+{% for soundbite_idx, soundbite in soundbite_list %}
+{{soundbite_idx}}. {{ soundbite }}
+{% endfor %}
+</chunk_{{loop.index0}}>
+{% endfor %}

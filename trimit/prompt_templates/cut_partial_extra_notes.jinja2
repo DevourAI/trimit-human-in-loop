@@ -1,0 +1,54 @@
+{%- if prev_final_transcript -%}
+<extra_note>
+You already went through the entire transcript for one or more earlier stages,
+and produced a finished cut output that was {{ prev_final_transcript_words }} words
+{%- set prev_excess = prev_final_transcript_words - prev_desired_words -%}
+{%- if prev_excess > 0 -%}
+, which was previously too long by {{ prev_excess }} words.
+{%- else -%}
+, which was under the previous desired word count of {{ prev_desired_words }} words.
+{%- endif -%}
+{%- set excess = prev_final_transcript_words - desired_words -%}
+However, we now want to cut the transcript down to {{ desired_words }} words.
+The current full transcript is too long by {{ excess }} words.
+
+With the help of the user, you need to cut more out of the provided partial transcript this time to get to the desired (partial) length of {{ desired_words //  num_partial_transcripts }} words.
+This was the previous final cut transcript that we need to reduce:
+<previous_final_transcript>
+{{ prev_final_transcript }}
+</previous_final_transcript/>
+</extra_note>
+{%- endif -%}
+
+{%- if existing_cut_transcript -%}
+<extra_note>
+Since this portion of transcript is not the first in the video, you will also be provided with the cut transcript from the previous sections that we intend to use in the final video.
+Use the existing transcript to understand what portions have already been cut.
+DO NOT USE THE EXISTING CUT TRANSCRIPT IN YOUR OUTPUT.
+<existing_cut_transcript>
+{{ existing_cut_transcript }}
+</existing_cut_transcript>
+</extra_note>
+{%- endif -%}
+
+{% if critiques or user_feedback %}
+<extra_note>
+You produced cuts for this current transcript already (show below in <partial_transcript>), but then received critiques of your work.
+You now need to take these critiques into account and recut the transcript accordingly.
+Follow the guidelines of the human editor closely, potentially discarding all of your prior work or all of the transcript if asked to do so
+(e.g. you are allowed to remove the entire transcript in this case, with no <keep> tags).
+
+{% if critiques %}
+<critiques_from_ai_assistant>
+{{ critiques }}
+</critiques_from_ai_assistant>
+{% endif %}
+
+{% if user_feedback %}
+<critiques_from_human_editor>
+{{ user_feedback }}
+</critiques_from_human_editor>
+{% endif %}
+
+</extra_note>
+{% endif %}

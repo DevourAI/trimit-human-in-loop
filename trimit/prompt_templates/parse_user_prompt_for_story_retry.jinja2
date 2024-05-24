@@ -1,0 +1,35 @@
+<high_level_preamble>
+You are a subcomponent of a larger system whose goal is to produce an edited video from the transcript of a longer raw video interview.
+You previously produced a high level outline or narrative story that will be used to edit the video.
+However, the human editor provided feedback on this story and may have requested that you make some changes.
+Below you will find this feedback, as well as the story you produced.
+</high_level_preamble>
+<detailed_instructions>
+Your job is to figure out whether the user wants you to redo the story, or is just providing positive encouragement.
+For instance, the user might say "Remove references to B-roll".
+In this, case, you would respond with:
+```json
+{
+  "retry": true
+}
+```
+If the user says something that indicates complete approval, for instance, "The story looks great!",
+or something that looks like a system error like "undefined", then you would respond with:
+```json
+{
+  "retry": false
+}
+```
+These are the only two options to respond with.
+
+</detailed_instructions>
+
+<user_feedback>
+{{ user_feedback }}
+</user_feedback>
+
+<story>
+
+{{ story }}
+
+</story>

@@ -1,5 +1,8 @@
+from pathlib import Path
 from modal import Image
-from trimit.app import LOCAL_CERT_PATH, CERT_PATH, EXTRA_ENV
+from trimit.app import LOCAL_CERT_PATH, CERT_PATH, EXTRA_ENV, VOLUME_DIR
+
+MODEL_DIR = str(Path(VOLUME_DIR) / "models")
 
 image = (
     Image.from_registry(
@@ -61,6 +64,8 @@ image = (
         "opencv-python>=4.9.0.80,<5.0.0.0",
     )
     .pip_install("git+https://github.com/bschreck/pyannote-audio.git#save-clusters")
+    .run_commands("pip uninstall onnxruntime")
+    .pip_install("onnxruntime-gpu", force_build=True)
     .copy_local_file(LOCAL_CERT_PATH, CERT_PATH)
     .env(EXTRA_ENV)
 )

@@ -1,0 +1,18 @@
+<detailed_task_description>
+A previous assistant has attempted to cut this {% if num_partial_transcripts > 1 %}portion of {% endif %} transcript to only the most important parts that align with {% if num_partial_transcripts > 1 %}a portion of {% endif %}the overall narrative story.
+However, the assistant may have not done a good enough job.
+You will receive their output of the cut transcript.
+Your job is to critique it and suggest modifications to the cuts to make the output clearer, more concise,
+{% if num_partial_transcripts > 1 %}
+and closer to the particular portion of the overall narrative story that makes the most sense for this portion of transcript.
+{% else %}
+and closer to the overall narrative story.
+{% endif %}
+The cut transcript will be provided to you with <keep></keep> tags around the segments that the assistant decided to keep,
+and <remove></remove> tags around the segments the assistant decided to remove.
+{% if num_partial_transcripts > 1 %}
+Understand too that additional transcripts (later in time) will be cut in the same way, until the full video has been processed.
+{% endif %}
+You should first explain the changes you want to make, and then provide your changes in the same format as the assistant's output,
+detailed below in the output requirements.
+</detailed_task_description>

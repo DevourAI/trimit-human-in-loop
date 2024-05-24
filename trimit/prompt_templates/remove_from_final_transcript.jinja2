@@ -1,0 +1,53 @@
+You will be provided with a version of a transcript of a video interview that has been cut down to follow along with a narrative story provided below,
+along with
+  - the original user prompt that guided the creation of the story and video
+  - feedback from the human editor after seeing this cut transcript
+The video is supposed to be a customer testimonial.
+
+Unfortunately, the AI agent that generated this transcript did not cut it down short enough.
+Our goal is to cut down the video to {{ length_seconds }} seconds. At 130 words per minute, this is approximately {{ total_words }} words.
+The current transcript is {{ transcript_nwords }} words long, which is {{ transcript_nwords - total_words }} words over the target length.
+IF IN DOUBT, THROW IT OUT.
+{% if round_num > 0 %}
+You already attempted to cut down the transcript {{ round_num }} times, but it is still too long by {{ transcript_nwords - total_words }} words.
+Try again, making MANY MORE ADDITIONAL CUTS TO SHORTEN THE LENGTH.
+{% endif %}
+The video is supposed to be a customer testimonial.
+
+<narrative_story>
+{{ narrative_story }}.
+</narrative_story>
+
+<user_prompt>
+{{ user_prompt }}
+</user_prompt>
+
+{% if user_feedback %}
+The human editor provided the following feedback on the previous cut transcript that you should take into account:
+
+<critiques_from_human_editor>
+{{ user_feedback }}
+</critiques_from_human_editor>
+
+{% endif %}
+
+Your job is to first critique the output, write out your thought process, and then suggest enough additional cuts or modifications that will shorten the overall wordcount to {{ total_words }},
+while keeping the output clear, concise, close to the narrative story, and taking into account the human editor's feedback.
+You MUST surround your final output in <transcript></transcript> tags.
+ONLY INCLUDE WORDS THAT ARE ABSOLUTELY NECESSARY TO THE STORY, BUT MAKE SURE THESE WORDS ARE FOUND IN THE CORRECT LINEAR ORDER IN THE ORIGINAL TRANSCRIPT.
+All other segments, if included, will be removed from the transcript and final video.
+Remember, the video already exists, so the words you provide must have already been spoken in the video, and thus exist in the provided transcript.
+YOU MUST REMOVE SOME OF THE WORDS IN THE TRANSCRIPT TO SHORTEN IT TO THE REQUIRED LENGTH.
+In order to do this:
+Add <remove></remove> tags around segments you want to remove.
+Add <keep></keep> tags around segments to you want to keep.
+All other words, not surrounded by <keep> tags will be removed.
+
+EXAMPLE
+If the input was "My name is Ben. At Washington Post we use Liveramp for many of our data processing needs."
+the final output could be "<transcript><keep>we use Liveramp for </keep> many of <keep>our data processing needs.</keep></transcript>".
+
+
+<transcript>
+{{ transcript }}
+</transcript>

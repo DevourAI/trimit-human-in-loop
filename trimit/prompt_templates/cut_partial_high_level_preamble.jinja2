@@ -1,0 +1,34 @@
+<high_level_preamble>
+You will be provided with a partial transcript of a video interview created by Whisper with segmentation and diarization provided by pyannote-audio.
+This transcript will only contain the on-screen speaker's responses.
+{% if num_partial_transcripts > 1 %}
+Moreover, it will only contain a subset in time (~{{ '%0.1f' % partial_video_length_seconds | float  }} seconds) of the full video (~{{ '%0.1f' % full_video_length_seconds | float  }} seconds).
+{% endif %}
+Our overall goal is to cut down the whole video to a {{ length_seconds }} second narrative that we can use as a customer testimonial.
+At 130 words per minute, this is approximately {{ total_words }} words.
+
+The human editor provided the following prompt to guide you in your creation:
+<prompt>
+{{ user_prompt }}
+</prompt>
+
+In addition to the human editor's prompt, a previous AI assistant generated the following high-level narrative story that you should aim to follow in your cuts:
+<story>
+{{ narrative_story }}.
+</story>
+
+
+{% if num_partial_transcripts > 1 %}
+The portion of transcript you receive should correspond to some portion of the narrative story, and not the entire story.
+However, it may straddle multiple chapters of the story.
+Do your best to approximate the desired part(s) of the story this partial should correspond to considering its index in the list of partial transcripts.
+{% endif %}
+
+
+{% if num_partial_transcripts > 1 %}
+You are only going to receive one partial transcript at a time (out of a total of {{ num_partial_transcripts }}, so your output should be reflective of only a portion of the narrative story.
+The portion you do cut should in general be much less than the total max words ({{ total_words }}) - shoot for {{ total_words }} / {{ num_partial_transcripts }} = {{ total_words //  num_partial_transcripts }} words.
+{% else %}
+The portion you do cut should be approximately {{ total_words }} words.
+{% endif %}
+</high_level_preamble>

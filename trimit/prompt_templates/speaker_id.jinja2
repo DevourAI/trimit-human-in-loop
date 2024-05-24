@@ -1,0 +1,23 @@
+You will be provided with a transcript of a video interview created by Whisper with segmentation and diarization provided by pyannote-audio.
+One speaker is on screen, the other is off.
+Most of the questions asked will be by the off-screen speaker (the interviewer) and the answers by the on-screen speaker (the interviewee).
+Return a list of on-screen speakers (who may have incorrectly been identified as different people) so we can filter out the interviewer's questions.
+Note: while the speakers' names may be possible to infer based on the transcript, you should only respond with the speaker indexes provided in <speaker_[i]> tags, e.g. "speaker_0".
+Your output should be in JSON format, using the following schema:
+<schema>
+{
+    "on_screen_speakers": list[str]
+}
+</schema>
+
+{% if user_prompt %}
+The human video editor provided additional details to help you identify the on screen speakers:
+<human_input>
+{{ user_prompt }}
+</human_input>
+{% endif %}
+
+
+<transcript>
+{{ transcript }}
+</transcript>

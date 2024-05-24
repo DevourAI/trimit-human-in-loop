@@ -1,0 +1,14 @@
+<detailed_task_description>
+Previous assistants have attempted to cut the transcript already, but each only received partial portions and so did not examine the entire video holisticaly.
+{% set excess_words = transcript_nwords - total_words %}
+{% if excess_words > 0 %}
+Furthermore, the transcript they produced ended up being too long, with {{ transcript_nwords }}, which is {{ excess_words }} excess words over the target length of {{ total_words }}.
+{% endif %}
+
+Your job is to first examine the transcript holisitically and then suggest modifications to the cuts to make the output:
+* clear
+* concise
+* match the narrative story
+* match the human editor's original prompt and/or provided feedback
+* under the target number of words
+</detailed_task_description>

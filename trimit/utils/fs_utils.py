@@ -1,8 +1,13 @@
 import aioboto3
+import aiofiles
+from fastapi import UploadFile
 from trimit.utils.video_utils import convert_video_to_audio
+from trimit.utils.model_utils import get_upload_folder, get_audio_folder
 from trimit.app import S3_BUCKET, VOLUME_DIR
 from pathlib import Path
 import os
+import zlib
+import uuid
 
 
 async def s3_file_exists(bucket, key):
@@ -71,3 +76,57 @@ async def ensure_audio_path_on_volume(
         print(f"audio_path already exists: {audio_path}")
     if os.stat(audio_path).st_size == 0:
         raise ValueError(f"Video is empty: {audio_path}")
+
+
+async def save_file_to_volume(file: UploadFile, volume_file_path: Path | str):
+    if os.path.exists(volume_file_path):
+        os.remove(volume_file_path)
+    else:
+        Path(volume_file_path).parent.mkdir(parents=True, exist_ok=True)
+    async with aiofiles.open(volume_file_path, "wb") as volume_buffer:
+        while content := await file.read(1024):
+            await volume_buffer.write(content)
+
+
+async def save_file_to_volume_as_crc_hash(file: UploadFile, save_dir: Path | str):
+    Path(save_dir).mkdir(parents=True, exist_ok=True)
+    ext = Path(file.filename).suffix
+    temp_file_name = str(uuid.uuid4())
+    temp_path = Path(save_dir) / temp_file_name
+    crc_value = 0
+    async with aiofiles.open(temp_path, "wb") as buffer:
+        while content := await file.read(1024):
+            await buffer.write(content)
+            crc_value = zlib.crc32(content, crc_value)
+    final_hash = str(crc_value & 0xFFFFFFFF)
+    final_path = Path(save_dir) / f"{final_hash}{ext}"
+    os.rename(temp_path, final_path)
+    return str(final_path)
+
+
+def get_volume_file_path(
+    current_user, upload_datetime, filename, volume_dir=VOLUME_DIR
+):
+    volume_upload_folder = get_upload_folder(
+        volume_dir, current_user.email, upload_datetime
+    )
+    return volume_upload_folder / filename
+
+
+def get_s3_mount_file_path(current_user, upload_datetime, filename):
+    from trimit.app import S3_VIDEO_PATH
+
+    s3_upload_mount_folder = get_upload_folder(
+        S3_VIDEO_PATH, current_user.email, upload_datetime
+    )
+    return s3_upload_mount_folder / filename
+
+
+def get_s3_key(current_user, upload_datetime, filename):
+    s3_key_prefix = get_upload_folder("", current_user.email, upload_datetime)
+    return s3_key_prefix / filename
+
+
+def get_audio_file_path(current_user, upload_datetime, filename, volume_dir=VOLUME_DIR):
+    audio_folder = get_audio_folder(volume_dir, current_user.email, upload_datetime)
+    return audio_folder / filename

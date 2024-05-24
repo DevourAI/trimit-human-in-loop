@@ -1,15 +1,12 @@
 from trimit.app import app, VOLUME_DIR
-from trimit.models import maybe_init_mongo
 from trimit.backend.conf import (
     LINEAR_WORKFLOW_OUTPUT_FOLDER,
     WORKFLOWS_DICT_NAME,
     RUNNING_WORKFLOWS_DICT_NAME,
 )
 from .image import image
-from modal import Dict, asgi_app
+from modal import Dict
 import asyncio
-from fastapi.responses import StreamingResponse
-from fastapi.middleware.cors import CORSMiddleware
 
 app_kwargs = dict(
     _allow_background_volume_commits=True,
@@ -29,6 +26,7 @@ async def step_workflow_until_feedback_request(
     workflow: "CutTranscriptLinearWorkflow", user_input: str | None = None
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
+    from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
     user_feedback_request = None
@@ -36,16 +34,16 @@ async def step_workflow_until_feedback_request(
     done = False
     while first_time or not user_feedback_request:
         result = None
-        async for result in workflow.step(user_input or ""):
-            yield result
+        async for result, is_last in workflow.step(user_input or ""):
+            yield result, is_last
+
         if not isinstance(result, CutTranscriptLinearWorkflowStepOutput):
             yield CutTranscriptLinearWorkflowStepOutput(
                 step_name="", done=False, error="No steps ran"
-            )
+            ), True
             return
 
         assert isinstance(result, CutTranscriptLinearWorkflowStepOutput)
-        print(f"last output: {result}")
         done = result.done
         if done:
             break
@@ -68,6 +66,7 @@ async def step(
         CutTranscriptLinearWorkflow,
         CutTranscriptLinearWorkflowStepOutput,
     )
+    from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
     workflow = await CutTranscriptLinearWorkflow.from_video_hash(
@@ -87,7 +86,7 @@ async def step(
             if running_workflows.get(id, False):
                 yield CutTranscriptLinearWorkflowStepOutput(
                     step_name="", done=False, error="Workflow already running"
-                )
+                ), True
                 return
         else:
             workflows[id] = workflow
@@ -102,7 +101,7 @@ async def step(
         running_workflows[id] = False
         yield CutTranscriptLinearWorkflowStepOutput(
             step_name="", done=False, error="Timeout"
-        )
+        ), True
     except StopAsyncIteration:
         return
 
@@ -126,7 +125,7 @@ async def cut_transcript_cli(
         steps_ran = []
 
         started_printing_feedback_request = False
-        async for partial_output in step.remote_gen.aio(
+        async for partial_output, is_last in step.remote_gen.aio(
             user_email=user_email,
             timeline_name=timeline_name,
             video_hash=video_hash,
@@ -136,7 +135,8 @@ async def cut_transcript_cli(
             ignore_running_workflows=ignore_running_workflows,
             timeout=timeout,
         ):
-            if isinstance(partial_output, CutTranscriptLinearWorkflowStepOutput):
+            if is_last:
+                assert isinstance(partial_output, CutTranscriptLinearWorkflowStepOutput)
                 steps_ran.append(partial_output)
             else:
                 if started_printing_feedback_request:

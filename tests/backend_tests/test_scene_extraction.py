@@ -1,9 +1,9 @@
 import pytest
 import os
-from trimit.backend.scene_extraction import create_scenes_from_video
+from trimit.utils.scene_extraction import create_scenes_from_video
 from trimit.utils.model_utils import get_scene_folder
 from trimit.models.models import Scene, scene_name_from_video_take_item
-from .conftest import TEST_VOLUME_DIR
+from ..conftest import TEST_VOLUME_DIR
 from pathlib import Path
 
 pytestmark = pytest.mark.asyncio(scope="session")

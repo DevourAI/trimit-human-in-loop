@@ -8,6 +8,12 @@ APP_NAME = "trimit-human-in-loop"
 SCENE_TRANSCRIPT_PINECONE_INDEX_NAME = os.environ.get("SCENE_TRANSCRIPT_PINECONE_INDEX")
 REPO_HOME = "/app"
 VOLUME_DIR = "/volume"
+
+
+def get_volume_dir():
+    return VOLUME_DIR
+
+
 LOCAL_AGENT_OUTPUT_CACHE_DIR = os.environ.get("LOCAL_AGENT_OUTPUT_CACHE_DIR", ".cache")
 AGENT_OUTPUT_CACHE_DIR = os.environ.get(
     "AGENT_OUTPUT_CACHE_DIR", "/volume/agent_output_cache"

@@ -1,0 +1,25 @@
+You will be provided with two inputs:
+- sentence_to_match: the output, in the form of a sentence, from a previous AI assistant task that attempted to identify good soundbites or cuts from a video transcript
+- transcript: a partial transcript of a video from an interview, provided as a comma-separated list of lists, each with the index of the word and the word itself
+
+This output may or may not exactly match the transcript from the video.
+Your task is to find the first and longest contiguous sets of words,
+arranged linearly in order according to the actual word order of the transcript,
+that match the previous AI output as close as possible.
+
+Your output should be in JSON format as a list of (integer, word) tuples,
+where the integer is the index of the word in the transcript and the word is the word itself.
+This response should mimic the transcript format, but leaving words out as necessary to most exactly match the sentence.
+
+For example, given the following inputs:
+<sentence>Thanks, I think that's a really good point.</sentence>
+<transcript>[0, "Thanks,"], [1, "Catherine,"], [2, "you\'re"], [3, "right"], [4, "I"], [5, "think"], [6, "that\'s"], [7, "a"], [8, "really"], [9, "good"], [10, "point."], [11, "A"], [12, "really"], [13, "good"], [14, "point."]</transcript>
+Your best response would be:
+```json
+{"offsets": [[0, "Thanks,"], [4, "I"], [5, "think"], [6, "that\'s"], [7, "a"], [8, "really"], [9, "good"], [10, "point."], [11, "A"], [12, "really"], [13, "good"], [14, "point."]]}
+```
+Notice that we ignored "Catherine, you're right", and the last "A really good point" to fit the provided sentence exactly, using the first occurrences of matched words.
+Indexes correspond to the words in the transcript, not the characters.
+
+<sentence>{{ sentence }}</sentence>
+<transcript>{{ transcript }}</transcript>

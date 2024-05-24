@@ -1,4 +1,6 @@
 import trimit.utils.conf
+import base64
+import logging
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from pydantic import BaseModel
 from griptape.utils import Stream
@@ -22,6 +24,10 @@ from griptape.rules import Rule
 from griptape.tasks import PromptTask
 from griptape.config import StructureConfig, StructureGlobalDriversConfig
 from griptape.drivers import OpenAiChatPromptDriver
+from griptape.engines import ImageQueryEngine
+from griptape.drivers import OpenAiVisionImageQueryDriver
+from griptape.tasks import ImageQueryTask
+from griptape.loaders import ImageLoader
 from rapidfuzz.distance.JaroWinkler import normalized_distance
 from schema import Schema
 import json
@@ -63,6 +69,10 @@ TEXT_TAG_FORMAT_MAP = {
 ANSI_CODE_PREFIX = "\033["
 
 
+def to_base64(img):
+    return base64.b64encode(img).decode("utf-8")
+
+
 def agent_output_cache_key_from_args(
     json_mode: bool,
     schema: dict | None,
@@ -70,8 +80,11 @@ def agent_output_cache_key_from_args(
     model: str,
     context: str,
     prompt: str | None = None,
+    return_formatted: bool = False,
     conversation: list[Message] | None = None,
+    images: list[bytes] | None = None,
 ):
+    base64_images = "".join([to_base64(img) for img in images]) if images else ""
     assert (
         prompt is not None or conversation is not None
     ), "Must provide prompt or conversation"
@@ -86,6 +99,8 @@ def agent_output_cache_key_from_args(
         f"rules-{rules}",
         f"schema-{schema}",
         f"{prompt_key}-{prompt}",
+        f"formatted-{return_formatted}",
+        f"images-{base64_images}" if base64_images else "",
         f"{context}",
     )
 
@@ -199,6 +214,8 @@ async def get_agent_output_modal(
     model: str = "gpt-4o",
     from_cache: bool = True,
     stream: bool = True,
+    return_formatted: bool = False,
+    images: list[bytes] | None = None,
     **context,
 ):
     async for output, is_last in get_agent_output(
@@ -210,6 +227,8 @@ async def get_agent_output_modal(
         model=model,
         from_cache=from_cache,
         stream=stream,
+        return_formatted=return_formatted,
+        images=images,
         **context,
     ):
         yield output, is_last
@@ -224,6 +243,8 @@ async def get_agent_output(
     model: str = "gpt-4o",
     from_cache: bool = True,
     stream: bool = True,
+    return_formatted: bool = False,
+    images: list[bytes] | None = None,
     **context,
 ):
     cache_key = agent_output_cache_key_from_args(
@@ -233,13 +254,15 @@ async def get_agent_output(
         schema=schema,
         rules=rules,
         model=model,
+        return_formatted=return_formatted,
+        images=images,
         context=str(context),
     )
     if from_cache and cache_key in AGENT_OUTPUT_CACHE:
-        output, formatted_outputs = AGENT_OUTPUT_CACHE[cache_key]
-        for formatted_output in formatted_outputs:
-            yield formatted_output, False
-        yield output, True
+        last_output, outputs = AGENT_OUTPUT_CACHE[cache_key]
+        for _output in outputs:
+            yield _output, False
+        yield last_output, True
         return
 
     async_gen = get_agent_output_no_cache(
@@ -250,21 +273,23 @@ async def get_agent_output(
         rules=rules,
         model=model,
         stream=stream,
+        return_formatted=return_formatted,
+        images=images,
         **context,
     )
     if stream:
-        formatted_outputs = []
-        async for formatted_output_chunk in async_gen:
-            if isinstance(formatted_output_chunk, str):
-                yield formatted_output_chunk, False
-            formatted_outputs.append(formatted_output_chunk)
+        outputs = []
+        async for output_chunk in async_gen:
+            if isinstance(output_chunk, str):
+                yield output_chunk, False
+            outputs.append(output_chunk)
         output = None
-        if len(formatted_outputs):
-            output = formatted_outputs.pop(-1)
+        if len(outputs):
+            output = outputs.pop(-1)
     else:
-        output, formatted_outputs = await async_gen.__anext__()
+        output, outputs = await async_gen.__anext__()
 
-    AGENT_OUTPUT_CACHE[cache_key] = (output, formatted_outputs)
+    AGENT_OUTPUT_CACHE[cache_key] = (output, outputs)
     yield output, True
 
 
@@ -277,14 +302,24 @@ async def get_agent_output_no_cache(
     rules: list[Rule] | None = None,
     model: str = "gpt-4o",
     stream: bool = True,
+    return_formatted: bool = False,
+    images: list[bytes] | None = None,
     **context,
 ):
-    if prompt is not None:
+    if images is not None:
+        driver = OpenAiVisionImageQueryDriver(model="gpt-4o")
+        engine = ImageQueryEngine(image_query_driver=driver)
+        image_artifacts = [ImageLoader().load(img) for img in images]
+        task = ImageQueryTask(
+            input=(prompt, image_artifacts), image_query_engine=engine
+        )
+    elif prompt is not None:
         task = PromptTask(prompt, context=context)
     elif conversation is not None:
         task = CustomConversationPromptTask(conversation, context=context)
     else:
         raise ValueError("Must provide either prompt or conversation")
+
     if json_mode:
         if not schema:
             raise ValueError("Must provide schema for JSON output")
@@ -310,27 +345,27 @@ async def get_agent_output_no_cache(
     formatted_outputs = []
     async for raw, formatted in format_text_wrapper(run_fn()):
         if stream:
-            yield formatted
+            if return_formatted:
+                yield formatted
+            else:
+                yield raw
         outputs.append(raw)
         formatted_outputs.append(formatted)
     output = "".join(outputs)
+    if not output and stream:
+        output = agent.structure.task.output.value
     if json_mode:
-        output = json.loads(output)
+        try:
+            output = json.loads(output)
+        except:
+            if "```json" in output:
+                output = output.split("```json")[1]
+                output = output.split("```")[0]
+                output = json.loads(output)
     if stream:
         yield output
     else:
         yield output, formatted_outputs
-
-
-def get_parsed_transcript_diarization(video):
-    parsed = []
-    for segment in video.transcription["segments"]:
-        speaker = segment.get("speaker", "speaker_UNKNOWN")
-        if not speaker.lower().startswith("speaker_"):
-            speaker = f"speaker_{speaker}"
-        parsed_segment = f'<{speaker.lower()}>{segment["text"]}</{speaker.lower()}>'
-        parsed.append(parsed_segment)
-    return "".join(parsed)
 
 
 async def find_leftover_transcript_offsets_using_llm(
@@ -1111,6 +1146,7 @@ def create_agent(
     summary=False,
     rules: list[Rule] | None = None,
     stream: bool = False,
+    logger_level=logging.WARNING,
 ):
     if json and summary:
         raise ValueError("Can't have both json and summary")
@@ -1131,6 +1167,7 @@ def create_agent(
         ),
         conversation_memory=memory,
         rules=rules,
+        logger_level=logger_level,
     )
 
 
