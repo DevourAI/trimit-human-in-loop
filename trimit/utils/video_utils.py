@@ -1,4 +1,4 @@
-from trimit.utils.model_utils import filename_from_md5_hash
+from trimit.utils.model_utils import filename_from_hash
 import re
 from pathlib import Path, PosixPath
 from dateutil import parser
@@ -174,7 +174,7 @@ async def downsample_video(
         high_res_md5_hash = await get_file_content_hash_with_cache(
             downsampled_file_path, cache, prefix="downsampled_crc_hash/"
         )
-        filename = filename_from_md5_hash(high_res_md5_hash, ext)
+        filename = filename_from_hash(high_res_md5_hash, ext)
         hashed_output_file_path = os.path.join(output_dir, filename)
         os.rename(downsampled_file_path, hashed_output_file_path)
         downsampled_file_path = hashed_output_file_path

@@ -602,9 +602,12 @@ class CutTranscriptLinearWorkflow:
             await self.state.set_current_step_output_atomic(END_STEP_NAME, step_result)
             yield step_result, True
             return
+
         assert isinstance(
             current_step, CurrentStepInfo
         ), f"current_step: {current_step}"
+
+        yield current_step, False
 
         step_output_parsed = None
         result = None
@@ -930,9 +933,10 @@ class CutTranscriptLinearWorkflow:
             final_transcript = Transcript.merge(*new_cut_transcript_chunks)
         if new_kept_soundbites_chunks:
             kept_soundbites = Soundbites.merge(*new_kept_soundbites_chunks)
-        yield "Here is the new cut transcript from this stage before modifying holistically\n", False
-        for cut in final_transcript.iter_kept_cuts():
-            yield f"```json\n{cut.model_dump_json()}\n```", False
+        # TODO figure out some way to include this output
+        #  yield "Here is the new cut transcript from this stage before modifying holistically\n", False
+        #  for cut in final_transcript.iter_kept_cuts():
+        #  yield f"```json\n{cut.model_dump_json()}\n```", False
 
         yield CutTranscriptLinearWorkflowStepResults(
             output={
@@ -1126,6 +1130,7 @@ class CutTranscriptLinearWorkflow:
         assert isinstance(last_step, CurrentStepInfo)
         retry, retry_input = await self._decide_retry(last_step.name, user_feedback)
         if retry:
+            print("retrying", retry_input)
             last_step.input = retry_input or CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_feedback, is_retry=True
             )
@@ -1212,11 +1217,8 @@ class CutTranscriptLinearWorkflow:
         return results
 
     async def _decide_retry(self, step_name: str, user_prompt: str | None):
-        retry = False
-        if self.state.current_step_retry():
-            retry = True
         if not user_prompt:
-            return retry, None
+            return False, None
         if step_name == "init_state":
             return False, None
 
@@ -1274,6 +1276,9 @@ class CutTranscriptLinearWorkflow:
                 if is_last:
                     break
             assert isinstance(output, bool)
+            print(
+                f"retry step: {step_name}, retry_output: {output}, user_prompt: {user_prompt}"
+            )
 
             return output, CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt, is_retry=True

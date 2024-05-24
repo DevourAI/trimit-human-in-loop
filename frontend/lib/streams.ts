@@ -37,10 +37,16 @@ export async function decodeStreamAsJSON(
                 console.error(e);
                 return null
             }
-            if (valueDecoded && valueDecoded.message) {
-                callback(valueDecoded.message);
+            if (valueDecoded && !valueDecoded.is_last && valueDecoded.result) {
+                callback(valueDecoded.result);
+            } else if (valueDecoded && valueDecoded.is_last && valueDecoded.result) {
+                return valueDecoded.result;
             } else if (valueDecoded && valueDecoded.is_last) {
                 return valueDecoded;
+            } else if (valueDecoded && valueDecoded.message) {
+                callback(valueDecoded);
+            } else {
+                console.log("No message or result found in message", valueDecoded)
             }
         }
         return null;

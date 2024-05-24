@@ -1431,9 +1431,13 @@ class CurrentStepInfo(BaseModel):
     input: CutTranscriptLinearWorkflowStepInput | None = None
     chunked_feedback: bool = False
 
+    def model_dump_json(self, *args, **kwargs):
+        return super().model_dump_json(*args, exclude={"method"}, **kwargs)
+
     def to_dict(self):
         return {
             "name": self.name,
             "user_feedback": self.user_feedback,
             "input": self.input.model_dump() if self.input else None,
+            "chunked_feedback": self.chunked_feedback,
         }

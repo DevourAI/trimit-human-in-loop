@@ -7,8 +7,17 @@ import {
 import { Button } from "@/components/ui/button"
 import React, { createContext, useContext, useState, useReducer, useEffect } from 'react';
 import { StepperForm, FormSchema } from "@/components/stepper-form"
+import UploadVideo from "@/components/ui/upload-video"
+import VideoSelector from "@/components/ui/video-selector"
 import { decodeStreamAsJSON } from "@/lib/streams";
-import { step, getLatestState, getStepOutput, resetWorkflow, revertStepInBackend } from "@/lib/api";
+import {
+  step,
+  getLatestState,
+  getStepOutput,
+  resetWorkflow,
+  revertStepInBackend,
+  uploadVideo
+} from "@/lib/api";
 import {
   type CommonAPIParams,
   type StepOutputParams,
@@ -49,9 +58,7 @@ function stepsFromState(state: UserState): StepInfo[] {
 
 function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
   const actionStepNames = actionSteps.map((step) => step.name)
-  console.log('actionStepNames', actionStepNames);
   for (let i = allStepIndex; i < allSteps.length; i++) {
-    console.log('allStepName', allSteps[i].name);
     const actionStepIndex = actionStepNames.indexOf(allSteps[i].name)
     if (actionStepIndex > -1) {
       return actionStepIndex
@@ -59,27 +66,42 @@ function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
   }
   return actionSteps.length
 }
+
 function stepIndexFromState(state: UserState): number {
   const [allSteps, actionSteps] = stepsFromState(state)
   if (state && state.next_step) {
-    const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(state.next_step.name))
-    console.log('currentAllStepIndex', _currentAllStepIndex);
-    if (_currentAllStepIndex !== -1) {
-      const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
-      if (nextActionStepIndex >= actionSteps.length) {
-        console.log('All action steps completed');
-      }
-      return nextActionStepIndex
-    } else {
-      console.error(`Could not find step ${state.next_step.name} in steps array ${allSteps}`)
+    return stepIndexFromName(state.next_step.name, allSteps, actionSteps)
+  }
+  return 0
+}
+
+function stepIndexFromName(stepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
+  const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(stepName))
+  if (_currentAllStepIndex !== -1) {
+    const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
+    if (nextActionStepIndex >= actionSteps.length) {
+      console.log('All action steps completed');
     }
+    return nextActionStepIndex
+  } else {
+    console.error(`Could not find step ${remove_retry_suffix(stepName)} in steps array ${allSteps}`)
   }
   return 0
 }
 
 
 export default function MainStepper({ userData }) {
-  const videoHash = '3985222955'
+  const [videoHash, setVideoHash] = useState(null)
+  const [videoProcessingCallId, setVideoProcessingCallId] = useState(null)
+  const [latestState, setLatestState] = useState(null)
+  const [userFeedbackRequest, setUserFeedbackRequest] = useState(null)
+  const [trueStepIndex, setTrueStepIndex] = useState(0)
+  const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [finalResult, setFinalResult] = useState({})
+  const [isLoading, setIsLoading] = useState(false)
+  const [needsRevert, setNeedsRevert] = useState(false)
+  const [allSteps, actionSteps] = stepsFromState(latestState)
+
   const timelineName = 'timelineName'
   const lengthSeconds = 60
   const userParams: UserParams = {
@@ -89,31 +111,15 @@ export default function MainStepper({ userData }) {
     video_hash: videoHash,
   }
 
-  const [latestState, setLatestState] = useState(null)
-  const [userFeedbackRequest, setUserFeedbackRequest] = useState(null)
-  const [trueStepIndex, setTrueStepIndex] = useState(0)
-  const [currentStepIndex, setCurrentStepIndex] = useState(0)
-  const [finalResult, setFinalResult] = useState({})
-  const [isLoading, setIsLoading] = useState(false)
-  const [needsRevert, setNeedsRevert] = useState(false)
-  const [allSteps, actionSteps] = stepsFromState(latestState)
-  console.log('allSteps', allSteps);
-  console.log('actionSteps', actionSteps);
-  console.log('latestState', latestState);
-  console.log('trueStepIndex', trueStepIndex);
-  console.log('currentStepIndex', currentStepIndex);
-  console.log('needsRevert', needsRevert);
-
   useEffect(() => {
     async function fetchLatestState() {
         const data = await getLatestState(userParams as GetLatestStateParams);
-        console.log('Fetched _latestState', data);
         setLatestState(data);
         setCurrentStepIndex(stepIndexFromState(data))
     }
 
     fetchLatestState();
-  }, [userData]);
+  }, [userData, videoHash]);
 
   useEffect(() => {
     setUserFeedbackRequest(latestState?.output?.user_feedback_request)
@@ -122,7 +128,6 @@ export default function MainStepper({ userData }) {
   }, [latestState]);
 
   useEffect(() => {
-    console.log('finalResult', finalResult);
     setUserFeedbackRequest(finalResult?.user_feedback_request || BASE_PROMPT)
   }, [finalResult]);
 
@@ -138,6 +143,8 @@ export default function MainStepper({ userData }) {
   }, '');
 
   async function onSubmit(stepIndex: number, data: z.infer<typeof FormSchema>) {
+    console.log("submitting")
+    console.log("feedback", data.feedback)
     setIsLoading(true)
     if (needsRevert) {
       console.log('reverting step');
@@ -147,7 +154,7 @@ export default function MainStepper({ userData }) {
       setNeedsRevert(false)
     }
     const params = {
-      user_input: data.feedback,
+      user_input: data.feedback || '',
       streaming: true,
       force_restart: false,
       ignore_running_workflows: true,
@@ -158,13 +165,42 @@ export default function MainStepper({ userData }) {
       const lastValue = await decodeStreamAsJSON(reader, (value) => {
         let valueToAppend = value;
         if (typeof value !== 'string') {
-          if (value.chunk !== undefined && value.chunk === 0) {
-            valueToAppend = value.output;
+          if (value.name !== undefined) {
+            const stepIndex = stepIndexFromName(value.name, allSteps, actionSteps)
+            setTrueStepIndex(stepIndex)
+            setCurrentStepIndex(stepIndex)
+            valueToAppend = ''
+          } else if (value.chunk !== undefined && value.chunk === 0) {
+            if (typeof value.output === 'string') {
+              valueToAppend = value.output;
+            } else {
+              console.log('value.output is not a string', value.output)
+              valueToAppend = ''
+            }
+          } else if (value.message !== undefined) {
+            if (typeof value.message === 'string') {
+              valueToAppend = value.message;
+            } else if (value.message.output && typeof value.message.output === 'string') {
+              if (value.message.chunk === 0) {
+                valueToAppend = value.message.output
+              } else {
+                valueToAppend = ''
+              }
+            } else {
+              console.log('value.message.output is not a string', value.message.output)
+              valueToAppend = ''
+            }
+          } else {
+            valueToAppend = ''
           }
         }
         activePromptDispatch({ type: 'append', value: valueToAppend });
       });
-      setFinalResult(lastValue?.result)
+      if (!typeof lastValue === 'string') {
+        console.log('lastValue is not a string', lastValue)
+      } else {
+        setFinalResult(lastValue)
+      }
       setIsLoading(false)
     })
   }
@@ -174,19 +210,16 @@ export default function MainStepper({ userData }) {
   async function restart() {
     setIsLoading(true)
     activePromptDispatch({ type: 'restart', value: '' });
-    console.log('activePrompt', activePrompt);
     setFinalResult({})
-    console.log('finalResult', finalResult);
     await resetWorkflow(userParams as ResetWorkflowParams)
-    console.log("workflow was reset")
     const newState = await getLatestState(userParams as GetLatestStateParams)
-    console.log("new state:", newState)
     setLatestState(newState)
     setCurrentStepIndex(0)
     setIsLoading(false)
   }
 
   async function revertStep(toBeforeRetries) {
+    // revertStepInBackend should take a step name or index as a parameter and do multiple reverts if needed
     setIsLoading(true)
     activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult({})
@@ -217,29 +250,46 @@ export default function MainStepper({ userData }) {
     setNeedsRevert(true)
   }
 
+  async function uploadVideoWrapper(videoFile) {
+    const respData = await uploadVideo({videoFile, userEmail: userData.email, timelineName})
+    console.log("upload response data", respData)
+    if (respData && respData.videoHash) {
+      console.log("got video hash", respData.videoHash)
+    }
+    if (respData && respData.callId) {
+      setVideoProcessingCallId(respData.callId)
+    }
+  }
+  async function selectVideo(videoHash) {
+    console.log("selected video", videoHash)
+    setVideoHash(videoHash)
+  }
+
   return (
     <div className="flex w-full flex-col gap-4">
-      <Stepper initialStep={currentStepIndex} steps={actionSteps}>
-        {actionSteps.map(({ name, input }, index) => {
-          return (
-            <Step key={name} label={name}>
-              <div className="grid w-full gap-2">
-                <StepperForm
-                  systemPrompt={activePrompt}
-                  undoLastStep={undoLastStep}
-                  isLoading={isLoading}
-                  prompt={userFeedbackRequest}
-                  stepIndex={index}
-                  onSubmit={onSubmit}
-                  userData={userData}
-                  step={actionSteps[index]}
-                />
-              </div>
-            </Step>
-          )
-        })}
-        <Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />
-      </Stepper>
+       <UploadVideo uploadVideo={uploadVideoWrapper}/>
+       <VideoSelector userData={userData} selectVideo={selectVideo}/>
+       <Stepper initialStep={currentStepIndex} steps={actionSteps}>
+         {actionSteps.map(({ name, input }, index) => {
+           return (
+             <Step key={name} label={name}>
+               <div className="grid w-full gap-2">
+                 <StepperForm
+                   systemPrompt={activePrompt}
+                   undoLastStep={undoLastStep}
+                   isLoading={isLoading}
+                   prompt={userFeedbackRequest}
+                   stepIndex={index}
+                   onSubmit={onSubmit}
+                   userData={userData}
+                   step={actionSteps[index]}
+                 />
+               </div>
+             </Step>
+           )
+         })}
+         <Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />
+       </Stepper>
     </div>
   )
 }
@@ -286,9 +336,11 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
   )
 }
 
-// TODO We show next step too early. It should happen after first part of output comes through.
-// Or maybe backend should notify that we are moving on to the next step
-// When we revert, we end up doing steps twice somehow.
+// upload button
+// download buttons
 // setStep showing errors
 //  // TODOs: split chunks on UI
-
+// undo should go to previous action step, not all step
+  // TODO select amongst uploaded video files
+//
+// speaker detection not working

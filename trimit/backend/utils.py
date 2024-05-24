@@ -1,4 +1,5 @@
 import trimit.utils.conf
+import logging
 from tenacity import retry, wait_random_exponential, stop_after_attempt
 from pydantic import BaseModel
 from griptape.utils import Stream
@@ -1122,6 +1123,7 @@ def create_agent(
     summary=False,
     rules: list[Rule] | None = None,
     stream: bool = False,
+    logger_level=logging.WARNING,
 ):
     if json and summary:
         raise ValueError("Can't have both json and summary")
@@ -1142,6 +1144,7 @@ def create_agent(
         ),
         conversation_memory=memory,
         rules=rules,
+        logger_level=logger_level,
     )
 
 

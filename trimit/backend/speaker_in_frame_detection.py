@@ -159,7 +159,7 @@ class SpeakerInFrameDetection(GPTMixin):
         response = self.call_gpt(
             prompt,
             use_existing_output=use_existing_output,
-            model="gpt-4-vision-preview",
+            model="gpt-4o",
             base64_images=[base64_frame],
         )
         # TODO perhaps more complex parsing

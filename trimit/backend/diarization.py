@@ -1,8 +1,6 @@
 import os
-from beanie.operators import In
-import asyncio
 from trimit.app import VOLUME_DIR
-from trimit.models import Video, DiarizationSegment, SpeechSegment
+from trimit.models import Video
 from trimit.utils.audio_utils import load_multiple_audio_files_as_single_waveform
 from trimit.utils.cache import CacheMixin
 
@@ -182,104 +180,6 @@ class Diarization(CacheMixin):
             video.md5_hash: audio_file_path_to_diarization_segments[audio_file_path]
             for video, audio_file_path in zip(videos, audio_file_paths)
         }
-
-    async def match_new_speakers(
-        self,
-        new_videos: list[Video],
-        sample_rate=None,
-        use_existing_output=True,
-        buffer_s=5,
-        min_speakers=None,
-    ):
-        existing_video_hashes = self.cache_get("existing_video_hashes", [])
-        existing_videos = await Video.find(
-            In(Video.md5_hash, existing_video_hashes)
-        ).to_list()
-        # TODO when pyannote guy gets back to me
-        return self.diarize_videos(
-            existing_videos + new_videos,
-            sample_rate=sample_rate,
-            use_existing_output=use_existing_output,
-            buffer_s=buffer_s,
-            min_speakers=min_speakers,
-        )
-        if self.speaker_to_centroids is None:
-            raise ValueError(
-                "No speaker centroids to match against. First run diarize_videos."
-            )
-        #  from scipy.spatial.distance import cdist
-        #  from pyannote.audio import Audio
-        import torch
-
-        if sample_rate is None:
-            sample_rate = 16000
-        video_save_tasks = []
-        for video in new_videos:
-            # TODO figure out how to convert my segments to pyannote binary_segmentations or just use theirs in the beginning
-            #  speech_segments = video.speech_segments
-            #  if speech_segments is None:
-            #  speech_segments = [SpeechSegment(start=0, end=-1)]
-            diarization_segments = []
-            waveform = load_audio_with_segments(
-                video.audio_path(self.volume_dir),
-                [SpeechSegment(start=0, end=-1)],
-                flatten=False,
-                sample_rate=sample_rate,
-            )[0]
-            # audio = Audio()({'waveform': waveform, 'sample_rate': sample_rate})
-            #  segmentations = self.pipeline.get_segmentations(audio)
-            #  segmentations = self.pipeline.get_segmentations({'waveform': waveform, 'sample_rate': sample_rate})
-            segmentations = self.pipeline.get_segmentations(
-                {"waveform": torch.from_numpy(waveform), "sample_rate": sample_rate}
-            )
-            #  splits = [(segment, data) for segment, data in segmentations]
-            #  embeddings = self.pipeline.get_embeddings(audio,segmentations)
-            #  inactive_speakers = np.sum(segmentations.data, axis=1) == 0
-
-            discrete_diarization = self.pipeline.reconstruct(
-                segmentations, self.pipeline.hard_clusters, self.pipeline.count
-            )
-            diarization = self.pipeline.to_annotation(
-                discrete_diarization,
-                min_duration_on=0.0,
-                min_duration_off=self.pipeline.segmentation.min_duration_off,
-            )
-            mapping = {
-                label: expected_label
-                for label, expected_label in zip(
-                    diarization.labels(), self.pipeline.classes()
-                )
-            }
-            diarization = diarization.rename_labels(mapping=mapping)
-            video.diarization = [
-                DiarizationSegment(start=turn.start, end=turn.end, speaker=speaker)
-                for turn, _, speaker in diarization.itertracks(yield_label=True)
-            ]
-            breakpoint()
-            #  for (segment, _), segment_embedding in zip(splits, embeddings):
-            #  min_distance_idx = np.argmin(
-            #  [
-            #  np.min(
-            #  cdist(
-            #  segment_embedding,
-            #  center[np.newaxis, :],
-            #  metric="cosine",
-            #  )
-            #  )
-            #  for center in self.speaker_to_centroids.values()
-            #  ]
-            #  )
-            #  speaker = list(self.speaker_to_centroids.keys())[min_distance_idx]
-            #  breakpoint()
-            #  diarization_segments.append(
-            #  DiarizationSegment(
-            #  start=segment.start, end=segment.end, speaker=speaker
-            #  )
-            #  )
-            # video.diarization = diarization_segments
-            video_save_tasks.append(video.save_with_retry())
-
-        await asyncio.gather(*video_save_tasks)
 
 
 def get_speaker_to_centroids(labels, centroids):

@@ -74,3 +74,12 @@
     @apply bg-background text-foreground;
   }
 }
+
+code {
+    display: block; /* Makes code element behave like a block (like p) */
+    background: none; /* Removes any default background */
+    padding: 0; /* Removes any default padding */
+    border: none; /* Removes any default border */
+    font-family: inherit; /* Inherits font-family from body or closest styled ancestor */
+    white-space: normal; /* Ensures text in code doesn't stick together */
+}

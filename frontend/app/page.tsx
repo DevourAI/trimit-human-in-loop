@@ -34,7 +34,9 @@ export default function Home() {
             <Login userData={userData} setUserData={setUserData}/>
           </PageActions>
         </PageHeader>
-        <MainStepper userData={userData}/>
+        {userData.email ? (
+          <MainStepper userData={userData}/>
+        ) : null}
       </div>
   )
 }

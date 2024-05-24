@@ -2,22 +2,44 @@ import os
 import re
 import asyncio
 import json
-from pydantic import BaseModel
+from datetime import datetime
 from pathlib import Path
 
 import aiofiles
-
-from modal import asgi_app
-from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
+from modal import asgi_app, is_local
+from beanie import BulkWriter
+from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
+from starlette.middleware.base import BaseHTTPMiddleware
+from fastapi import FastAPI, Form, UploadFile, File, Request, Query, HTTPException
+from fastapi.responses import StreamingResponse
 
 from trimit.utils import conf
+from trimit.utils.fs_utils import async_copy_to_s3
+from trimit.utils.model_utils import (
+    hash_ext_from_filename,
+    get_upload_folder,
+    get_audio_folder,
+    save_video_with_details,
+)
+from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_or_create_workflow, workflows
-from trimit.app import app, VOLUME_DIR
+from trimit.app import app, VOLUME_DIR, S3_BUCKET, S3_VIDEO_PATH
+from trimit.models import (
+    maybe_init_mongo,
+    Video,
+    VideoHighResPathProjection,
+    User,
+    VideoFileProjection,
+)
 from .image import image
 from trimit.backend.conf import LINEAR_WORKFLOW_OUTPUT_FOLDER
-from fastapi import FastAPI, Request
-from starlette.middleware.base import BaseHTTPMiddleware
+from trimit.backend.background_processor import BackgroundProcessor
+
+background_processor = None
+if not is_local():
+    background_processor = BackgroundProcessor()
 
 TEMP_DIR = Path("/tmp/uploads")
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
@@ -153,16 +175,16 @@ def step_endpoint(
             async for partial_result, is_last in step_function.remote_gen.aio(
                 **step_params
             ):
-                if not is_last:
-                    yield json.dumps(
-                        {"message": partial_result, "is_last": False}
-                    ) + "\n"
-                elif isinstance(partial_result, BaseModel):
+                if isinstance(partial_result, BaseModel):
                     yield json.dumps(
                         {
                             "result": json.loads(partial_result.model_dump_json()),
-                            "is_last": True,
+                            "is_last": is_last,
                         }
+                    ) + "\n"
+                else:
+                    yield json.dumps(
+                        {"message": partial_result, "is_last": is_last}
                     ) + "\n"
                 await asyncio.sleep(0)
 
@@ -323,8 +345,9 @@ async def download_timeline(
 @web_app.get("/video")
 async def stream_video(
     request: Request,
-    timeline_name: str,
-    length_seconds: int,
+    video_path: str | None = None,
+    timeline_name: str | None = None,
+    length_seconds: int | None = None,
     user_email: str | None = None,
     video_hash: str | None = None,
     user_id: str | None = None,
@@ -334,24 +357,29 @@ async def stream_video(
     timeout: float = 5,
     wait_interval: float = 0.1,
 ):
-    try:
-        workflow = await load_or_create_workflow(
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            user_email=user_email,
-            video_hash=video_hash,
-            user_id=user_id,
-            video_id=video_id,
-            with_output=True,
-            wait_until_done_running=wait_until_done_running,
-            block_until=block_until,
-            timeout=timeout,
-            wait_interval=wait_interval,
-        )
-    except Exception as e:
-        return {"error": str(e)}
+    if video_path is None:
+        if timeline_name is None or length_seconds is None:
+            return {
+                "error": "Must provide video path or timeline name and length_seconds"
+            }
+        try:
+            workflow = await load_or_create_workflow(
+                timeline_name=timeline_name,
+                length_seconds=length_seconds,
+                user_email=user_email,
+                video_hash=video_hash,
+                user_id=user_id,
+                video_id=video_id,
+                with_output=True,
+                wait_until_done_running=wait_until_done_running,
+                block_until=block_until,
+                timeout=timeout,
+                wait_interval=wait_interval,
+            )
+        except Exception as e:
+            return {"error": str(e)}
 
-    video_path = workflow.most_recent_video_path
+        video_path = workflow.most_recent_video_path
     if video_path is None:
         return {"error": "No video found"}
     extension = os.path.splitext(video_path)[1]
@@ -388,3 +416,226 @@ async def stream_video(
                 yield chunk
 
     return StreamingResponse(video_stream(), status_code=206, headers=headers)
+
+
+@web_app.get("/uploaded_high_res_video_paths")
+async def uploaded_high_res_video_paths(
+    user_email: str = Query(...), md5_hashes: list[str] = Query(None)
+):
+    await maybe_init_mongo()
+    video_filters = [Video.user.email == user_email]
+    if md5_hashes:
+        video_filters.append(In(Video.md5_hash, md5_hashes))
+
+    return {
+        video.high_res_user_file_path: video.md5_hash
+        for video in await Video.find(*video_filters)
+        .project(VideoHighResPathProjection)
+        .to_list()
+    }
+
+
+@web_app.get("/uploaded_video_hashes")
+async def uploaded_video_hashes(
+    user_email: str = Query(...), high_res_user_file_paths: list[str] = Query(None)
+):
+    await maybe_init_mongo()
+    video_filters = [Video.user.email == user_email]
+    if high_res_user_file_paths:
+        video_filters.append(
+            In(Video.high_res_user_file_path, high_res_user_file_paths)
+        )
+    return {
+        video.high_res_user_file_path: video.md5_hash
+        for video in await Video.find(*video_filters)
+        .project(VideoHighResPathProjection)
+        .to_list()
+    }
+
+
+@web_app.get("/uploaded_videos")
+async def uploaded_videos(user_email: str = Query(...)):
+    await maybe_init_mongo()
+    return [
+        {
+            "filename": video.high_res_user_file_path,
+            "video_hash": video.md5_hash,
+            "path": video.path(VOLUME_DIR),
+        }
+        for video in await Video.find(Video.user.email == user_email)
+        .project(VideoFileProjection)
+        .to_list()
+    ]
+
+
+@web_app.post("/upload")
+async def upload_multiple_files(
+    files: list[UploadFile] = File(...),
+    user_email: str = Form(...),
+    high_res_user_file_paths: list[str] = Form(...),
+    timeline_name: str = Form(...),
+    force: bool = Form(False),
+    use_existing_output: bool = Form(True),
+    reprocess: bool = Form(False),
+):
+    assert background_processor is not None
+
+    await maybe_init_mongo()
+    if not files:
+        raise HTTPException(status_code=400, detail="No files uploaded")
+    print(f"Received upload request for {len(files)} files")
+    print(f"high_res_user_file_paths: {high_res_user_file_paths}")
+
+    current_user = await get_current_user(user_email)
+    upload_datetime = datetime.now()
+
+    video_details = []
+
+    # TODO allow same video for different users
+    resp_msgs = []
+    for file, high_res_user_file_path in zip(files, high_res_user_file_paths):
+        video_hash, ext = hash_ext_from_filename(file.filename)
+        video = await check_existing_video(video_hash, high_res_user_file_path, force)
+        existing = False
+        if video is not None:
+            existing = True
+            if not reprocess:
+                resp_msgs.append(
+                    f"video {video_hash} ({high_res_user_file_path}) already exists"
+                )
+                print(
+                    f"{video_hash} ({high_res_user_file_path}) existing on disk and not reprocess. continuing"
+                )
+                continue
+            upload_datetime = video.upload_datetime
+            volume_file_path = video.path(VOLUME_DIR)
+            s3_mount_file_path = video.path(S3_VIDEO_PATH)
+            audio_file_path = video.audio_path(VOLUME_DIR)
+        else:
+            volume_file_path = get_volume_file_path(
+                current_user, upload_datetime, file.filename
+            )
+            s3_mount_file_path = get_s3_mount_file_path(
+                current_user, upload_datetime, file.filename
+            )
+            audio_file_path = get_audio_file_path(
+                current_user, upload_datetime, file.filename
+            )
+
+        if not existing:
+            s3_key = get_s3_key(current_user, upload_datetime, file.filename)
+            print(f"Saving file to {volume_file_path}")
+            await save_file_to_volume(file, volume_file_path)
+            print(f"Saving file to {s3_mount_file_path}")
+            await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
+        print(
+            f"s3 file size of {s3_mount_file_path}:",
+            os.stat(s3_mount_file_path).st_size,
+        )
+
+        if not existing:
+            convert_video_to_audio(str(volume_file_path), str(audio_file_path))
+
+        video_details.append(
+            {
+                "volume_file_path": volume_file_path,
+                "video_hash": video_hash,
+                "ext": ext,
+                "upload_datetime": upload_datetime,
+                "high_res_user_file_path": high_res_user_file_path,
+                "high_res_user_file_hash": "",
+                "existing": existing,
+            }
+        )
+    if len(video_details) == 0:
+        return {"result": "success", "messages": resp_msgs}
+
+    to_process = []
+    async with BulkWriter() as bulk_writer:
+        for video_detail in video_details:
+            if video_detail["existing"]:
+                if reprocess:
+                    to_process.append(video_detail["video_hash"])
+                    continue
+            to_process.append(video_detail["video_hash"])
+            await save_video_with_details(
+                user_email=current_user.email,
+                timeline_name=timeline_name,
+                md5_hash=video_detail["video_hash"],
+                ext=video_detail["ext"],
+                upload_datetime=video_detail["upload_datetime"],
+                high_res_user_file_path=video_detail["high_res_user_file_path"],
+                high_res_user_file_hash=video_detail["high_res_user_file_hash"],
+                volume_file_path=video_detail["volume_file_path"],
+            )
+
+        await bulk_writer.commit()
+
+    call = background_processor.process_videos_generic_from_video_hashes.spawn(
+        current_user.email, to_process, use_existing_output=use_existing_output
+    )
+
+    return {
+        "result": "success",
+        "processing_call_id": call.object_id,
+        "video_hashes": [video_detail["video_hash"] for video_detail in video_details],
+    }
+
+
+async def get_current_user(user_email: str) -> User:
+    current_user = await User.find_one(User.email == user_email)
+    if current_user is None:
+        raise HTTPException(status_code=400, detail="User not found")
+    return current_user
+
+
+async def check_existing_video(
+    video_hash: str, high_res_user_file_path: str, force: bool
+):
+    existing_by_hash = await Video.find_one(Video.md5_hash == video_hash)
+    if existing_by_hash is not None and not force:
+        path = existing_by_hash.path(VOLUME_DIR)
+        if os.path.exists(path) and os.stat(path).st_size > 0:
+            return existing_by_hash
+
+    existing_by_high_res_user_file_path = await Video.find_one(
+        Video.high_res_user_file_path == high_res_user_file_path
+    )
+    if existing_by_high_res_user_file_path is not None and not force:
+        path = existing_by_high_res_user_file_path.path(VOLUME_DIR)
+        if os.path.exists(path) and os.stat(path).st_size > 0:
+            return existing_by_high_res_user_file_path
+
+
+async def save_file_to_volume(file: UploadFile, volume_file_path: Path | str):
+    if os.path.exists(volume_file_path):
+        os.remove(volume_file_path)
+    else:
+        Path(volume_file_path).parent.mkdir(parents=True, exist_ok=True)
+    async with aiofiles.open(volume_file_path, "wb") as volume_buffer:
+        while content := await file.read(1024):
+            await volume_buffer.write(content)
+
+
+def get_volume_file_path(current_user, upload_datetime, filename):
+    volume_upload_folder = get_upload_folder(
+        VOLUME_DIR, current_user.email, upload_datetime
+    )
+    return volume_upload_folder / filename
+
+
+def get_s3_mount_file_path(current_user, upload_datetime, filename):
+    s3_upload_mount_folder = get_upload_folder(
+        S3_VIDEO_PATH, current_user.email, upload_datetime
+    )
+    return s3_upload_mount_folder / filename
+
+
+def get_s3_key(current_user, upload_datetime, filename):
+    s3_key_prefix = get_upload_folder("", current_user.email, upload_datetime)
+    return s3_key_prefix / filename
+
+
+def get_audio_file_path(current_user, upload_datetime, filename):
+    audio_folder = get_audio_folder(VOLUME_DIR, current_user.email, upload_datetime)
+    return audio_folder / filename

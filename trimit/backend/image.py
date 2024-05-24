@@ -1,5 +1,8 @@
+from pathlib import Path
 from modal import Image
-from trimit.app import LOCAL_CERT_PATH, CERT_PATH, EXTRA_ENV
+from trimit.app import LOCAL_CERT_PATH, CERT_PATH, EXTRA_ENV, VOLUME_DIR
+
+MODEL_DIR = str(Path(VOLUME_DIR) / "models")
 
 image = (
     Image.from_registry(

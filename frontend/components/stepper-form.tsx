@@ -19,6 +19,9 @@ import {
 } from "@/components/ui/form"
 import { Textarea } from "@/components/ui/textarea"
 import { toast } from "@/components/ui/use-toast"
+import Ansi from "ansi-to-react";
+
+
 
 const FormSchema = z.object({
   feedback: z
@@ -30,6 +33,11 @@ const FormSchema = z.object({
       // message: "Bio must not be longer than 30 characters.",
   //}),
 })
+
+const AnsiFormattedText = ({ text }) => {
+  //return <Ansi>test{text}</Ansi>;
+  return <p>{text}</p>;
+};
 
 export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, userData, step, prompt, onSubmit }) {
   const {
@@ -53,14 +61,14 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
 
   return (
     <Form {...form}>
-      <p>{stepIndex == activeStep ? systemPrompt: ''}</p>
+      <p><Ansi useClasses>{stepIndex == activeStep ? systemPrompt || '': ''}</Ansi></p>
       <form onSubmit={form.handleSubmit(innerOnSubmit)} className="w-2/3 space-y-6">
         <FormField
           control={form.control}
           name="feedback"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>{prompt}</FormLabel>
+              <FormLabel><Ansi useClasses>{prompt || ''}</Ansi></FormLabel>
               <FormControl>
                 <Textarea
                   placeholder="You can write anything you want."
@@ -76,8 +84,8 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
           )}
         />
         <Button disabled={isLoading} type="submit">Submit</Button>
-        <Button onClick={undoLastStep} >Undo</Button>
       </form>
+      <Button className="w-1/12" onClick={undoLastStep} >Undo</Button>
     </Form>
   )
 }

@@ -23,7 +23,6 @@ workflows = Dict.from_name(WORKFLOWS_DICT_NAME, create_if_missing=True)
 running_workflows = Dict.from_name(RUNNING_WORKFLOWS_DICT_NAME, create_if_missing=True)
 
 
-# TODO forward is_last to frontend
 async def step_workflow_until_feedback_request(
     workflow: "CutTranscriptLinearWorkflow", user_input: str | None = None
 ):
@@ -45,7 +44,6 @@ async def step_workflow_until_feedback_request(
             return
 
         assert isinstance(result, CutTranscriptLinearWorkflowStepOutput)
-        print(f"last output: {result}")
         done = result.done
         if done:
             break

@@ -1,9 +1,10 @@
 import {
-    type StepOutputParams,
-    type GetLatestStateParams,
-    type ResetWorkflowParams,
-    type RevertStepParams,
-    type StepParams
+  type StepOutputParams,
+  type GetLatestStateParams,
+  type ResetWorkflowParams,
+  type RevertStepParams,
+  type StepParams,
+  type UploadVideoParams
 } from './types'
 import axios from 'axios';
 
@@ -14,7 +15,32 @@ const fetcherWithParams = async (url, params) => {
     const res = await axios.get(url, { baseURL: API_URL, params })
     return res.data;
   } catch (error) {
-    console.error('fetcherwithparams error', error);
+    console.error('fetcherWithParams error', error);
+    return { error }
+  }
+}
+
+const postFetcherWithData = async (url, data) => {
+  const formData = new FormData();
+  Object.keys(data).forEach(key => {
+    if (Array.isArray(data[key])) {
+      data[key].forEach(value => {
+        formData.append(key, value);
+      });
+    } else {
+      formData.append(key, data[key]);
+    }
+  });
+  try {
+    const res = await axios.post(url, formData, {
+      baseURL: API_URL,
+      headers: {
+        'Content-Type': 'multipart/form-data'
+      }
+    })
+    return res.data;
+  } catch (error) {
+    console.error('postFetcherWithData error', error);
     return { error }
   }
 }
@@ -77,4 +103,47 @@ export async function step(params: StepParams, streamReaderCallback) {
   } catch (err: unknown) {
     console.error(err);
   }
+}
+export async function uploadVideo(params: UploadVideoParams) {
+  if (params.userEmail === '') return {}
+  if (!params.videoFile) return {}
+  const data = {
+    user_email: params.userEmail,
+    files: [params.videoFile],
+    timeline_name: params.timelineName,
+    high_res_user_file_paths: [params.videoFile.name],
+    reprocess: true
+  }
+
+  const respData = await postFetcherWithData('upload', data)
+
+  if (respData && respData.result && respData.result.error) {
+    console.error(respData)
+  } else if (respData && respData.videoHashes && respData.videoHashes.length) {
+    return {"videoHash": respData.videoHashes[0], "callId": respData.processing_call_id}
+  }
+  return respData
+}
+
+function remoteVideoStreamURLForPath(path: string) {
+  return `${API_URL}/video?video_path=${path}`
+}
+export async function getUploadedVideos(params: GetUploadedVideoParams) {
+  if (params.user_email === '') return {}
+  const respData = await fetcherWithParams('uploaded_videos', params)
+
+  console.log('uploadedVideos', respData)
+  if (respData && respData.error) {
+    console.error(respData)
+  } else if (respData && respData.length > 0) {
+    console.log('got uploaded videos', respData)
+    return respData.map(video => {
+      return {
+        filename: video.filename,
+        hash: video.video_hash,
+        remoteUrl: remoteVideoStreamURLForPath(video.path)
+      }
+    })
+  }
+  return respData
 }

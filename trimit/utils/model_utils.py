@@ -3,27 +3,24 @@ from datetime import datetime
 from pathlib import Path
 
 
-def filename_from_md5_hash(
-    md5_hash: str,
-    ext: str,
-    start_frame: int | None = None,
-    end_frame: int | None = None,
+def filename_from_hash(
+    hash: str, ext: str, start_frame: int | None = None, end_frame: int | None = None
 ) -> str:
     if start_frame is not None and end_frame is not None:
-        return f"{md5_hash}-{start_frame}-{end_frame}{ext}"
+        return f"{hash}-{start_frame}-{end_frame}{ext}"
     elif start_frame is not None:
-        return f"{md5_hash}-{start_frame}{ext}"
+        return f"{hash}-{start_frame}{ext}"
     elif end_frame is not None:
-        return f"{md5_hash}-{end_frame}{ext}"
+        return f"{hash}-{end_frame}{ext}"
     else:
-        return f"{md5_hash}{ext}"
+        return f"{hash}{ext}"
 
 
-def md5_hash_from_filename(filename: str) -> str:
+def hash_from_filename(filename: str) -> str:
     return Path(filename).stem
 
 
-def md5_hash_ext_from_filename(filename: str) -> tuple[str, str]:
+def hash_ext_from_filename(filename: str) -> tuple[str, str]:
     return os.path.splitext(filename)
 
 

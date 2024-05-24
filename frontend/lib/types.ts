@@ -34,6 +34,9 @@ export interface RevertStepParams extends CommonAPIParams {
 }
 
 export interface ResetWorkflowParams extends CommonAPIParams {}
+export interface GetUploadedVideoParams {
+  user_email: string
+}
 
 
 export interface PartialFeedback {
@@ -61,4 +64,16 @@ export interface UserState {
   last_step: StepInfo
   video_id: string
   user_id: string
+}
+
+export interface UploadVideoParams {
+  videoFile: File
+  userEmail: string
+  timelineName: string
+}
+
+export type Video = {
+  filename: string
+  remoteUrl: string
+  hash: string
 }
