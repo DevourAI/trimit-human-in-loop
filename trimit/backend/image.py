@@ -64,7 +64,7 @@ image = (
         "opencv-python>=4.9.0.80,<5.0.0.0",
     )
     .pip_install("git+https://github.com/bschreck/pyannote-audio.git#save-clusters")
-    .run_commands("pip uninstall onnxruntime")
+    .run_commands("pip uninstall -y onnxruntime")
     .pip_install("onnxruntime-gpu", force_build=True)
     .copy_local_file(LOCAL_CERT_PATH, CERT_PATH)
     .env(EXTRA_ENV)

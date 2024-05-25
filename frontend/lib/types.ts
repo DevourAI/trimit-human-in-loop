@@ -72,6 +72,19 @@ export interface UploadVideoParams {
   timelineName: string
 }
 
+export interface DownloadVideoParams {
+  user_email: string
+  timeline_name: string
+  length_seconds: number
+  video_hash: string
+}
+export interface DownloadTimelineParams {
+  user_email: string
+  timeline_name: string
+  length_seconds: number
+  video_hash: string
+}
+
 export type Video = {
   filename: string
   remoteUrl: string

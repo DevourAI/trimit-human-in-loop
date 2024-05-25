@@ -13,9 +13,21 @@ const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL
 const fetcherWithParams = async (url, params) => {
   try {
     const res = await axios.get(url, { baseURL: API_URL, params })
-    return res.data;
+    const toReturn = res.data;
+    toReturn.headers = res.headers;
+    return toReturn;
   } catch (error) {
     console.error('fetcherWithParams error', error);
+    return { error }
+  }
+}
+
+const fetcherWithParamsRaw = async (url, params) => {
+  try {
+    const res = await axios.get(url, { baseURL: API_URL, params })
+    return res;
+  } catch (error) {
+    console.error('fetcherWithParamsRaw error', error);
     return { error }
   }
 }
@@ -145,3 +157,59 @@ export async function getUploadedVideos(params: GetUploadedVideoParams) {
   }
   return respData
 }
+
+
+export async function downloadVideo(params: DownloadVideoParams) {
+  if (params.user_email === '') return {}
+  params.stream = false
+  const response = await fetcherWithParamsRaw('video', params)
+  if (response.error) {
+    console.error(response.error)
+    return
+  }
+
+  const blob = new Blob([response.data], { type: response.headers['content-type'] });
+  const contentDisposition = response.headers['content-disposition'];
+  console.log(response);
+  let filename = 'downloaded_video.mp4'; // Default filename
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename="(.+)"/);
+    if (match.length > 1) {
+      filename = match[1];
+    }
+  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = filename
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+};
+export async function downloadTimeline(params: DownloadTimelineParams) {
+  if (params.user_email === '') return {}
+  const response = await fetcherWithParamsRaw('download_timeline', params)
+  if (response.error) {
+    console.error(response.error)
+    return
+  }
+  console.log(response);
+  let filename = 'downloaded_timeline.xml'; // Default filename
+  const blob = new Blob([response.data], { type: response.headers['content-type'] });
+  const contentDisposition = response.headers['content-disposition'];
+  if (contentDisposition) {
+    const match = contentDisposition.match(/filename="(.+)"/);
+    if (match.length > 1) {
+      filename = match[1];
+    }
+  }
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.style.display = 'none';
+  a.href = url;
+  a.download = filename
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+};

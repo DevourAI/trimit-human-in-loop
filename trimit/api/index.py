@@ -13,7 +13,7 @@ from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import FastAPI, Form, UploadFile, File, Request, Query, HTTPException
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.utils import conf
 from trimit.utils.fs_utils import (
@@ -337,13 +337,10 @@ async def download_timeline(
     if most_recent_file is None:
         return {"error": "No timeline found"}
 
-    headers = {
-        "Content-Disposition": f"attachment; filename={os.path.basename(most_recent_file)}"
-    }
-    return StreamingResponse(
-        await aiofiles.open(most_recent_file, mode="rb"),
+    return FileResponse(
+        most_recent_file,
         media_type="application/xml",
-        headers=headers,
+        filename=os.path.basename(most_recent_file),
     )
 
 
@@ -357,6 +354,7 @@ async def stream_video(
     video_hash: str | None = None,
     user_id: str | None = None,
     video_id: str | None = None,
+    stream: bool = False,
     wait_until_done_running: bool = False,
     block_until: bool = False,
     timeout: float = 5,
@@ -389,6 +387,10 @@ async def stream_video(
         return {"error": "No video found"}
     extension = os.path.splitext(video_path)[1]
     media_type = f"video/{extension[1:]}"
+    if not stream:
+        return FileResponse(
+            video_path, media_type=media_type, filename=os.path.basename(video_path)
+        )
 
     def iterfile():
         print("iterfile")
