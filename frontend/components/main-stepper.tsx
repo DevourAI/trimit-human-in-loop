@@ -16,7 +16,9 @@ import {
   getStepOutput,
   resetWorkflow,
   revertStepInBackend,
-  uploadVideo
+  uploadVideo,
+  downloadVideo,
+  downloadTimeline
 } from "@/lib/api";
 import {
   type CommonAPIParams,
@@ -26,7 +28,8 @@ import {
   type ResetWorkflowParams,
   type StepInfo,
   type UserState,
-  type StepParams
+  type StepParams,
+  type DownloadVideoParams
 } from "@/lib/types";
 
 const BASE_PROMPT = 'What do you want to create?'
@@ -110,6 +113,7 @@ export default function MainStepper({ userData }) {
     length_seconds: lengthSeconds,
     video_hash: videoHash,
   }
+
 
   useEffect(() => {
     async function fetchLatestState() {
@@ -286,6 +290,12 @@ export default function MainStepper({ userData }) {
          })}
   {/*<Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />*/}
        </Stepper>
+       <Button onClick={() => downloadVideo({user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds} as DownloadVideoParams)}>
+          Download latest video
+       </Button>
+       <Button onClick={() => downloadTimeline({user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds} as DownloadTimelineParams)}>
+          Download latest timeline
+       </Button>
     </div>
   )
 }
