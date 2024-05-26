@@ -39,7 +39,7 @@ async def step_workflow_until_feedback_request(
 
         if not isinstance(result, CutTranscriptLinearWorkflowStepOutput):
             yield CutTranscriptLinearWorkflowStepOutput(
-                step_name="", done=False, error="No steps ran"
+                step_name="", substep_name="", done=False, error="No steps ran"
             ), True
             return
 
@@ -85,7 +85,10 @@ async def step(
         if workflow.id in workflows and not force_restart:
             if running_workflows.get(id, False):
                 yield CutTranscriptLinearWorkflowStepOutput(
-                    step_name="", done=False, error="Workflow already running"
+                    step_name="",
+                    substep_name="",
+                    done=False,
+                    error="Workflow already running",
                 ), True
                 return
         else:
@@ -100,7 +103,7 @@ async def step(
     except asyncio.TimeoutError:
         running_workflows[id] = False
         yield CutTranscriptLinearWorkflowStepOutput(
-            step_name="", done=False, error="Timeout"
+            step_name="", substep_name="", done=False, error="Timeout"
         ), True
     except StopAsyncIteration:
         return

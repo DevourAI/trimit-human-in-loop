@@ -1,4 +1,5 @@
 import datetime
+from pathlib import Path
 from bson.dbref import DBRef
 import json
 import hashlib
@@ -41,6 +42,10 @@ from typing_extensions import Annotated
 
 def get_dynamic_state_key(step_wrapper_name, substep_name):
     return f"{step_wrapper_name}.{substep_name}"
+
+
+def get_step_substep_names_from_dynamic_state_key(key):
+    return key.split(".")
 
 
 def annotation_to_list(annotation: Annotation):
@@ -416,7 +421,7 @@ class PathMixin:
         upload_folder = get_upload_folder(
             volume_dir, self.user_email, self.upload_datetime
         )
-        file_path = upload_folder / self.filename
+        file_path = Path(upload_folder) / self.filename
         return str(file_path)
 
 
@@ -425,6 +430,9 @@ class User(DocumentWithSaveRetry):
     password: Optional[str] = Field(default=None, min_length=8)
     name: str
     authorized_with_google: bool = False
+
+    class Settings:
+        name = "User"
 
     def __repr__(self):
         return f"User(email={self.email}, name={self.name})"
@@ -1415,7 +1423,7 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     export_video: bool = True
 
     def create_object_id(self):
-        dumped = self.model_dump(exclude=["user", "video"])
+        dumped = self.model_dump(exclude=set(["user", "video"]))
         user_ref = self.user.to_ref()
         if isinstance(user_ref, DBRef):
             user_ref = user_ref.id
@@ -1429,13 +1437,29 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
         return PydanticObjectId(md5_hash[:24])
 
 
-class StepOrderMixin:
+class StepKey(BaseModel):
+    name: str
+    substeps: list[str]
+
+
+class StepOrderMixin(BaseModel):
+    _id: PydanticObjectId
+    static_state: CutTranscriptLinearWorkflowStaticState
+    dynamic_state_step_order: list[StepKey] = []
+    dynamic_state_retries: dict = {}
+
+    @property
+    def id(self):
+        if not hasattr(self, "_id"):
+            self._id = self.static_state.create_object_id()
+        return self._id
+
     def get_current_step_key_atomic(self):
         if len(self.dynamic_state_step_order):
             current_step = self.dynamic_state_step_order[-1]
             current_substep = current_step.substeps[-1]
             current_substep_index = len(current_step.substeps) - 1
-            return (current_step.name, current_substep.name, current_substep_index)
+            return (current_step.name, current_substep, current_substep_index)
         return None, None, None
 
     def get_current_step_key_before_end(self):
@@ -1446,8 +1470,8 @@ class StepOrderMixin:
                     last_step = self.dynamic_state_step_order[-2]
                     last_substep_index = last_step.substeps[-1]
                     return (last_step.name, last_substep_index)
-                return None
-        return None
+                return None, None
+        return None, None
 
     @property
     def length_seconds(self):
@@ -1455,10 +1479,12 @@ class StepOrderMixin:
 
     @property
     def video(self):
+        assert isinstance(self.static_state.video, Video), "Video not fetched from link"
         return self.static_state.video
 
     @property
     def user(self):
+        assert isinstance(self.static_state.user, User), "User not fetched from link"
         return self.static_state.user
 
     @property
@@ -1530,33 +1556,14 @@ class StepOrderMixin:
         return self.static_state.clip_extra_trim_seconds
 
 
-class StepKey(BaseModel):
-    name: str
-    substeps: list[str]
-
-
-class CutTranscriptLinearWorkflowStepOrderProjection(BaseModel, StepOrderMixin):
-    _id: PydanticObjectId
-    static_state: CutTranscriptLinearWorkflowStaticState
-    dynamic_state_step_order: list[StepKey] = []
-    dynamic_state_retries: dict = {}
-
-    @property
-    def id(self):
-        if not hasattr(self, "_id"):
-            self._id = self.static_state.create_object_id()
-        return self._id
-
-
 async def load_step_order(state_id):
     return await CutTranscriptLinearWorkflowState.find_one(
         CutTranscriptLinearWorkflowState.id == state_id, fetch_links=False
-    ).project(CutTranscriptLinearWorkflowStepOrderProjection)
+    ).project(StepOrderMixin)
 
 
 class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     id: PydanticObjectId | None = None
-    static_state: CutTranscriptLinearWorkflowStaticState
     on_screen_transcript_state: dict | None = None
     original_soundbites_state: dict | None = None
     on_screen_speakers: list[str] | None = None
@@ -1566,8 +1573,6 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     current_soundbites_state: dict | None = None
     user_messages: list[str] = []
     dynamic_state: dict = {}
-    dynamic_state_step_order: list[StepKey] = []
-    dynamic_state_retries: dict = {}
     run_output_dir: str | None = None
     soundbites_output_dir: str | None = None
     output_files: dict[str, str] | None = None
@@ -1592,12 +1597,11 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         setattr(self, name, value)
 
     def __getattr__(self, name):
-        if name in self.__fields__.keys():
-            return super().__getattr__(name)
-        elif name in self.dynamic_state:
+        if name in self.model_fields.keys():
+            return getattr(self, name)
+        if name in self.dynamic_state:
             return self.dynamic_state[name]
-        else:
-            return super().__getattr__(name)
+        return getattr(self, name)
 
     @property
     def user_prompt(self):
@@ -1607,6 +1611,13 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         if self.run_output_dir is None:
             raise ValueError("run_output_dir is None")
         return os.path.join(self.run_output_dir, f"stage_{stage}")
+
+    def step_output_dir(self, step_name: str, substep_name: str):
+        if self.run_output_dir is None:
+            raise ValueError("run_output_dir is None")
+        output_dir = Path(self.run_output_dir) / step_name / substep_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return str(output_dir)
 
     async def revert_step(self, before_retries: bool = False):
         if len(self.dynamic_state_step_order) == 0:

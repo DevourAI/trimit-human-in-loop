@@ -1397,7 +1397,7 @@ class Soundbites(Transcript):
 
 class PartialFeedback(BaseModel):
     partials_to_redo: list[bool]
-    relevant_user_feedback_list: list[str | None]
+    relevant_user_feedback_list: list[str | None] | list[str]
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):
@@ -1422,6 +1422,7 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     partial_user_feedback_request: str | None = None
     step_inputs: CutTranscriptLinearWorkflowStepInput | None = None
     step_outputs: dict | None = None
+    export_result: dict[str, str] | None = None
     error: str | None = None
     retry: bool = False
 
