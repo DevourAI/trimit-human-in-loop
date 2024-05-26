@@ -1405,6 +1405,7 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
     llm_modified_partial_feedback: PartialFeedback | None = None
     is_retry: bool = False
     step_name: str | None = None
+    substep_name: str | None = None
 
 
 class CutTranscriptLinearWorkflowStepResults(BaseModel):
@@ -1415,6 +1416,7 @@ class CutTranscriptLinearWorkflowStepResults(BaseModel):
 
 class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     step_name: str
+    substep_name: str
     done: bool = False
     user_feedback_request: str | None = None
     partial_user_feedback_request: str | None = None
@@ -1441,3 +1443,8 @@ class CurrentStepInfo(BaseModel):
             "input": self.input.model_dump() if self.input else None,
             "chunked_feedback": self.chunked_feedback,
         }
+
+
+class StepWrapper(BaseModel):
+    name: str
+    substeps: list[CurrentStepInfo]

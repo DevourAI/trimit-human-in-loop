@@ -39,6 +39,10 @@ from pyannote.core import Annotation, Segment
 from typing_extensions import Annotated
 
 
+def get_dynamic_state_key(step_wrapper_name, substep_name):
+    return f"{step_wrapper_name}.{substep_name}"
+
+
 def annotation_to_list(annotation: Annotation):
     return [
         ((seg.start, seg.end), track, speaker)
@@ -1428,15 +1432,20 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
 class StepOrderMixin:
     def get_current_step_key_atomic(self):
         if len(self.dynamic_state_step_order):
-            return self.dynamic_state_step_order[-1]
-        return None
+            current_step = self.dynamic_state_step_order[-1]
+            current_substep = current_step.substeps[-1]
+            current_substep_index = len(current_step.substeps) - 1
+            return (current_step.name, current_substep.name, current_substep_index)
+        return None, None, None
 
     def get_current_step_key_before_end(self):
         if len(self.dynamic_state_step_order):
             end = self.dynamic_state_step_order[-1]
             if end == "end":
                 if len(self.dynamic_state_step_order) > 1:
-                    return self.dynamic_state_step_order[-2]
+                    last_step = self.dynamic_state_step_order[-2]
+                    last_substep_index = last_step.substeps[-1]
+                    return (last_step.name, last_substep_index)
                 return None
         return None
 
@@ -1521,10 +1530,15 @@ class StepOrderMixin:
         return self.static_state.clip_extra_trim_seconds
 
 
+class StepKey(BaseModel):
+    name: str
+    substeps: list[str]
+
+
 class CutTranscriptLinearWorkflowStepOrderProjection(BaseModel, StepOrderMixin):
     _id: PydanticObjectId
     static_state: CutTranscriptLinearWorkflowStaticState
-    dynamic_state_step_order: list[str] = []
+    dynamic_state_step_order: list[StepKey] = []
     dynamic_state_retries: dict = {}
 
     @property
@@ -1552,7 +1566,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     current_soundbites_state: dict | None = None
     user_messages: list[str] = []
     dynamic_state: dict = {}
-    dynamic_state_step_order: list[str] = []
+    dynamic_state_step_order: list[StepKey] = []
     dynamic_state_retries: dict = {}
     run_output_dir: str | None = None
     soundbites_output_dir: str | None = None
@@ -1598,8 +1612,8 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         if len(self.dynamic_state_step_order) == 0:
             print("no steps to revert")
             return
-        if before_retries and "retry" in self.dynamic_state_step_order[-1]:
-            while "retry" in self.dynamic_state_step_order[-1]:
+        if before_retries and "retry" in self.dynamic_state_step_order[-1].substeps[-1]:
+            while "retry" in self.dynamic_state_step_order[-1].substeps[-1]:
                 await self._revert_step()
         else:
             await self._revert_step()
@@ -1607,15 +1621,27 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     async def _revert_step(self):
         print("dynamic_state_step_order before revert", self.dynamic_state_step_order)
-        last_step = self.dynamic_state_step_order.pop()
-        print("last step", last_step)
-        del self.dynamic_state[last_step]
+        if len(self.dynamic_state_step_order) == 0:
+            return
+        last_step_wrapper = self.dynamic_state_step_order[-1]
+        last_substep = last_step_wrapper.substeps.pop(-1)
+        dynamic_state_key = get_dynamic_state_key(last_step_wrapper.name, last_substep)
+        print(f"last step: {dynamic_state_key}")
+        del self.dynamic_state[dynamic_state_key]
         self.dynamic_state_retries = {
-            k: v for k, v in self.dynamic_state_retries.items() if k != last_step
+            k: v
+            for k, v in self.dynamic_state_retries.items()
+            if k != dynamic_state_key
         }
-        new_last_step = self.dynamic_state_step_order[-1]
-        print("new last step", new_last_step)
-        new_last_step_outputs = self.dynamic_state[new_last_step]
+        if len(last_step_wrapper.substeps) == 0:
+            self.dynamic_state_step_order.pop()
+        new_last_step_wrapper = self.dynamic_state_step_order[-1]
+        new_last_substep = new_last_step_wrapper.substeps[-1]
+        new_dynamic_state_key = get_dynamic_state_key(
+            new_last_step_wrapper.name, new_last_substep
+        )
+        print("new last step", new_dynamic_state_key)
+        new_last_step_outputs = self.dynamic_state[new_dynamic_state_key]
         if "current_transcript_state" in new_last_step_outputs:
             print("revert current transcript state")
             self.current_transcript_state = new_last_step_outputs[
@@ -1692,29 +1718,41 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         print("recreated")
         return obj
 
-    async def set_current_step_output_atomic(self, name, results):
+    async def set_current_step_output_atomic(self, step_name, substep_name, results):
         from trimit.backend.utils import add_retry_suffix
         from trimit.backend.utils import remove_retry_suffix
 
-        name = remove_retry_suffix(name)
-        retry_name = name
-        if name in self.dynamic_state_step_order:
+        substep_name = remove_retry_suffix(substep_name)
+        retry_name = substep_name
+        dynamic_key = get_dynamic_state_key(step_name, substep_name)
+        original_dynamic_key = dynamic_key
+        if dynamic_key in self.dynamic_state_step_order:
             i = 1
             while True:
-                retry_name = add_retry_suffix(name, i)
-                if retry_name in self.dynamic_state_step_order:
+                retry_name = add_retry_suffix(substep_name, i)
+                dynamic_key = get_dynamic_state_key(step_name, retry_name)
+                if dynamic_key in self.dynamic_state_step_order:
                     i += 1
                 else:
                     break
-        print("set current step output", name, retry_name)
-        self.dynamic_state[retry_name] = results
+        print("set current step output", original_dynamic_key, dynamic_key)
+        self.dynamic_state[dynamic_key] = results
         try:
             retry = results.retry
         except AttributeError:
             retry = results.get("retry", False)
-        self.dynamic_state_retries[retry_name] = retry
-        self.dynamic_state_step_order.append(retry_name)
+        self.dynamic_state_retries[dynamic_key] = retry
+        self.add_to_dynamic_state_step_order(step_name, retry_name)
+        self.dynamic_state_step_order.append(step_name, retry_name)
         await self.save()
+
+    def add_to_dynamic_state_step_order(self, step_name, substep_name):
+        if len(self.dynamic_state_step_order) == 0:
+            self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
+        current_step = self.dynamic_state_step_order[-1]
+        if current_step.name != step_name:
+            self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
+        self.dynamic_state_step_order[-1].substeps.append(substep_name)
 
 
 class TimelineClip(BaseModel):

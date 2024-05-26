@@ -53,6 +53,7 @@ from trimit.backend.models import (
     PartialFeedback,
     CutTranscriptLinearWorkflowStepInput,
     CutTranscriptLinearWorkflowStepOutput,
+    StepWrapper,
     CurrentStepInfo,
     CutTranscriptLinearWorkflowStepResults,
 )
@@ -443,52 +444,80 @@ class CutTranscriptLinearWorkflow:
     @property
     def steps(self):
         _steps = [
-            CurrentStepInfo(
-                name="init_state", method=self.init_state, user_feedback=False
+            StepWrapper(
+                name="preprocess_video",
+                substeps=[
+                    CurrentStepInfo(
+                        name="init_state", method=self.init_state, user_feedback=False
+                    ),
+                    CurrentStepInfo(
+                        name="remove_off_screen_speakers",
+                        method=self.remove_off_screen_speakers,
+                        user_feedback=True,
+                    ),
+                    CurrentStepInfo(
+                        name="export_results",
+                        method=self.export_preprocess_results,
+                        user_feedback=False,
+                    ),
+                ],
             ),
-            CurrentStepInfo(
-                name="remove_off_screen_speakers",
-                method=self.remove_off_screen_speakers,
-                user_feedback=True,
+            StepWrapper(
+                name="generate_story",
+                substeps=[
+                    CurrentStepInfo(
+                        name="generate_story",
+                        method=self.generate_story,
+                        user_feedback=True,
+                    ),
+                    CurrentStepInfo(
+                        name="export_results",
+                        method=self.export_story_results,
+                        user_feedback=False,
+                    ),
+                ],
             ),
-            CurrentStepInfo(
-                name="generate_story", method=self.generate_story, user_feedback=True
-            ),
-            CurrentStepInfo(
+            StepWrapper(
                 name="identify_key_soundbites",
-                method=self.identify_key_soundbites,
-                user_feedback=True,
-                chunked_feedback=True,
+                substeps=[
+                    CurrentStepInfo(
+                        name="identify_key_soundbites",
+                        method=self.identify_key_soundbites,
+                        user_feedback=True,
+                        chunked_feedback=True,
+                    ),
+                    CurrentStepInfo(
+                        name="export_results",
+                        method=self.export_soundbites_results,
+                        user_feedback=False,
+                    ),
+                ],
             ),
         ]
         for stage_num, _ in enumerate(self.stage_lengths):
-            _steps.append(
-                CurrentStepInfo(
-                    name=stage_key_for_step_name(
-                        "cut_partial_transcripts_with_critiques", stage_num
+            step_wrapper = StepWrapper(
+                name=stage_key_for_step_name("generate_transcript", stage_num),
+                substeps=[
+                    CurrentStepInfo(
+                        name="cut_partial_transcripts_with_critiques",
+                        method=self.cut_transcript_with_critiques,
+                        user_feedback=False,
+                        chunked_feedback=True,
                     ),
-                    method=self.cut_transcript_with_critiques,
-                    user_feedback=False,
-                    chunked_feedback=True,
-                )
-            )
-            _steps.append(
-                CurrentStepInfo(
-                    name=stage_key_for_step_name(
-                        "modify_transcript_holistically", stage_num
+                    CurrentStepInfo(
+                        name="modify_transcript_holistically",
+                        method=self.modify_transcript_holistically,
+                        user_feedback=True,
+                        chunked_feedback=False,
                     ),
-                    method=self.modify_transcript_holistically,
-                    user_feedback=True,
-                    chunked_feedback=False,
-                )
+                    CurrentStepInfo(
+                        name="export_results",
+                        method=self.export_stage_results,
+                        user_feedback=False,
+                    ),
+                ],
             )
-            _steps.append(
-                CurrentStepInfo(
-                    name=stage_key_for_step_name("export_results", stage_num),
-                    method=self.export_stage_results,
-                    user_feedback=False,
-                )
-            )
+            _steps.append(step_wrapper)
         return _steps
 
     @property
@@ -496,8 +525,14 @@ class CutTranscriptLinearWorkflow:
         return [
             {
                 "name": step.name,
-                "user_feedback": step.user_feedback,
-                "chunked_feedback": step.chunked_feedback,
+                "substeps": [
+                    {
+                        "user_feedback": step.user_feedback,
+                        "chunked_feedback": step.chunked_feedback,
+                        "name": substep.name,
+                    }
+                    for substep in step.substeps
+                ],
             }
             for step in self.steps
         ]
@@ -514,12 +549,12 @@ class CutTranscriptLinearWorkflow:
     async def get_last_step(self, with_load_state=True):
         if with_load_state:
             await self.load_step_order()
-        return self._get_last_step_with_index()[1]
+        return self._get_last_step_with_index()[1:]
 
     async def get_next_step(self, with_load_state=True):
         if with_load_state:
             await self.load_step_order()
-        return self._get_next_step_with_index()[1]
+        return self._get_next_step_with_index()[1:]
 
     async def get_last_output(self, with_load_state=True):
         if with_load_state:
@@ -593,31 +628,37 @@ class CutTranscriptLinearWorkflow:
 
     async def step(self, user_feedback: str = ""):
         await self.load_state()
-        current_step = await self._get_next_step_with_user_feedback(user_feedback)
+        current_step, current_substep_index = (
+            await self._get_next_step_with_user_feedback(user_feedback)
+        )
         print("current_step:", current_step)
         if not current_step:
             step_result = CutTranscriptLinearWorkflowStepOutput(
-                step_name=END_STEP_NAME, done=True
+                step_name=END_STEP_NAME, substep_name=END_STEP_NAME, done=True
             )
-            await self.state.set_current_step_output_atomic(END_STEP_NAME, step_result)
+            await self.state.set_current_step_output_atomic(
+                END_STEP_NAME, END_STEP_NAME, step_result
+            )
             yield step_result, True
             return
 
-        assert isinstance(
-            current_step, CurrentStepInfo
-        ), f"current_step: {current_step}"
+        current_substep = current_step.substeps[current_substep_index]
 
-        yield current_step, False
+        assert isinstance(
+            current_substep, CurrentStepInfo
+        ), f"current_substep: {current_substep}"
+
+        yield current_substep, False
 
         step_output_parsed = None
         result = None
-        async for result, is_last in current_step.method(current_step.input):
+        async for result, is_last in current_substep.method(current_substep.input):
             if not is_last:
                 yield result, False
         assert result is not None
 
         step_output_parsed = await self._parse_step_output_from_step_result(
-            current_step, result
+            current_step, current_substep_index, result
         )
 
         # any state updates made inside
@@ -1089,67 +1130,96 @@ class CutTranscriptLinearWorkflow:
 
     def _get_last_step_with_index(self):
         # TODO use get_step_by_name
-        last_step_name_with_retry = self.step_order.get_current_step_key_atomic()
-        if last_step_name_with_retry is None:
-            return -1, None
-        last_step_name = remove_retry_suffix(last_step_name_with_retry)
+        last_step_name, last_substep_name_with_retry, last_substep_index = (
+            self.step_order.get_current_step_key_atomic()
+        )
+        if last_step_name is None:
+            return -1, None, None
+        last_substep_name = remove_retry_suffix(last_substep_name_with_retry)
         if last_step_name == END_STEP_NAME:
-            return len(self.steps), self.steps[-1]
+            return len(self.steps), self.steps[-1], None
         last_steps_list = [
-            (i, s) for i, s in enumerate(self.steps) if s.name == last_step_name
+            (i, s, j)
+            for i, s in enumerate(self.steps)
+            for j, ss in enumerate(s.substeps)
+            if s.name == last_step_name and ss.name == last_substep_name
         ]
         if len(last_steps_list) == 0:
             raise ValueError(
-                f"Last step {last_step_name_with_retry} not found in steps"
+                f"Last step {last_step_name}.{last_substep_name_with_retry} not found in steps"
             )
-        last_step_index, last_step = last_steps_list[0]
-        last_step.name = last_step_name_with_retry
-        return last_step_index, last_step
+        last_step_index, last_step, last_substep_index = last_steps_list[0]
+        last_step.substeps[last_substep_index].name = last_substep_name_with_retry
+        return last_step_index, last_step, last_substep_index
 
     def _get_next_step_with_index(self):
         # TODO use get_step_by_name
-        last_step_index, _ = self._get_last_step_with_index()
+        last_step_index, _, last_substep_index = self._get_last_step_with_index()
         if last_step_index == -1:
             return 0, self.steps[0]
-        if last_step_index >= len(self.steps) - 1:
-            return len(self.steps), None
-        next_step_index = last_step_index + 1
+        if (
+            last_step_index >= len(self.steps) - 1
+            and last_substep_index >= len(self.steps[-1].substeps) - 1
+        ):
+            return len(self.steps), None, None
+        next_step_index = last_step_index
+        next_substep_index = last_substep_index + 1
+        if last_substep_index >= len(self.steps[-1].substeps) - 1:
+            next_substep_index = 0
+            next_step_index += 1
         next_step = self.steps[next_step_index]
-        return next_step_index, next_step
+        return next_step_index, next_step, next_substep_index
 
     async def _get_next_step_with_user_feedback(self, user_feedback: str | None = None):
         # TODO use get_step_by_name
-        last_step_index, last_step = self._get_last_step_with_index()
-        if last_step_index == -1:
+        last_step_index, last_step, last_substep_index = (
+            self._get_last_step_with_index()
+        )
+        if last_step_index == -1 and last_substep_index == -1:
             first_step = self.steps[0]
-            first_step.input = CutTranscriptLinearWorkflowStepInput(
-                user_prompt=user_feedback, is_retry=False, step_name=first_step.name
+            first_substep = first_step.substeps[0]
+            first_substep.input = CutTranscriptLinearWorkflowStepInput(
+                user_prompt=user_feedback,
+                is_retry=False,
+                step_name=first_step.name,
+                substep_name=first_step.substeps[0].name,
             )
-            return first_step
+            return first_step, 0
 
         assert isinstance(last_step, CurrentStepInfo)
         retry, retry_input = await self._decide_retry(last_step.name, user_feedback)
         if retry:
             print("retrying", retry_input)
-            last_step.input = retry_input or CutTranscriptLinearWorkflowStepInput(
+            last_substep = last_step.substeps[last_substep_index]
+            last_substep.input = retry_input or CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_feedback, is_retry=True
             )
-            last_step.input.step_name = last_step.name
-            return last_step
+            last_substep.input.step_name = last_step.name
+            last_substep.input.substep_name = last_substep.name
+            return last_step, last_substep_index
 
-        if last_step_index >= len(self.steps) - 1:
-            return None
+        if (
+            last_step_index >= len(self.steps) - 1
+            and last_substep_index >= len(last_step.substeps) - 1
+        ):
+            return None, None
 
-        next_step_index = last_step_index + 1
+        next_substep_index = last_substep_index + 1
+        next_step_index = last_step_index
+        if next_substep_index >= len(last_step.substeps):
+            next_step_index += 1
+            next_substep_index = 0
         next_step = self.steps[next_step_index]
-        next_step.input = CutTranscriptLinearWorkflowStepInput(
+        next_substep = next_step.substeps[next_substep_index]
+        next_substep.input = CutTranscriptLinearWorkflowStepInput(
             # We don't want to pass the user_feedback to the next step,
             # user feedback is currently only for retry (and the first step)
             user_prompt=None,
             is_retry=False,
             step_name=next_step.name,
+            substep_name=next_substep.name,
         )
-        return next_step
+        return next_step, next_substep_index
 
     async def _save_output_state(self, step_result_raw, step_output_parsed):
         state_class_parsers = {
@@ -1167,10 +1237,14 @@ class CutTranscriptLinearWorkflow:
                 else:
                     self.state.set_state_val(name, value)
         await self.state.set_current_step_output_atomic(
-            step_output_parsed.step_name, step_output_parsed
+            step_output_parsed.step_name,
+            step_output_parsed.substep_name,
+            step_output_parsed,
         )
 
-    async def _parse_step_output_from_step_result(self, current_step, result):
+    async def _parse_step_output_from_step_result(
+        self, current_step, current_substep_index, result
+    ):
         step_outputs = {}
         output_class_parsers = {
             Transcript: (
@@ -1191,9 +1265,10 @@ class CutTranscriptLinearWorkflow:
                         step_outputs[format_name_str.format(name)] = output_val
                 else:
                     step_outputs[name] = output_val
-
+        current_substep_name = current_step.substeps[current_substep_index].name
         return CutTranscriptLinearWorkflowStepOutput(
             step_name=current_step.name,
+            substep_name=current_substep_name,
             done=False,
             user_feedback_request=result.user_feedback_request,
             step_inputs=current_step.input,

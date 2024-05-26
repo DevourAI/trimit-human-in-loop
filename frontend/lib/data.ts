@@ -3,9 +3,9 @@ import { StepInfo, StepData } from './types'
 export const stepData: StepData = {
   stepArray: [
     {
-      name: "remove_off_screen_speakers",
+      name: "preprocess_video",
       human_readable_name: "Preprocess Video",
-      substates: [
+      substeps: [
         {
           name: "init_state",
           human_readable_name: "Initializing",
@@ -29,7 +29,7 @@ export const stepData: StepData = {
     {
       name: "generate_story",
       human_readable_name: "Generate Narrative Story",
-      substates: [
+      substeps: [
         {
           name: "generate_story",
           human_readable_name: "Generate Narrative Story",
@@ -48,7 +48,7 @@ export const stepData: StepData = {
     {
       name: "identify_key_soundbites",
       human_readable_name: "Identify Key Selects",
-      substates: [
+      substeps: [
         {
           name: "identify_key_soundbites",
           human_readable_name: "Identify Key Selects",
@@ -67,7 +67,7 @@ export const stepData: StepData = {
     {
       name: "stage_0_generate_transcript",
       human_readable_name: "Generate Transcript, Stage 1",
-      substates: [
+      substeps: [
         {
           name: "stage_0_cut_partial_transcripts_with_critiques",
           human_readable_name: "Cut & Critique Partial Transcripts",
@@ -91,7 +91,7 @@ export const stepData: StepData = {
     {
       name: "stage_1_generate_transcript",
       human_readable_name: "Generate Transcript, Stage 2",
-      substates: [
+      substeps: [
         {
           name: "stage_1_cut_partial_transcripts_with_critiques",
           human_readable_name: "Cut & Critique Partial Transcripts",
