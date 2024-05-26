@@ -31,6 +31,7 @@ import {
   type StepParams,
   type DownloadVideoParams
 } from "@/lib/types";
+import {stepData} from "@/lib/data";
 
 const BASE_PROMPT = 'What do you want to create?'
 
@@ -269,10 +270,10 @@ export default function MainStepper({ userData }) {
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
        <VideoSelector userData={userData} setVideoHash={setVideoHash}/>
-       <Stepper initialStep={currentStepIndex} steps={actionSteps}>
-         {actionSteps.map(({ name, input }, index) => {
+       <Stepper initialStep={currentStepIndex} steps={stepData.stepArray}>
+         {stepData.stepArray.map(({ name, human_readable_name }, index) => {
            return (
-             <Step key={name} label={name}>
+             <Step key={name} label={human_readable_name}>
                <div className="grid w-full gap-2">
                  <StepperForm
                    systemPrompt={activePrompt}
@@ -282,7 +283,8 @@ export default function MainStepper({ userData }) {
                    stepIndex={index}
                    onSubmit={onSubmit}
                    userData={userData}
-                   step={actionSteps[index]}
+                   step={stepData.stepArray[index]}
+                   remoteStepData={actionSteps[index]}
                  />
                </div>
              </Step>

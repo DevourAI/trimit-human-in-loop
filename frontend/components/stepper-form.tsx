@@ -39,7 +39,7 @@ const AnsiFormattedText = ({ text }) => {
   return <p>{text}</p>;
 };
 
-export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, userData, step, prompt, onSubmit }) {
+export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, userData, step, remoteStepData, prompt, onSubmit }) {
   const {
     activeStep
   } = useStepper()

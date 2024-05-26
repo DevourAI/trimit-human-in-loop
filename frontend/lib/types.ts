@@ -51,11 +51,22 @@ export interface StepInput {
     step_name?: str | null
 
 }
+export interface SubStepInfo {
+  name: string
+  user_feedback?: boolean
+  chunked_feedback?: boolean
+  input?: StepInput
+  human_readable_name?: string
+}
+
 export interface StepInfo extends StepItem {
   name: string
-  user_feedback?: string
-  chunked_feedback?: string
-  input?: StepInput
+  human_readable_name?: string
+  substates: SubStepInfo[]
+}
+
+export interface StepData {
+  stepArray: StepInfo[]
 }
 
 export interface UserState {

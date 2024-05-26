@@ -194,7 +194,6 @@ export async function downloadTimeline(params: DownloadTimelineParams) {
     console.error(response.error)
     return
   }
-  console.log(response);
   let filename = 'downloaded_timeline.xml'; // Default filename
   const blob = new Blob([response.data], { type: response.headers['content-type'] });
   const contentDisposition = response.headers['content-disposition'];
