@@ -124,7 +124,8 @@ export async function uploadVideo(params: UploadVideoParams) {
     files: [params.videoFile],
     timeline_name: params.timelineName,
     high_res_user_file_paths: [params.videoFile.name],
-    reprocess: true
+    reprocess: true,
+    use_existing_output: false
   }
 
   const respData = await postFetcherWithData('upload', data)

@@ -1,5 +1,4 @@
 import pytest
-from trimit.backend.transcription import Transcription
 from trimit.utils.fs_utils import ensure_audio_path_on_volume
 from ..conftest import TEST_VOLUME_DIR, TEST_MODEL_DIR, TEST_CACHE_DIR
 import diskcache as dc
@@ -20,12 +19,9 @@ def check_expected_segments(expected_segments, actual_segments):
 
 
 @pytest.mark.long
-async def test_transcribe_videos(test_video_1, test_video_2):
+async def test_transcribe_videos(test_video_1, test_video_2, transcription):
     await ensure_audio_path_on_volume(test_video_1, volume_dir=TEST_VOLUME_DIR)
     await ensure_audio_path_on_volume(test_video_2, volume_dir=TEST_VOLUME_DIR)
-    transcription = Transcription(
-        TEST_MODEL_DIR, volume_dir=TEST_VOLUME_DIR, cache=dc.Cache(TEST_CACHE_DIR)
-    )
     await test_video_1.save_with_retry()
     await test_video_2.save_with_retry()
 

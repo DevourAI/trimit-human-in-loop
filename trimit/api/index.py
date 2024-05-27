@@ -5,7 +5,6 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-import aiofiles
 from pydantic import BaseModel
 from modal import asgi_app, is_local
 from beanie import BulkWriter
@@ -23,11 +22,7 @@ from trimit.utils.fs_utils import (
     get_s3_key,
     get_audio_file_path,
 )
-from trimit.utils.model_utils import (
-    hash_ext_from_filename,
-    save_video_with_details,
-    check_existing_video,
-)
+from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_or_create_workflow, workflows
 from trimit.app import app, get_volume_dir, S3_BUCKET, S3_VIDEO_PATH
@@ -578,6 +573,7 @@ async def upload_multiple_files(
 
         await bulk_writer.commit()
 
+    print("USE_EXISTING_OUTPUT", use_existing_output)
     call = background_processor.process_videos_generic_from_video_hashes.spawn(
         current_user.email, to_process, use_existing_output=use_existing_output
     )

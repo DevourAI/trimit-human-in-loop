@@ -8,9 +8,71 @@ import os
 import subprocess
 
 
-class Transcription(CacheMixin):
-    from pyannote.core import Annotation
+def estimate_time(words_from_segments, i, transcript_start, transcript_end):
+    """adapted from https://github.com/m-bain/whisperX/issues/349"""
+    word = words_from_segments[i]
+    prev_word_end = transcript_start
+    pointer = 1  # let the pointer to the next word start at 1
+    if i > 0:
+        prev_word_end = words_from_segments[i - 1][
+            "end"
+        ]  # grab the end from the last one (should always work)
 
+    if i + pointer >= len(words_from_segments):
+        next_word_start = transcript_end
+    else:
+        next_word_start = None
+        try:
+            next_word_start = words_from_segments[i + pointer][
+                "start"
+            ]  # try to grab the start from the next one
+        except KeyError:  # if trying to grab results in the error
+            pointer += 1  # we'll increment pointer to next
+
+        while next_word_start is None and i + pointer < len(words_from_segments):
+            try:
+                next_word_start = words_from_segments[i + pointer][
+                    "start"
+                ]  # grab the start time from the next word
+                # if successful: find difference, and then divide to find increment. Add increment to prev_word_end and assign.
+                next_word_start = (
+                    (next_word_start - prev_word_end) / pointer
+                ) + prev_word_end
+            except KeyError:
+                pointer += 1  # if another error, increment the pointer
+        if i + pointer >= len(words_from_segments):  # if we reach the end of the list
+            next_word_start = transcript_end
+
+    if next_word_start is None:
+        next_word_start = transcript_end
+    word["start"] = word.get("start", prev_word_end + 0.01)
+    word["end"] = word.get("end", next_word_start - 0.01)
+    word["score"] = word.get("score", 0.5)
+
+
+def add_missing_times(align_result):
+    for segment in align_result["segments"]:
+        for i, word in enumerate(segment["words"]):
+            if "start" not in word or "end" not in word:
+                estimate_time(segment["words"], i, segment["start"], segment["end"])
+            word["score"] = word.get("score", 0.5)
+
+    if "start" not in align_result:
+        align_result["start"] = align_result["segments"][0]["start"]
+    if "end" not in align_result:
+        align_result["end"] = align_result["segments"][-1]["end"]
+
+    for i, word_segment in enumerate(align_result["word_segments"]):
+        if "start" not in word_segment or "end" not in word_segment:
+            estimate_time(
+                align_result["word_segments"],
+                i,
+                align_result["start"],
+                align_result["end"],
+            )
+
+
+class Transcription(CacheMixin):
     def __init__(self, model_dir, cache=None, volume_dir=VOLUME_DIR):
         self.volume_dir = volume_dir
         self.model_dir = model_dir
@@ -50,16 +112,10 @@ class Transcription(CacheMixin):
         self.tempfile = tempfile
         self.initialized = True
 
-    def transcribe_audio(
-        self,
-        audio_file_path,
-        diarization: Optional["Annotation"] = None,
-        sample_rate: int | None = None,
-    ):
+    def transcribe_audio(self, audio_file_path, sample_rate: int | None = None):
         print(f"Transcribing audio file: {audio_file_path}")
         waveform, _ = load_audio(audio_file_path, flatten=True, sr=sample_rate)
         result = self.whisper_model.transcribe(waveform)
-        print(f"Transcription result: {result}")
         if not result["segments"]:
             print("No dialogue detected in any of passed audio.")
             # TODO is the right return
@@ -93,6 +149,7 @@ class Transcription(CacheMixin):
         )
         diarize_segments = self.diarize_model(waveform)
         align_result = self.assign_word_speakers(diarize_segments, align_result)
+        add_missing_times(align_result)
 
         return align_result
 
@@ -108,9 +165,7 @@ class Transcription(CacheMixin):
                 cache_result = self.cache_get(video.md5_hash)
             if cache_result is None:
                 fp = video.audio_path(self.volume_dir)
-                transcription = self.transcribe_audio(
-                    audio_file_path=fp, diarization=video.diarization
-                )
+                transcription = self.transcribe_audio(audio_file_path=fp)
                 self.cache_set(video.md5_hash, transcription)
                 transcriptions[video.md5_hash] = transcription
             else:

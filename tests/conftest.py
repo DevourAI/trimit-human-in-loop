@@ -1,21 +1,16 @@
 import os
+from pathlib import Path
 
 os.environ["ENV"] = "test"
-from trimit.models import get_upload_folder, maybe_init_mongo
+import diskcache as dc
 from datetime import datetime
 import pytest
 import asyncio
 import os
-from trimit.models.models import (
-    User,
-    Video,
-    Scene,
-    Frame,
-    Timeline,
-    TimelineVersion,
-    Take,
-    TakeItem,
-)
+from trimit.backend.transcription import Transcription
+from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
+from trimit.models.models import User, Video
+from trimit.models import get_upload_folder, maybe_init_mongo
 from trimit.utils.model_utils import save_video_with_details
 from dotenv import load_dotenv
 import shutil
@@ -76,6 +71,11 @@ DAVE_VIDEO_BASENAMES = [
 DAVE_VIDEO_DATE = datetime(2024, 1, 1)
 DAVE_UPLOADS_DIR = get_upload_folder(TEST_VOLUME_DIR, DAVE_EMAIL, DAVE_VIDEO_DATE)
 
+DAVE_FULL_VIDEO_PATHS = [
+    "tests/fixtures/volume/uploads/dave@hedhi.com/2024-01-01/15557970.mp4",
+    "tests/fixtures/volume/uploads/dave@hedhi.com/2024-01-01/3909774043.mp4",
+]
+
 TIMELINE_NAME = "test_timeline"
 
 
@@ -112,10 +112,25 @@ async def _seed_mock_data():
             timeline_name=TIMELINE_NAME,
             md5_hash=low_res_hash,
             ext=".mp4",
-            upload_datetime=datetime(2024, 1, 1),
+            upload_datetime=DAVE_VIDEO_DATE,
             high_res_user_file_path=os.path.join(DAVE_VIDEO_FOLDER, basename),
-            high_res_user_file_hash=high_res_hash,
             volume_file_path=os.path.join(DAVE_UPLOADS_DIR, low_res_hash + ".mp4"),
+        )
+
+    for path in DAVE_FULL_VIDEO_PATHS:
+        video_hash = Path(path).stem
+        video = await Video.find_one(Video.md5_hash == video_hash)
+        if video is not None:
+            continue
+
+        await save_video_with_details(
+            user_email=DAVE_EMAIL,
+            timeline_name=TIMELINE_NAME,
+            md5_hash=video_hash,
+            ext=".mp4",
+            upload_datetime=DAVE_VIDEO_DATE,
+            high_res_user_file_path=path,
+            volume_file_path=path,
         )
 
 
@@ -125,10 +140,6 @@ async def _seed_mock_data():
 #  await Video.find().delete()
 #  await Scene.find().delete()
 #  await Frame.find().delete()
-#  await Timeline.find().delete()
-#  await TimelineVersion.find().delete()
-#  await Take.find().delete()
-#  await TakeItem.find().delete()
 
 
 @pytest.fixture(scope="session")
@@ -168,3 +179,27 @@ async def kitchen_conversation_video(seed_mock_data):
 @pytest.fixture(scope="session")
 async def conversation_video(seed_mock_data):
     return await Video.find_one(Video.md5_hash == "3225395022")
+
+
+@pytest.fixture(scope="session")
+async def video_15557970(seed_mock_data):
+    return await Video.find_one(Video.md5_hash == "15557970")
+
+
+@pytest.fixture(scope="session")
+async def video_3909774043(seed_mock_data):
+    return await Video.find_one(Video.md5_hash == "3909774043")
+
+
+@pytest.fixture(scope="session")
+def transcription():
+    return Transcription(
+        TEST_MODEL_DIR, volume_dir=TEST_VOLUME_DIR, cache=dc.Cache(TEST_CACHE_DIR)
+    )
+
+
+@pytest.fixture(scope="session")
+def speaker_in_frame_detection():
+    return SpeakerInFrameDetection(
+        cache=dc.Cache(TEST_CACHE_DIR), volume_dir=TEST_VOLUME_DIR
+    )

@@ -33,17 +33,19 @@ from trimit.utils.prompt_engineering import (
     parse_prompt_template,
     render_jinja_string,
 )
-from trimit.utils.model_utils import get_generated_video_folder
+from trimit.utils.model_utils import (
+    get_generated_video_folder,
+    get_dynamic_state_key,
+    get_step_substep_names_from_dynamic_state_key,
+    load_step_order,
+)
 from trimit.models import (
     Video,
     User,
     CutTranscriptLinearWorkflowState,
     StepOrderMixin,
-    load_step_order,
     maybe_init_mongo,
     CutTranscriptLinearWorkflowStaticState,
-    get_dynamic_state_key,
-    get_step_substep_names_from_dynamic_state_key,
 )
 from trimit.export import (
     create_cut_video_from_transcript,
@@ -490,11 +492,6 @@ class CutTranscriptLinearWorkflow:
                         method=self.remove_off_screen_speakers,
                         user_feedback=True,
                     ),
-                    CurrentStepInfo(
-                        name="export_results",
-                        method=self.export_preprocess_results,
-                        user_feedback=False,
-                    ),
                 ],
             ),
             StepWrapper(
@@ -504,12 +501,7 @@ class CutTranscriptLinearWorkflow:
                         name="generate_story",
                         method=self.generate_story,
                         user_feedback=True,
-                    ),
-                    CurrentStepInfo(
-                        name="export_results",
-                        method=self.export_story_results,
-                        user_feedback=False,
-                    ),
+                    )
                 ],
             ),
             StepWrapper(
@@ -520,12 +512,7 @@ class CutTranscriptLinearWorkflow:
                         method=self.identify_key_soundbites,
                         user_feedback=True,
                         chunked_feedback=True,
-                    ),
-                    CurrentStepInfo(
-                        name="export_results",
-                        method=self.export_soundbites_results,
-                        user_feedback=False,
-                    ),
+                    )
                 ],
             ),
         ]
@@ -544,11 +531,6 @@ class CutTranscriptLinearWorkflow:
                         method=self.modify_transcript_holistically,
                         user_feedback=True,
                         chunked_feedback=False,
-                    ),
-                    CurrentStepInfo(
-                        name="export_results",
-                        method=self.export_stage_results,
-                        user_feedback=False,
                     ),
                 ],
             )
@@ -590,10 +572,33 @@ class CutTranscriptLinearWorkflow:
             await self.load_step_order()
         return self._get_last_step_with_index()[1:]
 
+    async def get_last_substep(self, with_load_state=True):
+        if with_load_state:
+            await self.load_step_order()
+        last_step_index, step, substep_index = self._get_last_step_with_index()
+        if step is not None:
+            if substep_index >= len(step.substeps):
+                assert last_step_index >= len(self.steps)
+                return step.substeps[-1]
+            return step.substeps[substep_index]
+        return None
+
     async def get_next_step(self, with_load_state=True):
         if with_load_state:
             await self.load_step_order()
         return self._get_next_step_with_index()[1:]
+
+    async def get_next_substep(self, with_load_state=True):
+        if with_load_state:
+            await self.load_step_order()
+        step, substep_index = self._get_next_step_with_index()[1:]
+        if step is not None:
+            assert substep_index is not None
+            try:
+                return step.substeps[substep_index]
+            except:
+                breakpoint()
+        return None
 
     async def get_last_output(self, with_load_state=True):
         if with_load_state:
@@ -606,7 +611,7 @@ class CutTranscriptLinearWorkflow:
         if with_load_state:
             await self.load_state()
         assert self.state is not None
-        step_name, substep_name = self.state.get_current_step_key_before_end()
+        step_name, substep_name = self.state.get_step_key_before_end()
         return self._get_output_for_key(step_name or "", substep_name or "")
 
     async def get_output_for_keys(
@@ -683,7 +688,6 @@ class CutTranscriptLinearWorkflow:
         current_step, current_substep_index = (
             await self._get_next_step_with_user_feedback(user_feedback)
         )
-        print("current_step:", current_step)
         if not current_step:
             step_result = CutTranscriptLinearWorkflowStepOutput(
                 step_name=END_STEP_NAME, substep_name=END_STEP_NAME, done=True
@@ -757,9 +761,14 @@ class CutTranscriptLinearWorkflow:
     ):
         user_prompt = step_input.user_prompt if step_input else ""
 
+        on_screen_transcript = self.raw_transcript
+        if self.video.speakers_in_frame:
+            on_screen_transcript = remove_off_screen_speakers(
+                self.video.speakers_in_frame, self.raw_transcript
+            )
         on_screen_speakers = []
         async for output, is_last in self._id_on_screen_speakers(
-            transcript=self.raw_transcript,
+            transcript=on_screen_transcript,
             user_prompt=user_prompt,
             use_agent_output_cache=self.use_agent_output_cache,
         ):
@@ -777,9 +786,12 @@ class CutTranscriptLinearWorkflow:
                     "on_screen_transcript": current_transcript,
                     "on_screen_speakers": on_screen_speakers,
                 },
-                user_feedback_request=f"I could not find any on-screen speakers. Maybe try another video? Or enter additional information to help me find them.",
+                user_feedback_request="I could not find any on-screen speakers. Maybe try another video? Or enter additional information to help me find them.",
             ), True
             return
+
+        self.video.speakers_in_frame = on_screen_speakers
+        await self.video.save()
         assert isinstance(on_screen_speakers, list)
 
         on_screen_transcript = remove_off_screen_speakers(
@@ -1188,11 +1200,11 @@ class CutTranscriptLinearWorkflow:
             self.step_order.get_current_step_key_atomic()
         )
         if last_step_name is None:
-            return -1, None, None
+            return -1, None, -1
         assert last_substep_name_with_retry is not None
         last_substep_name = remove_retry_suffix(last_substep_name_with_retry)
         if last_step_name == END_STEP_NAME:
-            return len(self.steps), self.steps[-1], None
+            return len(self.steps), self.steps[-1], len(self.steps[-1].substeps)
         last_steps_list = [
             (i, s, j)
             for i, s in enumerate(self.steps)
@@ -1211,7 +1223,7 @@ class CutTranscriptLinearWorkflow:
         # TODO use get_step_by_name
         last_step_index, _, last_substep_index = self._get_last_step_with_index()
         if last_step_index == -1:
-            return 0, self.steps[0]
+            return 0, self.steps[0], 0
         assert last_substep_index is not None
         if (
             last_step_index >= len(self.steps) - 1
@@ -1220,7 +1232,7 @@ class CutTranscriptLinearWorkflow:
             return len(self.steps), None, None
         next_step_index = last_step_index
         next_substep_index = last_substep_index + 1
-        if last_substep_index >= len(self.steps[-1].substeps) - 1:
+        if next_substep_index >= len(self.steps[-1].substeps) - 1:
             next_substep_index = 0
             next_step_index += 1
         next_step = self.steps[next_step_index]
@@ -1242,7 +1254,7 @@ class CutTranscriptLinearWorkflow:
             )
             return first_step, 0
 
-        assert isinstance(last_step, CurrentStepInfo)
+        assert isinstance(last_step, StepWrapper)
         assert last_substep_index is not None
         last_substep = last_step.substeps[last_substep_index]
 
@@ -1326,21 +1338,23 @@ class CutTranscriptLinearWorkflow:
                         step_outputs[format_name_str.format(name)] = output_val
                 else:
                     step_outputs[name] = output_val
-        current_substep_name = current_step.substeps[current_substep_index].name
+        current_substep = current_step.substeps[current_substep_index]
         return CutTranscriptLinearWorkflowStepOutput(
             step_name=current_step.name,
-            substep_name=current_substep_name,
+            substep_name=current_substep.name,
             done=False,
             user_feedback_request=result.user_feedback_request,
-            step_inputs=current_step.input,
+            step_inputs=current_substep.input,
             step_outputs=step_outputs,
             export_result=export_result,
             retry=result.retry,
         )
 
-    def _get_output_for_key(self, step_name, substep_name: str, latest_retry=False):
+    def _get_output_for_key(
+        self, step_name: str, substep_name: str, latest_retry=False
+    ):
         assert self.state is not None
-        key = ""
+        key = get_dynamic_state_key(step_name, substep_name)
         if latest_retry:
             for step_key in self.state.dynamic_state_step_order[::-1]:
                 if step_key != step_name:
@@ -1373,7 +1387,7 @@ class CutTranscriptLinearWorkflow:
     ):
         if not user_prompt:
             return False, None
-        if step_name == "init_state":
+        if substep_name == "init_state":
             return False, None
 
         _, substep = self.get_step_by_name(step_name, substep_name)

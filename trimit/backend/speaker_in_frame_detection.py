@@ -1,7 +1,7 @@
 import io
 from tqdm.asyncio import tqdm as tqdm_async
 from schema import Schema
-from trimit.utils.openai import GPTMixin
+from trimit.utils.cache import CacheMixin
 from trimit.app import VOLUME_DIR
 from trimit.utils.frame_extraction import extract_frames, encode_image
 from trimit.utils.prompt_engineering import parse_prompt_template
@@ -16,13 +16,11 @@ from collections import defaultdict
 import os
 
 
-class SpeakerInFrameDetection(GPTMixin):
+class SpeakerInFrameDetection(CacheMixin):
     def __init__(self, cache=None, volume_dir=VOLUME_DIR):
         super().__init__(cache=cache, cache_prefix="speaker_in_frame/")
         self.volume_dir = volume_dir
 
-    # TODO keep this in a branch but simplify for interview to just using frames from across entire video
-    # and assuming a single scene (single speaker) per video
     async def detect_speaker_in_frame_from_videos(
         self,
         videos: list[Video],
@@ -62,10 +60,17 @@ class SpeakerInFrameDetection(GPTMixin):
                     speaker = segment.get("speaker")
                     all_speakers.add(speaker)
                     speakers_in_segment = set(
-                        [word["speaker"] for word in segment["words"]]
+                        [
+                            word["speaker"]
+                            for word in segment["words"]
+                            if "speaker" in word
+                        ]
                     )
                     # Assume all actual interviewees (speakers) will have an entire segment that's just them speaking
-                    if len(speakers_in_segment) == 1:
+                    if len(speakers_in_segment) == 0:
+                        print(f"Skipping segment with no speakers: {segment}")
+                        continue
+                    elif len(speakers_in_segment) == 1:
                         speaker = list(speakers_in_segment)[0]
                         speakers_to_segments[speaker].append(segment)
                 speaker_segment_samples = {
@@ -101,7 +106,7 @@ class SpeakerInFrameDetection(GPTMixin):
                     await extract_scenes_to_disk(
                         video_path,
                         scenes_to_write_to_disk,
-                        output_dir,
+                        str(output_dir),
                         frame_rate=video.frame_rate,
                         codec=video.codec,
                     )
@@ -196,7 +201,7 @@ class SpeakerInFrameDetection(GPTMixin):
         return is_speaking
 
     def save_frame_bytes_to_cache(self, scene, frame_bytes):
-        self.cache.set(f"frame_bytes/{scene.name}", frame_bytes)
+        self.cache_set(f"frame_bytes/{scene.name}", frame_bytes)
 
     def get_frame_bytes_from_cache(self, scene):
-        return self.cache.get(f"frame_bytes/{scene.name}")
+        return self.cache_get(f"frame_bytes/{scene.name}")

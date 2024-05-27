@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 import pickle
 from trimit.utils.misc import union_list_of_intervals
 import copy
@@ -1433,6 +1433,7 @@ class CurrentStepInfo(BaseModel):
     user_feedback: bool
     input: CutTranscriptLinearWorkflowStepInput | None = None
     chunked_feedback: bool = False
+    step: Union["StepWrapper", None] = None
 
     def model_dump_json(self, *args, **kwargs):
         return super().model_dump_json(*args, exclude={"method"}, **kwargs)
@@ -1443,9 +1444,15 @@ class CurrentStepInfo(BaseModel):
             "user_feedback": self.user_feedback,
             "input": self.input.model_dump() if self.input else None,
             "chunked_feedback": self.chunked_feedback,
+            "step": self.step.name if self.step else None,
         }
 
 
 class StepWrapper(BaseModel):
     name: str
     substeps: list[CurrentStepInfo]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for substep in self.substeps:
+            substep.step = self

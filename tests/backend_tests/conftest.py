@@ -1,17 +1,16 @@
 import pytest
-import pymongo
 import asyncio
 from pathlib import Path
-import datetime
-import pickle
+from tests.conftest import TEST_VOLUME_DIR
 from trimit.backend.cut_transcript import (
-    CutTranscriptLinearWorkflowStepInput,
     CutTranscriptLinearWorkflow,
     CutTranscriptLinearWorkflowStepOutput,
-    CutTranscriptLinearWorkflowStepResults,
 )
 from trimit.backend.conf import CONF
-from trimit.models import maybe_init_mongo
+from trimit.backend.transcription import Transcription
+from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
+from trimit.models import maybe_init_mongo, Video
+from trimit.utils.video_utils import convert_video_to_audio
 
 CONF["chunk_delay"] = 0
 from trimit.backend.models import (
@@ -23,7 +22,7 @@ from trimit.backend.models import (
 
 
 @pytest.fixture(scope="session")
-def transcription():
+def raw_transcript():
     return {
         "segments": [
             {
@@ -470,18 +469,6 @@ def transcription():
     }
 
 
-async def load_video(video_hash):
-    with open(f"tests/fixtures/objects/video_{video_hash}.p", "rb") as f:
-        video = pickle.load(f)
-    video.upload_datetime = datetime.datetime(2024, 1, 1)
-    try:
-        await video.user.insert()
-    except pymongo.errors.DuplicateKeyError:
-        pass
-    await video.save()
-    return video
-
-
 def load_transcript(video_hash):
     return Transcript.load_from_file(
         f"tests/fixtures/objects/transcript_{video_hash}.p"
@@ -512,24 +499,75 @@ def load_soundbites_chunk(video_hash, chunk):
     )
 
 
-@pytest.fixture(scope="session")
-async def video_15557970(mongo_connect):
-    return await load_video("15557970")
+def transcribe_video(transcription: Transcription, video: Video):
+    convert_video_to_audio(
+        video.path(TEST_VOLUME_DIR), video.audio_path(TEST_VOLUME_DIR)
+    )
+
+    hash_to_transcription = transcription.transcribe_videos([video], with_cache=True)
+    return hash_to_transcription[video.md5_hash]
+
+
+async def video_with_transcription(transcription: Transcription, video: Video):
+    video_hash = video.md5_hash
+    if video.transcription is None:
+        raw_transcript = transcribe_video(transcription, video)
+        transcript = Transcript.from_video_transcription(raw_transcript)
+        transcript.save(f"tests/fixtures/objects/transcript_{video_hash}.p")
+        video.transcription = raw_transcript
+        await video.save()
+    return video
+
+
+async def video_with_speakers_in_frame(
+    speaker_in_frame_detection: SpeakerInFrameDetection, video: Video
+):
+    # TODO REMVOE
+    video.speakers_in_frame = ["SPEAKER_00", "SPEAKER_01"]
+    await video.save()
+    if video.speakers_in_frame is None:
+        await speaker_in_frame_detection.detect_speaker_in_frame_from_videos(
+            [video], use_existing_output=True
+        )
+    return video
 
 
 @pytest.fixture(scope="session")
-async def video_3909774043(mongo_connect):
-    return await load_video("3909774043")
+async def video_15557970_with_transcription(transcription, video_15557970):
+    return await video_with_transcription(transcription, video_15557970)
+
+
+@pytest.fixture(scope="session")
+async def video_3909774043_with_transcription(transcription, video_3909774043):
+    return await video_with_transcription(transcription, video_3909774043)
+
+
+@pytest.fixture(scope="session")
+async def video_15557970_with_speakers_in_frame(
+    speaker_in_frame_detection, video_15557970_with_transcription
+):
+    return await video_with_speakers_in_frame(
+        speaker_in_frame_detection, video_15557970_with_transcription
+    )
+
+
+@pytest.fixture(scope="session")
+async def video_3909774043_with_speakers_in_frame(
+    speaker_in_frame_detection, video_3909774043_with_transcription
+):
+    return await video_with_speakers_in_frame(
+        speaker_in_frame_detection, video_3909774043_with_transcription
+    )
 
 
 @pytest.fixture(scope="function")
-def transcript_15557970(video_15557970):
-    return load_transcript("15557970")
+def transcript_15557970(video_15557970_with_speakers_in_frame):
+    return video_15557970_with_speakers_in_frame.transcription
 
 
 @pytest.fixture(scope="function")
-def transcript_3909774043():
-    return load_transcript("3909774043")
+def transcript_3909774043(video_3909774043_with_speakers_in_frame):
+    return video_3909774043_with_speakers_in_frame.transcription
 
 
 @pytest.fixture(scope="function")
@@ -605,12 +643,14 @@ def test_videos_volume_dir():
 
 @pytest.fixture(scope="function")
 async def workflow_3909774043_with_transcript(
-    mongo_connect, video_3909774043, test_videos_output_dir, test_videos_volume_dir
+    video_3909774043_with_speakers_in_frame,
+    test_videos_output_dir,
+    test_videos_volume_dir,
 ):
     loop = asyncio.get_running_loop()
     await maybe_init_mongo(io_loop=loop, reinitialize=True)
     return await CutTranscriptLinearWorkflow.from_video(
-        video=video_3909774043,
+        video=video_3909774043_with_speakers_in_frame,
         timeline_name="3909774043_testimonial_test",
         output_folder=test_videos_output_dir,
         volume_dir=test_videos_volume_dir,
@@ -631,23 +671,24 @@ async def workflow_3909774043_with_transcript(
 async def workflow_3909774043_with_state_init(workflow_3909774043_with_transcript):
     workflow = workflow_3909774043_with_transcript
     output = None
-    async for output in workflow.step("make me a video"):
+    async for output, _ in workflow.step("make me a video"):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert len(workflow.raw_transcript.text) == 22861
+    assert len(workflow.raw_transcript.text) == 22855
     assert workflow.user_messages == ["make me a video"]
-    workflow.current_transcript.save(f"tests/fixtures/objects/transcript_3909774043.p")
     return workflow
 
 
 @pytest.fixture(scope="function")
 async def workflow_15557970_with_transcript(
-    mongo_connect, video_15557970, test_videos_output_dir, test_videos_volume_dir
+    video_15557970_with_speakers_in_frame,
+    test_videos_output_dir,
+    test_videos_volume_dir,
 ):
     loop = asyncio.get_running_loop()
     await maybe_init_mongo(io_loop=loop, reinitialize=True)
     return await CutTranscriptLinearWorkflow.from_video(
-        video=video_15557970,
+        video=video_15557970_with_speakers_in_frame,
         timeline_name="15557970_testimonial_test",
         output_folder=test_videos_output_dir,
         volume_dir=test_videos_volume_dir,
@@ -672,7 +713,6 @@ async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert workflow.user_messages == ["make me a video"]
-    workflow.current_transcript.save(f"tests/fixtures/objects/transcript_15557970.p")
     return workflow
 
 

@@ -126,7 +126,12 @@ async def downsample_video(
     else:
         rel_file_path = file_path
     downsampled_file_path = cache.get(cache_prefix + rel_file_path)
-    if downsampled_file_path and os.path.exists(downsampled_file_path) and not force:
+    if (
+        downsampled_file_path
+        and isinstance(downsampled_file_path, str)
+        and os.path.exists(downsampled_file_path)
+        and not force
+    ):
         print(f"Skipping existing file: {rel_file_path}")
         return downsampled_file_path
 
@@ -162,7 +167,6 @@ async def downsample_video(
     else:
         stdout, stderr, exit_code = await run_command()
 
-    print(stdout)
     if exit_code != 0:
         # Handle errors
         print(f"Error downsampling video {file_path}: {stderr.decode()}")
@@ -178,8 +182,6 @@ async def downsample_video(
         hashed_output_file_path = os.path.join(output_dir, filename)
         os.rename(downsampled_file_path, hashed_output_file_path)
         downsampled_file_path = hashed_output_file_path
-
-    print(f"Video processed and saved to {downsampled_file_path}")
 
     if cache:
         if relative_cache_path:
@@ -248,8 +250,6 @@ async def get_exiftool_details(video_file_path):
 
 
 async def get_frame_count(video_path):
-    print("TEST")
-    print(f"GETTING FRAME COUNT FOR {video_path}")
     command = [
         "ffmpeg",
         "-i",
@@ -274,13 +274,9 @@ async def get_frame_count(video_path):
             return try_cast_int(details[-1].split("=")[1])
 
     frame_count = try_parse_frame_count(stdout)
-    print("first frame_count: " + str(frame_count), type(frame_count), flush=True)
-    print("stdout: " + stdout.decode(), flush=True)
-    print("stderr: " + stdout.decode(), flush=True)
     if frame_count is None:
         if stderr:
             frame_count = try_parse_frame_count(stderr)
-            print("2nd frame_count: " + str(frame_count), type(frame_count), flush=True)
             if frame_count is not None:
                 return frame_count
         print(
@@ -288,7 +284,6 @@ async def get_frame_count(video_path):
             flush=True,
         )
         return None
-    print("returning at end", flush=True)
     assert isinstance(frame_count, int)
     return frame_count
 
@@ -349,21 +344,15 @@ def try_cast_float(val):
 
 
 async def get_video_details(video_path):
-    print(f"Getting video details for {video_path}")
     from trimit.models import VideoMetadata
 
     exiftool_details = await get_exiftool_details(video_path)
-    print(f"exiftool_details: {exiftool_details}")
     frame_count = await get_frame_count(video_path)
-    print(f"frame_count: {frame_count}")
     frame_rate_fraction = await get_frame_rate(video_path)
-    print(f"frame_rate_fraction: {frame_rate_fraction}")
     frame_rate = None
     if frame_rate_fraction:
         frame_rate = frame_rate_fraction.numerator / frame_rate_fraction.denominator
-    print(f"frame_rate: {frame_rate}")
     file_creation_date = get_file_creation_date(video_path)
-    print(f"file_creation_date: {file_creation_date}")
 
     codec = exiftool_details.get("CompressorName", "")
     available_ffmpeg_codecs = [
@@ -379,7 +368,6 @@ async def get_video_details(video_path):
         if available_codec in codec.lower():
             codec = available_codec
             break
-    print(f"codec: {codec}")
     try:
         duration = parse_timecode(exiftool_details.get("Duration"))
     except Exception as e:

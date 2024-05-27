@@ -4,9 +4,9 @@ import pytest
 pytestmark = pytest.mark.asyncio(scope="session")
 
 
-async def test_transcript_segment(transcription):
+async def test_transcript_segment(raw_transcript):
     segment = TranscriptSegment.from_video_transcription_segment(
-        transcription["segments"][0]
+        raw_transcript["segments"][0]
     )
 
     def check_original_segment(segment):
@@ -121,8 +121,8 @@ async def test_transcript_segment(transcription):
         left, right = segment_copy_2.split(6)
 
 
-async def test_transcript_split_in_chunks(transcription):
-    transcript = Transcript.from_video_transcription(transcription)
+async def test_transcript_split_in_chunks(raw_transcript):
+    transcript = Transcript.from_video_transcription(raw_transcript)
     assert len(transcript.segments) == 9
     transcript_copy = transcript.copy()
     chunks = transcript_copy.split_in_chunks(6)
@@ -183,8 +183,8 @@ async def test_transcript_split_in_chunks(transcription):
     ]
 
 
-async def test_words_with_keep_tags(transcription):
-    transcript = Transcript.from_video_transcription(transcription)
+async def test_words_with_keep_tags(raw_transcript):
+    transcript = Transcript.from_video_transcription(raw_transcript)
     segment = transcript.segments[0]
     assert segment.words_with_keep_tags == [
         "<keep>",
@@ -219,8 +219,8 @@ async def test_words_with_keep_tags(transcription):
     )
 
 
-async def test_words_with_keep_and_remove_tags(transcription):
-    transcript = Transcript.from_video_transcription(transcription)
+async def test_words_with_keep_and_remove_tags(raw_transcript):
+    transcript = Transcript.from_video_transcription(raw_transcript)
     segment = transcript.segments[0]
     assert segment.words_with_keep_and_remove_tags == [
         "<keep>",
