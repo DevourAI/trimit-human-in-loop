@@ -33,8 +33,13 @@ class DocumentWithSaveRetry(Document):
     async def save_with_retry(self):
         try:
             await self.save()
-        except:
-            await self.insert()
+        except Exception as e:
+            print(f"Error saving document: {e}")
+            try:
+                await self.insert()
+            except Exception as e:
+                print(f"Error inserting document: {e}")
+                raise
         #  try:
         #  await self.save_changes()
         #  print("Document saved changes")
@@ -209,7 +214,9 @@ class Video(DocumentWithSaveRetry, PathMixin):
         return str(num_videos)
 
     @classmethod
-    async def from_user_email(cls, user_email: str, md5_hash: str, **kwargs) -> "Video":
+    async def from_user_email(
+        cls, user_email: str, md5_hash: str, overwrite: bool = False, **kwargs
+    ) -> "Video":
         user = await User.find_one(User.email == user_email)
         if user is None:
             raise ValueError(f"User not found: {user_email}")
@@ -217,7 +224,10 @@ class Video(DocumentWithSaveRetry, PathMixin):
             Video.md5_hash == md5_hash, Video.user.email == user_email
         )
         if existing_video is not None:
-            return existing_video
+            if not overwrite:
+                return existing_video
+            else:
+                await existing_video.delete()
         simple_name = await Video.gen_simple_name(user_email)
         video = Video(md5_hash=md5_hash, simple_name=simple_name, user=user, **kwargs)
         await video.save_with_retry()
@@ -353,7 +363,10 @@ class Scene(DocumentWithSaveRetry):
     class Settings:
         name = "Scene"
         indexes = [
-            IndexModel([("name", pymongo.ASCENDING)], unique=True),
+            IndexModel(
+                [("name", pymongo.ASCENDING), ("user.email", pymongo.ASCENDING)],
+                unique=True,
+            ),
             [("simple_name", pymongo.ASCENDING)],
             [("user", pymongo.ASCENDING)],
             [("user.email", pymongo.ASCENDING)],
@@ -430,6 +443,7 @@ class Scene(DocumentWithSaveRetry):
         start: float | None = None,
         end: float | None = None,
         save: bool = True,
+        check_existing: bool = True,
     ) -> Optional["Scene"]:
         if start is None and start_frame is None:
             raise ValueError("Must provide start or start_frame")
@@ -451,11 +465,12 @@ class Scene(DocumentWithSaveRetry):
         if end_frame is None:
             end_frame = int(end * frame_rate)
         name = scene_name_from_video(video, start_frame, end_frame)
-        existing_scene = await Scene.find_one(
-            Scene.name == name, Scene.user == video.user
-        )
-        if existing_scene is not None:
-            return existing_scene
+        if check_existing:
+            existing_scene = await Scene.find_one(
+                Scene.name == name, Scene.user.email == video.user.email
+            )
+            if existing_scene is not None:
+                return existing_scene
 
         (
             segment_index_start,
@@ -694,15 +709,14 @@ class StepOrderMixin(BaseModel):
         return None, None, None
 
     def get_step_key_before_end(self):
-        if len(self.dynamic_state_step_order):
-            end = self.dynamic_state_step_order[-1]
-            if end.name == "end":
-                if len(self.dynamic_state_step_order) > 1:
-                    last_step = self.dynamic_state_step_order[-2]
-                    last_substep_index = last_step.substeps[-1]
-                    return (last_step.name, last_substep_index)
+        if len(self.dynamic_state_step_order) < 1:
+            return None, None
+        last_step = self.dynamic_state_step_order[-1]
+        if last_step.name == "end":
+            if len(self.dynamic_state_step_order) < 2:
                 return None, None
-        return None, None
+            last_step = self.dynamic_state_step_order[-2]
+        return last_step.name, last_step.substeps[-1]
 
     @property
     def length_seconds(self):
@@ -991,32 +1005,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
 
 class TimelineClip(BaseModel):
-    scene_name: Optional[str] = Field(
-        default=None,
-        description="The name of the retrieved scene, representing a segment of a raw video",
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @field_validator("scene_name")
-    @classmethod
-    def validate_scene_name(cls, scene_simple_name: str) -> str:
-        if scene_simple_name is not None and not cls.scene_exists_in_db(
-            scene_simple_name
-        ):
-            log = f"The last attempt to generate a timeline used the following nonexistent scene segment: {scene_simple_name}. Retry timeline generation with a valid scene segment name."
-            raise ValueError(log)
-        return scene_simple_name
-
-    @classmethod
-    def scene_exists_in_db(cls, scene_simple_name):
-        from trimit.models import pymongo_conn
-
-        db = pymongo_conn()
-        scene_collection = db["Scene"]
-        # TODO namespace by user
-        return scene_collection.find_one({"simple_name": scene_simple_name}) is not None
+    scene: Link[Scene]
 
 
 class TimelineOutput(BaseModel):

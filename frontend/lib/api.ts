@@ -127,7 +127,8 @@ export async function uploadVideo(params: UploadVideoParams) {
     timeline_name: params.timelineName,
     high_res_user_file_paths: [params.videoFile.name],
     reprocess: true,
-    use_existing_output: true
+    use_existing_output: true,
+    overwrite: true
   }
 
   const respData = await postFetcherWithData('upload', data)
@@ -171,6 +172,12 @@ export async function downloadVideo(params: DownloadVideoParams) {
     return
   }
 
+  console.log('data');
+  console.log(response.data)
+  if (typeof response.data !== 'string' && response.data.error) {
+    console.error(response.data.error)
+    return
+  }
   const blob = new Blob([response.data], { type: response.headers['content-type'] });
   const contentDisposition = response.headers['content-disposition'];
   console.log(response);

@@ -15,8 +15,9 @@ app_kwargs = dict(
     container_idle_timeout=1200,
     _experimental_boost=True,
     _experimental_scheduler=True,
+    cpu=12,
+    memory=24000,
 )
-
 
 workflows = Dict.from_name(WORKFLOWS_DICT_NAME, create_if_missing=True)
 running_workflows = Dict.from_name(RUNNING_WORKFLOWS_DICT_NAME, create_if_missing=True)
@@ -29,6 +30,7 @@ async def step_workflow_until_feedback_request(
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
+
     user_feedback_request = None
     first_time = True
     done = False

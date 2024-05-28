@@ -9,7 +9,7 @@ global MONGO_INITIALIZED
 MONGO_INITIALIZED = [False]
 
 
-class IndexlessBeaineInitializer(Initializer):
+class IndexlessBeanieInitializer(Initializer):
     """
     Beanie initializer subclass to skip indexes operations
     """
@@ -19,7 +19,7 @@ class IndexlessBeaineInitializer(Initializer):
 
 
 async def init_beanie_without_indexes(*args, **kwargs):
-    await IndexlessBeaineInitializer(*args, **kwargs)
+    await IndexlessBeanieInitializer(*args, **kwargs)
 
 
 async def maybe_init_mongo(

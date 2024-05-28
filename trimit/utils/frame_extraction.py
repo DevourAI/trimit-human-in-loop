@@ -13,7 +13,7 @@ def encode_image(image: io.BytesIO):
     return base64.b64encode(image.read()).decode("utf-8")
 
 
-def extract_frames(
+async def extract_frames(
     video_path,
     output_folder,
     max_frame_rate=30,
@@ -27,7 +27,7 @@ def extract_frames(
     Path(output_folder).mkdir(parents=True, exist_ok=True)
     if total_duration is None:
         try:
-            total_duration = get_duration(video_path)
+            total_duration = await get_duration(video_path)
         except ValueError as e:
             print(f"Could not extract frames from the video: {e}")
             return None

@@ -169,7 +169,7 @@ class SpeakerInFrameDetection(CacheMixin):
                 )
                 / scene.name
             )
-            frame_buffer = extract_frames(
+            frame_buffer = await extract_frames(
                 scene.path(self.volume_dir),
                 output_folder=output_folder,
                 output_to_buffer=True,

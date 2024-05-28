@@ -499,77 +499,6 @@ def load_soundbites_chunk(video_hash, chunk):
     )
 
 
-def transcribe_video(transcription: Transcription, video: Video):
-    convert_video_to_audio(
-        video.path(TEST_VOLUME_DIR), video.audio_path(TEST_VOLUME_DIR)
-    )
-
-    hash_to_transcription = transcription.transcribe_videos([video], with_cache=True)
-    return hash_to_transcription[video.md5_hash]
-
-
-async def video_with_transcription(transcription: Transcription, video: Video):
-    video_hash = video.md5_hash
-    if video.transcription is None:
-        raw_transcript = transcribe_video(transcription, video)
-        transcript = Transcript.from_video_transcription(raw_transcript)
-        transcript.save(f"tests/fixtures/objects/transcript_{video_hash}.p")
-        video.transcription = raw_transcript
-        await video.save()
-    return video
-
-
-async def video_with_speakers_in_frame(
-    speaker_in_frame_detection: SpeakerInFrameDetection, video: Video
-):
-    # TODO REMVOE
-    video.speakers_in_frame = ["SPEAKER_00", "SPEAKER_01"]
-    await video.save()
-    if video.speakers_in_frame is None:
-        await speaker_in_frame_detection.detect_speaker_in_frame_from_videos(
-            [video], use_existing_output=True
-        )
-    return video
-
-
-@pytest.fixture(scope="session")
-async def video_15557970_with_transcription(transcription, video_15557970):
-    return await video_with_transcription(transcription, video_15557970)
-
-
-@pytest.fixture(scope="session")
-async def video_3909774043_with_transcription(transcription, video_3909774043):
-    return await video_with_transcription(transcription, video_3909774043)
-
-
-@pytest.fixture(scope="session")
-async def video_15557970_with_speakers_in_frame(
-    speaker_in_frame_detection, video_15557970_with_transcription
-):
-    return await video_with_speakers_in_frame(
-        speaker_in_frame_detection, video_15557970_with_transcription
-    )
-
-
-@pytest.fixture(scope="session")
-async def video_3909774043_with_speakers_in_frame(
-    speaker_in_frame_detection, video_3909774043_with_transcription
-):
-    return await video_with_speakers_in_frame(
-        speaker_in_frame_detection, video_3909774043_with_transcription
-    )
-
-
-@pytest.fixture(scope="function")
-def transcript_15557970(video_15557970_with_speakers_in_frame):
-    return video_15557970_with_speakers_in_frame.transcription
-
-
-@pytest.fixture(scope="function")
-def transcript_3909774043(video_3909774043_with_speakers_in_frame):
-    return video_3909774043_with_speakers_in_frame.transcription
-
-
 @pytest.fixture(scope="function")
 def transcript_3909774043_small():
     return load_transcript("3909774043_small")
@@ -714,19 +643,3 @@ async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert workflow.user_messages == ["make me a video"]
     return workflow
-
-
-@pytest.fixture(scope="function")
-async def short_cut_transcript_15557970(transcript_15557970):
-    transcript_15557970.split_in_chunks(500)
-    transcript_15557970.erase_cuts()
-    transcript_15557970.chunks[0].segments[0].cut(2, 4)
-    transcript_15557970.chunks[0].segments[1].cut(1, 3)
-    transcript_15557970.chunks[0].segments[5].cut(1, 2)
-    transcript_15557970.chunks[4].segments[6].cut(4, 9)
-    transcript_15557970.kept_segments |= set([0, 1, 5, 128])
-    assert (
-        transcript_15557970.text
-        == "over here. then we go. create and surface products to"
-    )
-    return transcript_15557970

@@ -433,50 +433,13 @@ class CutTranscriptLinearWorkflow:
         stage_lengths[-1] = self.length_seconds
         return stage_lengths
 
-    @property
-    def most_recent_timeline_path(self):
+    async def most_recent_export_result(self, with_load_state=True):
         if self.state is None:
-            return None
-        most_recent_file = None
-        most_recent_version = -1
-        for stage_num, _ in enumerate(self.stage_lengths):
-            stage_output_dir = Path(self.state.stage_output_dir(stage_num))
-            if stage_output_dir.exists():
-                for path in stage_output_dir.iterdir():
-                    if path.stem.startswith("timeline_") and path.suffix == ".xml":
-                        version_str = path.stem.split("timeline_")[1]
-                        try:
-                            version = int(version_str)
-                        except ValueError:
-                            print(f"skipping {path} unable to parse version")
-                            continue
-                        if version > most_recent_version:
-                            most_recent_file = path
-        return most_recent_file
-
-    @property
-    def most_recent_video_path(self):
-        if self.state is None:
-            return None
-        most_recent_file = None
-        most_recent_version = -1
-        for stage_num, _ in enumerate(self.stage_lengths):
-            stage_output_dir = Path(self.state.stage_output_dir(stage_num))
-            if stage_output_dir.exists():
-                for path in stage_output_dir.iterdir():
-                    if (
-                        path.stem.startswith("video_")
-                        and path.suffix in VIDEO_EXTENSIONS
-                    ):
-                        version_str = path.stem.split("video_")[1]
-                        try:
-                            version = int(version_str)
-                        except ValueError:
-                            print(f"skipping {path} unable to parse version")
-                            continue
-                        if version > most_recent_version:
-                            most_recent_file = path
-        return most_recent_file
+            return {}
+        last_output = await self.get_last_output_before_end(
+            with_load_state=with_load_state
+        )
+        return last_output.export_result or {}
 
     @property
     def steps(self):
@@ -559,6 +522,8 @@ class CutTranscriptLinearWorkflow:
     async def load_state(self):
         assert self.state is not None
         await self.state.sync()
+        await self.state.fetch_all_links()
+        await self.state.video.sync()
         self.step_order = self.state
 
     async def load_step_order(self):
@@ -638,22 +603,6 @@ class CutTranscriptLinearWorkflow:
                 )
         return outputs
 
-    def soundbites_for_stage(self, stage_num):
-        """returns latest kept soundbites in a stage from the step outputs"""
-        soundbites_state = self._step_output_val_for_stage(
-            stage_num, "current_soundbites_state"
-        )
-        if soundbites_state:
-            return Soundbites.load_from_state(soundbites_state)
-
-    def transcript_for_stage(self, stage_num):
-        """returns latest cut transcript in a stage from the step outputs"""
-        current_transcript_state = self._step_output_val_for_stage(
-            stage_num, "current_transcript_state"
-        )
-        if current_transcript_state:
-            return Transcript.load_from_state(current_transcript_state)
-
     def get_step_by_name(self, step_name: str, substep_name: str):
         substep_name = remove_retry_suffix(substep_name)
         for step in self.steps:
@@ -708,11 +657,13 @@ class CutTranscriptLinearWorkflow:
 
         step_output_parsed = None
         result = None
+        print(f"Running step {current_step.name}.{current_substep.name}")
         async for result, is_last in current_substep.method(current_substep.input):
             if not is_last:
                 yield result, False
         assert result is not None
         export_result = None
+        print(f"Exporting results for step {current_step.name}.{current_substep.name}")
         async for export_result, is_last in self.export_results(current_substep.input):
             if not is_last:
                 yield export_result, False
@@ -727,7 +678,9 @@ class CutTranscriptLinearWorkflow:
         # this allows the entire state update to be atomic
         # so that we don't end up with a partially saved state
         await self._save_output_state(result, step_output_parsed)
+        print(f"Saved state for step {current_step.name}.{current_substep.name}")
         yield step_output_parsed, True
+        print(f"Yielded results for step {current_step.name}.{current_substep.name}")
 
     #### STEP METHODS ####
 
@@ -1150,6 +1103,7 @@ class CutTranscriptLinearWorkflow:
                 volume_dir=self.volume_dir,
                 output_dir=output_dir,
                 clip_extra_trim_seconds=self.clip_extra_trim_seconds,
+                use_high_res_path=True,
             )
             output_files["video_timeline"] = video_timeline_file
 

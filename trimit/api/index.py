@@ -11,7 +11,16 @@ from beanie import BulkWriter
 from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import FastAPI, Form, UploadFile, File, Request, Query, HTTPException
+from fastapi import (
+    FastAPI,
+    Form,
+    UploadFile,
+    File,
+    Request,
+    Query,
+    HTTPException,
+    Depends,
+)
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.utils import conf
@@ -36,6 +45,7 @@ from trimit.models import (
 from .image import image
 from trimit.backend.conf import LINEAR_WORKFLOW_OUTPUT_FOLDER
 from trimit.backend.background_processor import BackgroundProcessor
+from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
 background_processor = None
 if not is_local():
@@ -99,7 +109,6 @@ async def get_step_outputs(
     step_keys: str,
     latest_retry: bool = False,
 ):
-    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
     step_keys = step_keys.split(",")
 
@@ -127,7 +136,6 @@ async def get_step_outputs(
 async def get_all_outputs(
     user_email: str, timeline_name: str, video_hash: str, length_seconds: int
 ):
-    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
     workflow = await CutTranscriptLinearWorkflow.from_video_hash(
         video_hash=video_hash,
@@ -215,7 +223,7 @@ async def reset_workflow(
             wait_until_done_running=False,
         )
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
     print(f"Resetting workflow {workflow.id}")
     await workflow.restart_state()
     print(f"Workflow {workflow.id} reset")
@@ -243,7 +251,7 @@ async def revert_workflow_step(
             wait_until_done_running=False,
         )
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
     print(f"Reverting workflow {workflow.id}")
     await workflow.revert_step(before_retries=to_before_retries)
     print(f"Workflow {workflow.id} reverted")
@@ -278,7 +286,7 @@ async def get_latest_state(
             wait_interval=wait_interval,
         )
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
     last_step_obj = await workflow.get_last_substep(with_load_state=False)
     last_step_dict = last_step_obj.to_dict() if last_step_obj else None
     next_step_obj = await workflow.get_next_substep(with_load_state=False)
@@ -298,8 +306,35 @@ async def get_latest_state(
     return return_dict
 
 
-@web_app.get("/download_timeline")
-async def download_timeline(
+async def load_latest_export_result_from_workflow_params(
+    timeline_name: str,
+    length_seconds: int,
+    user_email: str | None = None,
+    video_hash: str | None = None,
+    user_id: str | None = None,
+    video_id: str | None = None,
+    wait_until_done_running: bool = False,
+    block_until: bool = False,
+    timeout: float = 5,
+    wait_interval: float = 0.1,
+):
+    workflow = await load_or_create_workflow(
+        timeline_name=timeline_name,
+        length_seconds=length_seconds,
+        user_email=user_email,
+        video_hash=video_hash,
+        user_id=user_id,
+        video_id=video_id,
+        with_output=True,
+        wait_until_done_running=wait_until_done_running,
+        block_until=block_until,
+        timeout=timeout,
+        wait_interval=wait_interval,
+    )
+    return await workflow.most_recent_export_result(with_load_state=False)
+
+
+async def get_current_workflow(
     timeline_name: str,
     length_seconds: int,
     user_email: str | None = None,
@@ -312,7 +347,7 @@ async def download_timeline(
     wait_interval: float = 0.1,
 ):
     try:
-        workflow = await load_or_create_workflow(
+        return await load_or_create_workflow(
             timeline_name=timeline_name,
             length_seconds=length_seconds,
             user_email=user_email,
@@ -326,18 +361,28 @@ async def download_timeline(
             wait_interval=wait_interval,
         )
     except Exception as e:
-        return {"error": str(e)}
+        raise HTTPException(status_code=500, detail=str(e))
 
-    most_recent_file = workflow.most_recent_timeline_path
-    if most_recent_file is None:
-        return {"error": "No timeline found"}
-    if not os.path.exists(most_recent_file):
-        return {"error": f"Timeline not found at {most_recent_file }"}
+
+@web_app.get("/download_timeline")
+async def download_timeline(
+    workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
+):
+
+    export_result = await workflow.most_recent_export_result(with_load_state=False)
+    timeline_path = export_result.get("video_timeline")
+
+    if timeline_path is None:
+        raise HTTPException(status_code=400, detail="No timeline found")
+    if not os.path.exists(timeline_path):
+        raise HTTPException(
+            status_code=400, detail=f"Timeline not found at {timeline_path}"
+        )
 
     return FileResponse(
-        most_recent_file,
+        timeline_path,
         media_type="application/xml",
-        filename=os.path.basename(most_recent_file),
+        filename=os.path.basename(timeline_path),
     )
 
 
@@ -359,31 +404,31 @@ async def stream_video(
 ):
     if video_path is None:
         if timeline_name is None or length_seconds is None:
-            return {
-                "error": "Must provide video path or timeline name and length_seconds"
-            }
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide video path or timeline name and length_seconds",
+            )
         try:
-            workflow = await load_or_create_workflow(
+            export_result = await load_latest_export_result_from_workflow_params(
                 timeline_name=timeline_name,
                 length_seconds=length_seconds,
                 user_email=user_email,
                 video_hash=video_hash,
                 user_id=user_id,
                 video_id=video_id,
-                with_output=True,
                 wait_until_done_running=wait_until_done_running,
                 block_until=block_until,
                 timeout=timeout,
                 wait_interval=wait_interval,
             )
         except Exception as e:
-            return {"error": str(e)}
+            raise HTTPException(status_code=500, detail=str(e))
 
-        video_path = workflow.most_recent_video_path
+        video_path = export_result.get("video")
     if video_path is None:
-        return {"error": "No video found"}
+        raise HTTPException(status_code=400, detail="No video found")
     if not os.path.exists(video_path):
-        return {"error": f"Video not found at {video_path}"}
+        raise HTTPException(status_code=400, detail=f"Video not found at {video_path}")
     extension = os.path.splitext(video_path)[1]
     media_type = f"video/{extension[1:]}"
     if not stream:
@@ -392,14 +437,11 @@ async def stream_video(
         )
 
     def iterfile():
-        print("iterfile")
         with open(video_path, mode="rb") as file_like:  # open the file in binary mode
-            print("opened")
             yield from file_like  # yield the binary data
 
     range_header = request.headers.get("range", None)
     file_size = os.path.getsize(video_path)
-    print(f"range header: {range_header}")
     if not range_header:
         return StreamingResponse(iterfile(), media_type=media_type)
 
@@ -416,7 +458,6 @@ async def stream_video(
 
     def video_stream():
         with open(video_path, "rb") as video:
-            print(f"seeking to {start}")
             video.seek(start)
             while chunk := video.read(8192):
                 yield chunk
@@ -480,7 +521,7 @@ async def upload_multiple_files(
     user_email: str = Form(...),
     high_res_user_file_paths: list[str] = Form(...),
     timeline_name: str = Form(...),
-    force: bool = Form(False),
+    overwrite: bool = Form(False),
     use_existing_output: bool = Form(True),
     reprocess: bool = Form(False),
 ):
@@ -514,7 +555,9 @@ async def upload_multiple_files(
         video_hash = Path(volume_file_path).stem
         ext = Path(volume_file_path).suffix
 
-        video = await check_existing_video(video_hash, high_res_user_file_path, force)
+        video = await check_existing_video(
+            video_hash, high_res_user_file_path, ignore_existing=overwrite
+        )
         existing = False
         if video is not None:
             existing = True
@@ -559,7 +602,7 @@ async def upload_multiple_files(
     to_process = []
     async with BulkWriter() as bulk_writer:
         for video_detail in video_details:
-            if video_detail["existing"]:
+            if video_detail["existing"] and not overwrite:
                 if reprocess:
                     to_process.append(video_detail["video_hash"])
                     continue
@@ -573,6 +616,7 @@ async def upload_multiple_files(
                 high_res_user_file_path=video_detail["high_res_user_file_path"],
                 high_res_user_file_hash=video_detail["high_res_user_file_hash"],
                 volume_file_path=video_detail["volume_file_path"],
+                overwrite=overwrite,
             )
 
         await bulk_writer.commit()

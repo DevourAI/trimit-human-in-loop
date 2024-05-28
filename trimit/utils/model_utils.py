@@ -70,6 +70,7 @@ async def save_video_with_details(
     high_res_user_file_path: str,
     volume_file_path: str,
     high_res_user_file_hash: str | None = None,
+    overwrite: bool = False,
 ):
     from trimit.utils.video_utils import get_video_details
     from trimit.models.models import Video, VideoMetadata
@@ -91,6 +92,7 @@ async def save_video_with_details(
             high_res_user_file_path=high_res_user_file_path,
             high_res_user_file_hash=high_res_user_file_hash,
             details=details,
+            overwrite=overwrite,
         )
     except ValueError as e:
         print(f"Error saving video {md5_hash}: {e}")
@@ -98,13 +100,13 @@ async def save_video_with_details(
 
 
 async def check_existing_video(
-    video_hash: str, high_res_user_file_path: str, force: bool
+    video_hash: str, high_res_user_file_path: str, ignore_existing: bool = False
 ):
     from trimit.models.models import Video
     from trimit.app import VOLUME_DIR
 
     existing_by_hash = await Video.find_one(Video.md5_hash == video_hash)
-    if existing_by_hash is not None and not force:
+    if existing_by_hash is not None and not ignore_existing:
         path = existing_by_hash.path(VOLUME_DIR)
         if os.path.exists(path) and os.stat(path).st_size > 0:
             return existing_by_hash
@@ -112,7 +114,7 @@ async def check_existing_video(
     existing_by_high_res_user_file_path = await Video.find_one(
         Video.high_res_user_file_path == high_res_user_file_path
     )
-    if existing_by_high_res_user_file_path is not None and not force:
+    if existing_by_high_res_user_file_path is not None and not ignore_existing:
         path = existing_by_high_res_user_file_path.path(VOLUME_DIR)
         if os.path.exists(path) and os.stat(path).st_size > 0:
             return existing_by_high_res_user_file_path
