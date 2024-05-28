@@ -65,7 +65,7 @@ image = (
     )
     .pip_install("git+https://github.com/bschreck/pyannote-audio.git#save-clusters")
     .run_commands("pip uninstall -y onnxruntime")
-    .pip_install("onnxruntime-gpu", force_build=True)
+    .pip_install("onnxruntime-gpu")
     .copy_local_file(LOCAL_CERT_PATH, CERT_PATH)
     .env(EXTRA_ENV)
 )

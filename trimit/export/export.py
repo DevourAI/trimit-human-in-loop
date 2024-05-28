@@ -24,7 +24,6 @@ async def create_cut_video_from_transcript(
         raise ValueError("Video duration must be provided")
     assert video.duration is not None
     timeline = []
-    print(f"initial scenes length {len([x for x in transcript.iter_kept_cuts()])}")
     for cut in tqdm(transcript.iter_kept_cuts(), desc="Creating scenes"):
         start_time = max(0, float(cut.start) - clip_extra_trim_seconds)
         end_time = min(
@@ -32,11 +31,9 @@ async def create_cut_video_from_transcript(
             video.duration - clip_duration_safety_buffer,
         )
         if end_time - start_time < clip_min_duration:
-            print(f"clip too short {end_time - start_time}")
             continue
 
         if len(timeline) and start_time < timeline[-1].end + clip_gap_min_duration:
-            print(f"merging scene with gap {start_time - timeline[-1].end}")
             timeline[-1].end = end_time
             continue
         scene = await Scene.from_video(
@@ -47,7 +44,6 @@ async def create_cut_video_from_transcript(
             check_existing=False,
         )
         timeline.append(scene)
-    print(f"final scenes length {len(timeline)}")
     return await generate_video_from_timeline(
         video.user.email,
         timeline,
@@ -109,6 +105,7 @@ def create_fcp_7_xml_from_single_video_transcript(
     use_high_res_path=False,
     output_width=1920,
     output_height=1080,
+    prefix="timeline_",
 ):
     timeline = create_otio_timeline_from_single_video_transcript(
         video,
@@ -127,14 +124,20 @@ def create_fcp_7_xml_from_single_video_transcript(
             get_generated_video_folder(volume_dir, user_email, timeline_name)
         )
 
-    return save_otio_timeline(timeline, output_dir, adapter="fcp_xml", ext=".xml")
+    return save_otio_timeline(
+        timeline, output_dir, adapter="fcp_xml", ext=".xml", prefix=prefix
+    )
 
 
 def save_otio_timeline(
-    timeline: "otio.schema.Timeline", output_dir: str, adapter="fcp_xml", ext=".xml"
+    timeline: "otio.schema.Timeline",
+    output_dir: str,
+    adapter="fcp_xml",
+    ext=".xml",
+    prefix="timeline_",
 ):
     file_name = os.path.abspath(
-        get_new_integer_file_name_in_dir(output_dir, prefix="timeline_", ext=ext)
+        get_new_integer_file_name_in_dir(output_dir, prefix=prefix, ext=ext)
     )
 
     otio.adapters.write_to_file(timeline, file_name, adapter_name=adapter)

@@ -1070,12 +1070,14 @@ class CutTranscriptLinearWorkflow:
     async def export_results(self, step_input: CutTranscriptLinearWorkflowStepInput):
         output_dir = self.step_output_dir(step_input.step_name, step_input.substep_name)
         output_files = {}
+        prefix = f"{self.video.high_res_user_file_path}_{step_input.substep_name}_"
         if self.export_transcript and self.current_transcript is not None:
             yield "Exporting transcript", False
             transcript_file, transcript_text_file = save_transcript_to_disk(
                 output_dir=output_dir,
                 transcript=self.current_transcript,
                 save_text_file=self.export_transcript_text,
+                prefix=f"{prefix}transcript_",
             )
             output_files["transcript"] = transcript_file
             if self.export_transcript_text:
@@ -1088,6 +1090,7 @@ class CutTranscriptLinearWorkflow:
                 transcript=self.current_soundbites,
                 save_text_file=self.export_soundbites_text,
                 suffix="_soundbites",
+                prefix=f"{prefix}transcript_",
             )
             output_files["soundbites"] = soundbites_file
             if self.export_transcript_text:
@@ -1104,6 +1107,7 @@ class CutTranscriptLinearWorkflow:
                 output_dir=output_dir,
                 clip_extra_trim_seconds=self.clip_extra_trim_seconds,
                 use_high_res_path=True,
+                prefix=f"{prefix}timeline_",
             )
             output_files["video_timeline"] = video_timeline_file
 
@@ -1117,6 +1121,7 @@ class CutTranscriptLinearWorkflow:
                 volume_dir=self.volume_dir,
                 output_dir=output_dir,
                 clip_extra_trim_seconds=self.clip_extra_trim_seconds,
+                prefix=f"{prefix}video_",
             )
             output_files["video"] = cut_video_path
         yield output_files, True

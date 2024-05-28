@@ -163,10 +163,20 @@ export async function getUploadedVideos(params: GetUploadedVideoParams) {
 }
 
 
-export async function downloadVideo(params: DownloadVideoParams) {
+const endpointForFileType = {
+  'timeline': 'download_timeline',
+  'video': 'video',
+  'transcript_text': 'download_transcript_text',
+  'soundbites_text': 'download_soundbites_text',
+}
+export async function downloadFile(params: DownloadFileParams) {
   if (params.user_email === '') return {}
   params.stream = false
-  const response = await fetcherWithParamsRaw('video', params, { responseType: 'blob' })
+  const filetype = params.filetype
+  delete params.filetype
+  const endpoint = endpointForFileType[filetype]
+  console.log('endpoint', endpoint)
+  const response = await fetcherWithParamsRaw(endpoint, params, { responseType: 'blob' })
   if (response.error) {
     console.error(response.error)
     return
@@ -178,8 +188,8 @@ export async function downloadVideo(params: DownloadVideoParams) {
   }
   const blob = new Blob([response.data], { type: response.headers['content-type'] });
   const contentDisposition = response.headers['content-disposition'];
-  console.log(response);
-  let filename = 'downloaded_video.mp4'; // Default filename
+  // TODO add user file path to default filename
+  let filename = `trimit_${filetype}_for_user_${params.user_email}.mp4`; // Default filename
   if (contentDisposition) {
     const match = contentDisposition.match(/filename="(.+)"/);
     if (match.length > 1) {
@@ -195,28 +205,15 @@ export async function downloadVideo(params: DownloadVideoParams) {
   a.click();
   window.URL.revokeObjectURL(url);
 };
+export async function downloadVideo(params: DownloadFileParams) {
+  await downloadFile({ ...params, filetype: 'video' })
+};
 export async function downloadTimeline(params: DownloadTimelineParams) {
-  if (params.user_email === '') return {}
-  const response = await fetcherWithParamsRaw('download_timeline', params)
-  if (response.error) {
-    console.error(response.error)
-    return
-  }
-  let filename = 'downloaded_timeline.xml'; // Default filename
-  const blob = new Blob([response.data], { type: response.headers['content-type'] });
-  const contentDisposition = response.headers['content-disposition'];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="(.+)"/);
-    if (match.length > 1) {
-      filename = match[1];
-    }
-  }
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.style.display = 'none';
-  a.href = url;
-  a.download = filename
-  document.body.appendChild(a);
-  a.click();
-  window.URL.revokeObjectURL(url);
+  await downloadFile({ ...params, filetype: 'timeline' })
+};
+export async function downloadTranscriptText(params: DownloadFileParams) {
+  await downloadFile({ ...params, filetype: 'transcript_text' })
+};
+export async function downloadSoundbitesText(params: DownloadTimelineParams) {
+  await downloadFile({ ...params, filetype: 'soundbites_text' })
 };
