@@ -22,9 +22,9 @@ const fetcherWithParams = async (url, params) => {
   }
 }
 
-const fetcherWithParamsRaw = async (url, params) => {
+const fetcherWithParamsRaw = async (url, params, options = {}) => {
   try {
-    const res = await axios.get(url, { baseURL: API_URL, params })
+    const res = await axios.get(url, { baseURL: API_URL, params, ...options })
     return res;
   } catch (error) {
     console.error('fetcherWithParamsRaw error', error);
@@ -166,14 +166,12 @@ export async function getUploadedVideos(params: GetUploadedVideoParams) {
 export async function downloadVideo(params: DownloadVideoParams) {
   if (params.user_email === '') return {}
   params.stream = false
-  const response = await fetcherWithParamsRaw('video', params)
+  const response = await fetcherWithParamsRaw('video', params, { responseType: 'blob' })
   if (response.error) {
     console.error(response.error)
     return
   }
 
-  console.log('data');
-  console.log(response.data)
   if (typeof response.data !== 'string' && response.data.error) {
     console.error(response.data.error)
     return

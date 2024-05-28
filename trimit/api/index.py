@@ -335,8 +335,8 @@ async def load_latest_export_result_from_workflow_params(
 
 
 async def get_current_workflow(
-    timeline_name: str,
-    length_seconds: int,
+    timeline_name: str | None = None,
+    length_seconds: int | None = None,
     user_email: str | None = None,
     video_hash: str | None = None,
     user_id: str | None = None,
@@ -346,6 +346,8 @@ async def get_current_workflow(
     timeout: float = 5,
     wait_interval: float = 0.1,
 ):
+    if timeline_name is None or length_seconds is None:
+        return None
     try:
         return await load_or_create_workflow(
             timeline_name=timeline_name,
@@ -366,9 +368,13 @@ async def get_current_workflow(
 
 @web_app.get("/download_timeline")
 async def download_timeline(
-    workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
 
+    if workflow is None:
+        raise HTTPException(
+            status_code=400, detail="Must provide timeline name and length_seconds"
+        )
     export_result = await workflow.most_recent_export_result(with_load_state=False)
     timeline_path = export_result.get("video_timeline")
 
@@ -390,41 +396,19 @@ async def download_timeline(
 async def stream_video(
     request: Request,
     video_path: str | None = None,
-    timeline_name: str | None = None,
-    length_seconds: int | None = None,
-    user_email: str | None = None,
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     stream: bool = False,
-    wait_until_done_running: bool = False,
-    block_until: bool = False,
-    timeout: float = 5,
-    wait_interval: float = 0.1,
 ):
-    if video_path is None:
-        if timeline_name is None or length_seconds is None:
-            raise HTTPException(
-                status_code=400,
-                detail="Must provide video path or timeline name and length_seconds",
-            )
-        try:
-            export_result = await load_latest_export_result_from_workflow_params(
-                timeline_name=timeline_name,
-                length_seconds=length_seconds,
-                user_email=user_email,
-                video_hash=video_hash,
-                user_id=user_id,
-                video_id=video_id,
-                wait_until_done_running=wait_until_done_running,
-                block_until=block_until,
-                timeout=timeout,
-                wait_interval=wait_interval,
-            )
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e))
-
+    if video_path is None and workflow is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide video path or timeline name and length_seconds",
+        )
+    elif video_path is None:
+        assert workflow is not None
+        export_result = await workflow.most_recent_export_result(with_load_state=False)
         video_path = export_result.get("video")
+    print("video_path", video_path)
     if video_path is None:
         raise HTTPException(status_code=400, detail="No video found")
     if not os.path.exists(video_path):
