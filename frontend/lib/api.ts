@@ -82,6 +82,8 @@ export async function getLatestState(params: GetLatestStateParams): UserState {
 export async function getStepOutput(params: StepOutputParams) {
   if (params.user_email === '') return {}
   params.latest_retry = params.latest_retry || true
+  params.step_keys = params.step_key
+  delete params.step_key
   const data = await fetcherWithParams('get_step_outputs', params)
   if (data && data.error) {
     console.error(data.error)
@@ -125,7 +127,7 @@ export async function uploadVideo(params: UploadVideoParams) {
     timeline_name: params.timelineName,
     high_res_user_file_paths: [params.videoFile.name],
     reprocess: true,
-    use_existing_output: false
+    use_existing_output: true
   }
 
   const respData = await postFetcherWithData('upload', data)

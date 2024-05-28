@@ -18,12 +18,6 @@ export const stepData: StepData = {
           user_feedback: true,
           chunked_feedback: false,
         },
-        {
-          name: "preprocess_export_results",
-          human_readable_name: "Export Results",
-          user_feedback: false,
-          chunked_feedback: false,
-        },
       ]
     },
     {
@@ -34,12 +28,6 @@ export const stepData: StepData = {
           name: "generate_story",
           human_readable_name: "Generate Narrative Story",
           user_feedback: true,
-          chunked_feedback: false,
-        },
-        {
-          name: "generate_story_export_results",
-          human_readable_name: "Export Results",
-          user_feedback: false,
           chunked_feedback: false,
         },
       ]
@@ -55,13 +43,6 @@ export const stepData: StepData = {
           user_feedback: true,
           chunked_feedback: true,
         },
-        {
-          name: "soundbites_export_results",
-          human_readable_name: "Export Results",
-          user_feedback: false,
-          chunked_feedback: false,
-        },
-
       ]
     },
     {
@@ -78,12 +59,6 @@ export const stepData: StepData = {
           name: "stage_0_modify_transcript_holistically",
           human_readable_name: "Modify Transcript Holistically",
           user_feedback: true,
-          chunked_feedback: false,
-        },
-        {
-          name: "stage_0_export_results",
-          human_readable_name: "Export Results",
-          user_feedback: false,
           chunked_feedback: false,
         },
       ]
@@ -104,15 +79,22 @@ export const stepData: StepData = {
           user_feedback: true,
           chunked_feedback: false,
         },
-        {
-          name: "stage_1_export_results",
-          human_readable_name: "Export Results",
-          user_feedback: false,
-          chunked_feedback: false,
-        },
-
       ]
     },
 
   ]
 }
+
+function separateActionSteps(): StepInfo[] {
+  const allSteps = stepData.stepArray.flatMap((step) => step.substeps.map((substep) => {
+    return {
+      step_name: step.name,
+      step_human_readable_name: step.human_readable_name,
+      ...substep
+    }
+  }))
+  const actionSteps = allSteps.filter((step) => step.user_feedback)
+  return [allSteps, actionSteps]
+}
+
+export const [allSteps, actionSteps] = separateActionSteps()

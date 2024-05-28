@@ -1436,7 +1436,7 @@ class CurrentStepInfo(BaseModel):
     step: Union["StepWrapper", None] = None
 
     def model_dump_json(self, *args, **kwargs):
-        return super().model_dump_json(*args, exclude={"method"}, **kwargs)
+        return super().model_dump_json(*args, exclude={"method", "step"}, **kwargs)
 
     def to_dict(self):
         return {
@@ -1444,7 +1444,7 @@ class CurrentStepInfo(BaseModel):
             "user_feedback": self.user_feedback,
             "input": self.input.model_dump() if self.input else None,
             "chunked_feedback": self.chunked_feedback,
-            "step": self.step.name if self.step else None,
+            "step_name": self.step.name if self.step else None,
         }
 
 

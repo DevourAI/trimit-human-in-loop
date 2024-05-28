@@ -594,10 +594,7 @@ class CutTranscriptLinearWorkflow:
         step, substep_index = self._get_next_step_with_index()[1:]
         if step is not None:
             assert substep_index is not None
-            try:
-                return step.substeps[substep_index]
-            except:
-                breakpoint()
+            return step.substeps[substep_index]
         return None
 
     async def get_last_output(self, with_load_state=True):

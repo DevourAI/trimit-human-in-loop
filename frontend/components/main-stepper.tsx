@@ -31,7 +31,7 @@ import {
   type StepParams,
   type DownloadVideoParams
 } from "@/lib/types";
-import {stepData} from "@/lib/data";
+import { stepData, allSteps, actionSteps } from "@/lib/data";
 
 const BASE_PROMPT = 'What do you want to create?'
 
@@ -39,26 +39,6 @@ function remove_retry_suffix(stepName: string): string {
   return stepName.split('_retry_', 1)[0]
 }
 
-function stepsFromState(state: UserState): StepInfo[] {
-  const defaultSteps = [
-    { name: "Upload video" },
-    { name: "..." },
-    { name: "Profit!" },
-  ] satisfies StepInfo[]
-
-  if (!state || !state.all_steps) {
-    return [defaultSteps, defaultSteps]
-  }
-
-  const allSteps = state.all_steps.map((step) => {
-    return { label: step.name, ...step }
-  })
-  if (allSteps.length === 0) {
-    return [defaultSteps, defaultSteps]
-  }
-  const actionSteps = allSteps.filter((step) => step.user_feedback)
-  return [allSteps, actionSteps]
-}
 
 function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
   const actionStepNames = actionSteps.map((step) => step.name)
@@ -72,15 +52,14 @@ function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
 }
 
 function stepIndexFromState(state: UserState): number {
-  const [allSteps, actionSteps] = stepsFromState(state)
   if (state && state.next_step) {
     return stepIndexFromName(state.next_step.name, allSteps, actionSteps)
   }
   return 0
 }
 
-function stepIndexFromName(stepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
-  const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(stepName))
+function stepIndexFromName(substepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
+  const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(substepName))
   if (_currentAllStepIndex !== -1) {
     const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
     if (nextActionStepIndex >= actionSteps.length) {
@@ -101,10 +80,10 @@ export default function MainStepper({ userData }) {
   const [userFeedbackRequest, setUserFeedbackRequest] = useState(null)
   const [trueStepIndex, setTrueStepIndex] = useState(0)
   const [currentStepIndex, setCurrentStepIndex] = useState(0)
+  const [latestExportResult, setLatestExportResult] = useState({})
   const [finalResult, setFinalResult] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [needsRevert, setNeedsRevert] = useState(false)
-  const [allSteps, actionSteps] = stepsFromState(latestState)
 
   const timelineName = 'timelineName'
   const lengthSeconds = 60
@@ -170,10 +149,12 @@ export default function MainStepper({ userData }) {
       const lastValue = await decodeStreamAsJSON(reader, (value) => {
         let valueToAppend = value;
         if (typeof value !== 'string') {
-          if (value.name !== undefined) {
-            const stepIndex = stepIndexFromName(value.name, allSteps, actionSteps)
+          if (value.substep_name !== undefined) {
+            console.log("value output", value)
+            const stepIndex = stepIndexFromName(value.substep_name, allSteps, actionSteps)
             setTrueStepIndex(stepIndex)
             setCurrentStepIndex(stepIndex)
+            setLatestExportResult(value.export_result)
             valueToAppend = ''
           } else if (value.chunk !== undefined && value.chunk === 0) {
             if (typeof value.output === 'string') {
@@ -247,10 +228,12 @@ export default function MainStepper({ userData }) {
       return
     }
     setCurrentStepIndex(currentStepIndex - 1)
-    const currentStepName = actionSteps[currentStepIndex].name
+    const currentSubstepName = actionSteps[currentStepIndex].name
+    const currentStepName = actionSteps[currentStepIndex].step_name
+    const currentStepKey = `${currentStepName}.${currentSubstepName}`
     activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult(await getStepOutput(
-      { step_keys: currentStepName, ...userParams}
+      { step_key: currentStepKey, ...userParams}
     ))
     setNeedsRevert(true)
   }
@@ -271,7 +254,7 @@ export default function MainStepper({ userData }) {
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
        <VideoSelector userData={userData} setVideoHash={setVideoHash}/>
        <Stepper initialStep={currentStepIndex} steps={stepData.stepArray}>
-         {stepData.stepArray.map(({ name, human_readable_name }, index) => {
+         {actionSteps.map(({ name, human_readable_name }, index) => {
            return (
              <Step key={name} label={human_readable_name}>
                <div className="grid w-full gap-2">
@@ -283,8 +266,7 @@ export default function MainStepper({ userData }) {
                    stepIndex={index}
                    onSubmit={onSubmit}
                    userData={userData}
-                   step={stepData.stepArray[index]}
-                   remoteStepData={actionSteps[index]}
+                   step={actionSteps[index]}
                  />
                </div>
              </Step>

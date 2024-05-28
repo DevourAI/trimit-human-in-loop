@@ -279,9 +279,9 @@ async def get_latest_state(
         )
     except Exception as e:
         return {"error": str(e)}
-    last_step_obj = await workflow.get_last_step(with_load_state=False)
+    last_step_obj = await workflow.get_last_substep(with_load_state=False)
     last_step_dict = last_step_obj.to_dict() if last_step_obj else None
-    next_step_obj = await workflow.get_next_step(with_load_state=False)
+    next_step_obj = await workflow.get_next_substep(with_load_state=False)
     next_step_dict = next_step_obj.to_dict() if next_step_obj else None
 
     return_dict = {
@@ -331,6 +331,8 @@ async def download_timeline(
     most_recent_file = workflow.most_recent_timeline_path
     if most_recent_file is None:
         return {"error": "No timeline found"}
+    if not os.path.exists(most_recent_file):
+        return {"error": f"Timeline not found at {most_recent_file }"}
 
     return FileResponse(
         most_recent_file,
@@ -380,6 +382,8 @@ async def stream_video(
         video_path = workflow.most_recent_video_path
     if video_path is None:
         return {"error": "No video found"}
+    if not os.path.exists(video_path):
+        return {"error": f"Video not found at {video_path}"}
     extension = os.path.splitext(video_path)[1]
     media_type = f"video/{extension[1:]}"
     if not stream:
