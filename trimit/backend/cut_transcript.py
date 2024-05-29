@@ -1,4 +1,5 @@
 import aiostream
+import asyncio
 import json
 from pathlib import Path
 import datetime
@@ -68,6 +69,22 @@ from trimit.backend.models import (
 
 END_STEP_NAME = "end"
 VIDEO_EXTENSIONS = [".mp4", ".mov", ".avi", ".mkv", ".webm", ".flv", ".wmv"]
+
+
+# TODO make this function work
+@app.function(**app_kwargs)
+async def export_results_wrapper(
+    workflow, current_substep, current_step, current_substep_index
+):
+    print(f"Exporting results for step {current_step.name}.{current_substep.name}")
+    export_result = None
+    async for export_result, is_last in workflow.export_results(current_substep.input):
+        if not is_last:
+            yield export_result, False
+    assert export_result is not None
+    await workflow._save_export_result_to_step_output(
+        current_step, current_substep_index, export_result
+    )
 
 
 class CutTranscriptLinearWorkflow:
@@ -662,15 +679,15 @@ class CutTranscriptLinearWorkflow:
             if not is_last:
                 yield result, False
         assert result is not None
-        export_result = None
-        print(f"Exporting results for step {current_step.name}.{current_substep.name}")
-        async for export_result, is_last in self.export_results(current_substep.input):
-            if not is_last:
-                yield export_result, False
-        assert export_result is not None
+        export_call_id = export_results_wrapper.spawn()
 
+        # TODO modify this function to take export_call_id instead of export_results
         step_output_parsed = await self._parse_step_output_from_step_result(
-            current_step, current_substep_index, result, export_result
+            current_step,
+            current_substep_index,
+            result,
+            {},
+            export_call_id=export_call_id,
         )
 
         # any state updates made inside

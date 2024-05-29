@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 
 from pydantic import BaseModel
+from modal.functions import FunctionCall
 from modal import asgi_app, is_local
 from beanie import BulkWriter
 from beanie.operators import In
@@ -158,6 +159,17 @@ async def get_all_outputs(
         raise HTTPException(status_code=400, detail="Workflow not found")
 
     return await workflow.get_all_outputs()
+
+
+# TODO use this to check on upload processing, and exporting
+# frontend should poll for this
+# sometime in the future we can use kafka or pubsub to push to frontend
+@web_app.get("/check_function_call_results")
+async def check_function_call_results(modal_call_id: str, timeout: float = 0):
+    fc = FunctionCall.from_id(modal_call_id)
+    return await fc.get(timeout=timeout)
+
+    pass
 
 
 @web_app.get("/step")
