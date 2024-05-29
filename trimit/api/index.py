@@ -259,8 +259,8 @@ async def get_latest_state(
     return return_dict
 
 
-@web_app.get("/download_transcript")
-async def download_transcript(
+@web_app.get("/download_transcript_text")
+async def download_transcript_text(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     stream: bool = False,
 ):
