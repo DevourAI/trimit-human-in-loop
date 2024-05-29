@@ -18,7 +18,9 @@ import {
   revertStepInBackend,
   uploadVideo,
   downloadVideo,
-  downloadTimeline
+  downloadTimeline,
+  downloadTranscriptText,
+  downloadSoundbitesText,
 } from "@/lib/api";
 import {
   type CommonAPIParams,
@@ -249,6 +251,8 @@ export default function MainStepper({ userData }) {
     }
   }
 
+  const downloadParams = {user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds}
+
   return (
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
@@ -274,11 +278,17 @@ export default function MainStepper({ userData }) {
          })}
   {/*<Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />*/}
        </Stepper>
-       <Button onClick={() => downloadVideo({user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds} as DownloadVideoParams)}>
+       <Button onClick={() => downloadVideo(downloadParams)}>
           Download latest video
        </Button>
-       <Button onClick={() => downloadTimeline({user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds} as DownloadTimelineParams)}>
+       <Button onClick={() => downloadTimeline(downloadParams)}>
           Download latest timeline
+       </Button>
+       <Button onClick={() => downloadTranscriptText(downloadParams)}>
+          Download latest transcript
+       </Button>
+       <Button onClick={() => downloadSoundbitesText(downloadParams)}>
+          Download latest soundbites transcript
        </Button>
     </div>
   )
