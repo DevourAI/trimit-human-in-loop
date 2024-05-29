@@ -660,11 +660,10 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     use_agent_output_cache: bool = True
     max_iterations: int = 3
     max_total_soundbites: int = 15
-    # These default to false because we have them in MongoDB
-    export_transcript_text: bool = False
-    export_transcript: bool = False
-    export_soundbites: bool = False
-    export_soundbites_text: bool = False
+    export_transcript_text: bool = True
+    export_transcript: bool = True
+    export_soundbites: bool = True
+    export_soundbites_text: bool = True
     export_timeline: bool = True
     export_video: bool = True
 

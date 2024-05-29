@@ -207,10 +207,6 @@ def speaker_in_frame_detection():
 
 
 def transcribe_video(transcription: Transcription, video: Video):
-    convert_video_to_audio(
-        video.path(TEST_VOLUME_DIR), video.audio_path(TEST_VOLUME_DIR)
-    )
-
     hash_to_transcription = transcription.transcribe_videos([video], with_cache=True)
     return hash_to_transcription[video.md5_hash]
 

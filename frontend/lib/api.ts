@@ -175,7 +175,6 @@ export async function downloadFile(params: DownloadFileParams) {
   const filetype = params.filetype
   delete params.filetype
   const endpoint = endpointForFileType[filetype]
-  console.log('endpoint', endpoint)
   const response = await fetcherWithParamsRaw(endpoint, params, { responseType: 'blob' })
   if (response.error) {
     console.error(response.error)

@@ -1070,7 +1070,7 @@ class CutTranscriptLinearWorkflow:
     async def export_results(self, step_input: CutTranscriptLinearWorkflowStepInput):
         output_dir = self.step_output_dir(step_input.step_name, step_input.substep_name)
         output_files = {}
-        prefix = f"{self.video.high_res_user_file_path}_{step_input.substep_name}_"
+        prefix = f"{Path(self.video.high_res_user_file_path).stem}_{step_input.substep_name}_"
         if self.export_transcript and self.current_transcript is not None:
             yield "Exporting transcript", False
             transcript_file, transcript_text_file = save_transcript_to_disk(

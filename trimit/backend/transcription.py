@@ -77,7 +77,6 @@ class Transcription(CacheMixin):
         self.volume_dir = volume_dir
         self.model_dir = model_dir
         self.initialized = False
-        self.lazy_init()
         super().__init__(cache=cache, cache_prefix="transcription/")
 
     def lazy_init(self):
@@ -113,6 +112,8 @@ class Transcription(CacheMixin):
         self.initialized = True
 
     def transcribe_audio(self, audio_file_path, sample_rate: int | None = None):
+        if not self.initialized:
+            self.lazy_init()
         print(f"Transcribing audio file: {audio_file_path}")
         waveform, _ = load_audio(audio_file_path, flatten=True, sr=sample_rate)
         result = self.whisper_model.transcribe(waveform)

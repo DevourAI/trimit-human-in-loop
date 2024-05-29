@@ -1,3 +1,4 @@
+from pathlib import Path
 from trimit.backend.cut_transcript import (
     CutTranscriptLinearWorkflowStepResults,
     CutTranscriptLinearWorkflowStepInput,
@@ -60,6 +61,11 @@ async def test_remove_off_screen_speakers(workflow_3909774043_with_state_init):
     assert all(
         workflow.on_screen_transcript.segments[s_idx].speaker.lower() == "speaker_01"
         for s_idx in workflow.on_screen_transcript.kept_segments
+    )
+    assert final_output.export_result is not None
+    assert (
+        Path(final_output.export_result["video_timeline"]).name
+        == "3909774043_remove_off_screen_speakers_timeline_0.xml"
     )
 
 
@@ -273,6 +279,11 @@ async def test_step_until_finish(workflow_3909774043_with_transcript):
     i = 0
     while True:
         assert i < len(user_inputs)
+        if "cut_partial_transcripts_with_critiques" in [
+            s.substep_name for s in step_outputs
+        ]:
+            workflow.state.static_state.export_video = True
+            await workflow.state.save()
         async for output, is_last in step_workflow_until_feedback_request(
             workflow, user_inputs[i]
         ):
@@ -307,8 +318,21 @@ async def test_step_until_finish(workflow_3909774043_with_transcript):
 
     output = await workflow.get_last_output_before_end()
     output_files = output.export_result
-    assert "video_timeline" in output_files
-    assert os.stat(output_files["video_timeline"]).st_size > 0
+    for file_key in [
+        "video_timeline",
+        "video",
+        "soundbites",
+        "soundbites_text",
+        "transcript",
+        "transcript_text",
+    ]:
+        assert file_key in output_files
+        assert os.stat(output_files[file_key]).st_size > 0
+    assert (
+        Path(output_files["video"]).name
+        == "3909774043_modify_transcript_holistically_video_0.mp4"
+    )
+
     assert all(
         "video_timeline" in output.export_result
         for output in step_outputs
