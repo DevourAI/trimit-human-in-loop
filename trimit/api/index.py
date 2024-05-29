@@ -316,6 +316,7 @@ async def download_timeline(
 ):
 
     if workflow is None:
+        print("download_timeline: workflow is none")
         raise HTTPException(
             status_code=400, detail="Must provide timeline name and length_seconds"
         )
@@ -323,8 +324,10 @@ async def download_timeline(
     timeline_path = export_result.get("video_timeline")
 
     if timeline_path is None:
+        print("download_timeline: timeline_path is none")
         raise HTTPException(status_code=400, detail="No timeline found")
     if not os.path.exists(timeline_path):
+        print("download_timeline: timeline_path not found")
         raise HTTPException(
             status_code=400, detail=f"Timeline not found at {timeline_path}"
         )
