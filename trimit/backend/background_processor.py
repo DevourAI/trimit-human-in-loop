@@ -67,9 +67,10 @@ class BackgroundProcessor:
     async def process_videos_generic_from_video_hashes(
         self, user_email: str, video_hashes: list[str], use_existing_output=True
     ):
-        return await self._process_videos_generic_from_video_hashes(
+        await self._process_videos_generic_from_video_hashes(
             user_email, video_hashes, use_existing_output=use_existing_output
         )
+        return {"result": "success"}
 
     async def _process_videos_generic_from_video_hashes(
         self, user_email: str, video_hashes: list[str], use_existing_output=True

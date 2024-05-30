@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button"
 import React, { useState } from 'react';
 
 
-export default function UploadVideo({uploadVideo}) {
+export default function UploadVideo({uploadProcessing, uploadVideo}) {
   const [selectedVideo, setSelectedVideo] = useState(null);
 
   const handleVideoChange = (event) => {
@@ -26,7 +26,14 @@ export default function UploadVideo({uploadVideo}) {
     <div className="grid w-full max-w-sm items-center gap-1.5">
       <form onSubmit={handleSubmit}>
         <Input id="video" onChange={handleVideoChange} accept="video/*" type="file" />
-        <Button type="submit">Upload Video</Button>
+        { uploadProcessing ?
+          <Button disabled type="submit">
+            <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
+            Uploading...
+          </Button>
+          :
+          <Button type="submit">Upload Video</Button>
+        }
       </form>
       {selectedVideo && (
         <div>

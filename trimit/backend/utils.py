@@ -1192,3 +1192,24 @@ def parse_stage_num_from_step_name(step_name):
 
 def stage_key_for_step_name(step_name, stage_num):
     return f"stage_{stage_num}_{step_name}"
+
+
+@app.function(
+    _experimental_boost=True,
+    _experimental_scheduler=True,
+    retries=3,
+    _allow_background_volume_commits=True,
+    timeout=80000,
+    image=image,
+    container_idle_timeout=30,
+)
+async def export_results_wrapper(workflow, state_save_key, current_substep):
+    print(f"Exporting results for step {state_save_key}")
+    export_result = None
+    async for export_result, is_last in workflow.export_results(current_substep.input):
+        continue
+        #  if not is_last:
+        #  yield export_result, False
+    assert export_result is not None
+    await workflow._save_export_result_to_step_output(state_save_key, export_result)
+    return {"result": export_result}

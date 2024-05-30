@@ -161,15 +161,16 @@ async def get_all_outputs(
     return await workflow.get_all_outputs()
 
 
-# TODO use this to check on upload processing, and exporting
 # frontend should poll for this
 # sometime in the future we can use kafka or pubsub to push to frontend
 @web_app.get("/check_function_call_results")
-async def check_function_call_results(modal_call_id: str, timeout: float = 0):
+def check_function_call_results(modal_call_id: str, timeout: float = 0):
     fc = FunctionCall.from_id(modal_call_id)
-    return await fc.get(timeout=timeout)
-
-    pass
+    try:
+        result = fc.get(timeout=timeout)
+    except TimeoutError:
+        result = {"result": "pending"}
+    return result
 
 
 @web_app.get("/step")
@@ -564,7 +565,6 @@ async def upload_multiple_files(
 
         await bulk_writer.commit()
 
-    print("USE_EXISTING_OUTPUT", use_existing_output)
     call = background_processor.process_videos_generic_from_video_hashes.spawn(
         current_user.email, to_process, use_existing_output=use_existing_output
     )

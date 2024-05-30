@@ -116,6 +116,7 @@ async def _seed_mock_data():
             upload_datetime=DAVE_VIDEO_DATE,
             high_res_user_file_path=os.path.join(DAVE_VIDEO_FOLDER, basename),
             volume_file_path=os.path.join(DAVE_UPLOADS_DIR, low_res_hash + ".mp4"),
+            overwrite=False,
         )
 
     for path in DAVE_FULL_VIDEO_PATHS:
@@ -132,6 +133,7 @@ async def _seed_mock_data():
             upload_datetime=DAVE_VIDEO_DATE,
             high_res_user_file_path=path,
             volume_file_path=path,
+            overwrite=False,
         )
 
 

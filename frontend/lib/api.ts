@@ -140,6 +140,16 @@ export async function uploadVideo(params: UploadVideoParams) {
   }
   return respData
 }
+export async function getFunctionCallResults(callId: str, options = {timeout: 0}) {
+  const respData = await fetcherWithParams('check_function_call_results', { modal_call_id: callId, ...options})
+  if (respData && respData.result && ) {
+    if (respData.result === "error") {
+      console.error(respData)
+    }
+    return respData
+  }
+  return {"result": "error", "message": "No result found"}
+}
 
 function remoteVideoStreamURLForPath(path: string) {
   return `${API_URL}/video?video_path=${path}`

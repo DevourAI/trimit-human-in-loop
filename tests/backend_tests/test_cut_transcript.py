@@ -333,10 +333,12 @@ async def test_step_until_finish(workflow_3909774043_with_transcript):
         == "3909774043_modify_transcript_holistically_video_0.mp4"
     )
 
+    all_outputs = await workflow.get_all_outputs(with_load_state=False)
     assert all(
-        "video_timeline" in output.export_result
-        for output in step_outputs
-        if output.substep_name not in ("init_state", "end")
+        "video_timeline" in substep_output.export_result
+        for output in all_outputs
+        for substep_output in output["substeps"]
+        if substep_output.substep_name not in ("init_state", "end")
     )
 
     output_for_steps = await workflow.get_output_for_keys(
@@ -350,7 +352,7 @@ async def test_step_until_finish(workflow_3909774043_with_transcript):
     step1_tl_file = output_for_steps[1].export_result.get("video_timeline")
     assert step1_tl_file and os.stat(step1_tl_file).st_size > 0
 
-    assert len(workflow.story) == 1776
+    assert len(workflow.story) == 1977
     assert workflow.story == step_outputs[2].step_outputs["story"]
     assert [
         Soundbite(**sb)

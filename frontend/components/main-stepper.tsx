@@ -21,6 +21,7 @@ import {
   downloadTimeline,
   downloadTranscriptText,
   downloadSoundbitesText,
+  getFunctionCallResults,
 } from "@/lib/api";
 import {
   type CommonAPIParams,
@@ -36,6 +37,7 @@ import {
 import { stepData, allSteps, actionSteps } from "@/lib/data";
 
 const BASE_PROMPT = 'What do you want to create?'
+const POLL_INTERVAL = 5000
 
 function remove_retry_suffix(stepName: string): string {
   return stepName.split('_retry_', 1)[0]
@@ -78,6 +80,7 @@ function stepIndexFromName(substepName: string, allSteps: StepInfo[], actionStep
 export default function MainStepper({ userData }) {
   const [videoHash, setVideoHash] = useState(null)
   const [videoProcessingCallId, setVideoProcessingCallId] = useState(null)
+  const [uploadProcessing, setUploadProcessing] = useState(false)
   const [latestState, setLatestState] = useState(null)
   const [userFeedbackRequest, setUserFeedbackRequest] = useState(null)
   const [trueStepIndex, setTrueStepIndex] = useState(0)
@@ -116,6 +119,24 @@ export default function MainStepper({ userData }) {
   useEffect(() => {
     setUserFeedbackRequest(finalResult?.user_feedback_request || BASE_PROMPT)
   }, [finalResult]);
+
+  useEffect(() => {
+    let timeoutId;
+
+    async function pollForDone() {
+      const data = await getFunctionCallResults(videoProcessingCallId);
+      if (data.result && data.result !== "error" && data.result !== "pending") {
+        setUploadProcessing(false);
+      } else {
+        timeoutId = setTimeout(pollForDone, POLL_INTERVAL);
+      }
+    }
+
+    pollForDone();
+
+    // Clean up the timeout on component unmount
+    return () => clearTimeout(timeoutId);
+  }, [videoProcessingCallId]);
 
   const [activePrompt, activePromptDispatch] = useReducer((state, action) => {
     switch (action.type) {
@@ -247,6 +268,7 @@ export default function MainStepper({ userData }) {
       console.log("got video hash", respData.videoHash)
     }
     if (respData && respData.callId) {
+      setUploadProcessing(true)
       setVideoProcessingCallId(respData.callId)
     }
   }
@@ -255,7 +277,7 @@ export default function MainStepper({ userData }) {
 
   return (
     <div className="flex w-full flex-col gap-4">
-       <UploadVideo uploadVideo={uploadVideoWrapper}/>
+       <UploadVideo uploadProcessing={uploadProcessing} uploadVideo={uploadVideoWrapper}/>
        <VideoSelector userData={userData} setVideoHash={setVideoHash}/>
        <Stepper initialStep={currentStepIndex} steps={stepData.stepArray}>
          {actionSteps.map(({ name, human_readable_name }, index) => {
