@@ -33,10 +33,14 @@ integration_test_with_deploy:
 
 setup-hooks:
 	@echo "Setting up git hooks..."
-	@./scripts/setup-hooks.sh
+	@./hooks/setup-hooks.sh
 
 format:
-	@poetry run black .
+	@if [ "$(GIT_ONLY)" = "1" ]; then \
+		git diff --cached --name-only --diff-filter=d | xargs -r poetry run black; \
+	else \
+		poetry run black .; \
+	fi
 
 local_api:
 	@echo "Starting local api..."

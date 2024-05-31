@@ -1,15 +1,16 @@
 #!/bin/sh
 
-# Run the make format command
-make format
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=d)
+# Check if there are any staged files
+if [ -z "$STAGED_FILES" ]; then
+    echo "No files are staged for commit."
+else
+    # Format files with black
+    echo "$STAGED_FILES" | xargs -r poetry run black
 
-# Check the exit status of the make command
-if [ $? -ne 0 ]; then
-  echo "The make format command failed. Aborting commit."
-  exit 1
+    # Re-stage the files after formatting
+    echo "$STAGED_FILES" | xargs -r git add
 fi
-
-git add .
 
 # Exit with a zero status if everything is fine
 exit 0
