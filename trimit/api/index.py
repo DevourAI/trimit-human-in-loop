@@ -7,7 +7,7 @@ from pathlib import Path
 
 from pydantic import BaseModel
 from modal.functions import FunctionCall
-from modal import asgi_app, is_local
+from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter
 from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
@@ -44,7 +44,7 @@ from trimit.models import (
     VideoFileProjection,
 )
 from .image import image
-from trimit.backend.conf import LINEAR_WORKFLOW_OUTPUT_FOLDER
+from trimit.backend.conf import VIDEO_PROCESSING_CALL_IDS_DICT_NAME
 from trimit.backend.background_processor import BackgroundProcessor
 from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
@@ -54,6 +54,9 @@ if not is_local():
 
 TEMP_DIR = Path("/tmp/uploads")
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
+video_processing_call_ids = Dict.from_name(
+    VIDEO_PROCESSING_CALL_IDS_DICT_NAME, create_if_missing=True
+)
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
@@ -161,16 +164,59 @@ async def get_all_outputs(
     return await workflow.get_all_outputs()
 
 
+async def check_call_status(modal_call_id, timeout):
+    try:
+        fc = FunctionCall.from_id(modal_call_id)
+        try:
+            result = await fc.get(timeout=timeout)
+        except TimeoutError:
+            result = {"status": "pending"}
+    except Exception as e:
+        result = {"status": "error", "error": str(e)}
+    return result
+
+
+# frontend should poll for this
+# sometime in the future we can use kafka or pubsub to push to frontend
+@web_app.get("/get_video_processing_status")
+async def get_video_processing_status(
+    user_email: str, video_hashes: list[str] | None = None, timeout: float = 0
+):
+    if video_hashes is None:
+        await maybe_init_mongo()
+        video_hashes = [
+            video.md5_hash
+            for video in await Video.find(Video.user.email == user_email)
+            .project(VideoHighResPathProjection)
+            .to_list()
+        ]
+    call_ids = [
+        video_processing_call_ids[(user_email, h)]
+        for h in video_hashes
+        if (user_email, h) in video_processing_call_ids
+    ]
+    statuses = await asyncio.gather(
+        check_call_status(call_id, timeout) for call_id in call_ids
+    )
+    expanded_statuses = []
+    for video_hash, status in zip(video_hashes, statuses):
+        if status is None:
+            status = {"status": "done"}
+        elif status["status"] == "done":
+            del video_processing_call_ids[(user_email, video_hash)]
+        status["video_hash"] = video_hash
+        expanded_statuses.append(status)
+    return {"result": expanded_statuses}
+
+
 # frontend should poll for this
 # sometime in the future we can use kafka or pubsub to push to frontend
 @web_app.get("/check_function_call_results")
-def check_function_call_results(modal_call_id: str, timeout: float = 0):
-    fc = FunctionCall.from_id(modal_call_id)
-    try:
-        result = fc.get(timeout=timeout)
-    except TimeoutError:
-        result = {"result": "pending"}
-    return result
+async def check_function_call_results(modal_call_ids: list[str], timeout: float = 0):
+    statuses = await asyncio.gather(
+        check_call_status(call_id, timeout) for call_id in modal_call_ids
+    )
+    return {"result": statuses}
 
 
 @web_app.get("/step")
@@ -568,6 +614,10 @@ async def upload_multiple_files(
     call = background_processor.process_videos_generic_from_video_hashes.spawn(
         current_user.email, to_process, use_existing_output=use_existing_output
     )
+    for video_detail in video_details:
+        video_processing_call_ids[(current_user.email, video_detail["video_hash"])] = (
+            call.object_id
+        )
 
     return {
         "result": "success",

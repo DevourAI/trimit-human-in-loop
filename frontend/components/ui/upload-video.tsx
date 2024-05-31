@@ -1,11 +1,13 @@
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Button } from "@/components/ui/button"
+import { ReloadIcon } from "@radix-ui/react-icons"
 import React, { useState } from 'react';
 
 
-export default function UploadVideo({uploadProcessing, uploadVideo}) {
+export default function UploadVideo({uploadVideo}) {
   const [selectedVideo, setSelectedVideo] = useState(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const handleVideoChange = (event) => {
     const file = event.target.files[0];
@@ -18,7 +20,9 @@ export default function UploadVideo({uploadProcessing, uploadVideo}) {
     event.preventDefault();
     if (selectedVideo) {
       console.log('uploading video', selectedVideo)
+      setIsUploading(true)
       await uploadVideo(selectedVideo)
+      setIsUploading(false)
     }
   };
 
@@ -26,7 +30,7 @@ export default function UploadVideo({uploadProcessing, uploadVideo}) {
     <div className="grid w-full max-w-sm items-center gap-1.5">
       <form onSubmit={handleSubmit}>
         <Input id="video" onChange={handleVideoChange} accept="video/*" type="file" />
-        { uploadProcessing ?
+        { isUploading ?
           <Button disabled type="submit">
             <ReloadIcon className="mr-2 h-4 w-4 animate-spin" />
             Uploading...

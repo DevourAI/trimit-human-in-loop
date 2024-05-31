@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table"
 
 
-export default function VideoSelector({userData, setVideoHash}) {
+export default function VideoSelector({userData, videoProcessingStatuses, setVideoHash}) {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [uploadedVideos, setUploadedVideos] = useState([]);
 
@@ -26,7 +26,7 @@ export default function VideoSelector({userData, setVideoHash}) {
     }
 
     fetchUploadedVideos();
-  }, [userData]);
+  }, [userData, videoProcessingStatuses]);
 
   useEffect(() => {
     if (selectedVideo && selectedVideo.hash) {
@@ -42,6 +42,7 @@ export default function VideoSelector({userData, setVideoHash}) {
           <TableRow>
             <TableHead>Filename</TableHead>
             <TableHead>Thumbnail</TableHead>
+            <TableHead>Processing Status</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -55,11 +56,24 @@ export default function VideoSelector({userData, setVideoHash}) {
                       Your browser does not support the video tag.
                     </video>
                   </TableCell>
+                  <TableCell className="font-medium">{
+                    videoProcessingStatuses[video.video_hash]?
+                      videoProcessingStatuses[video.video_hash].status === "error" ?
+                        "Error"
+                      : videoProcessingStatuses[video.video_hash].status === "pending" ?
+                        "Processing"
+                      : "Ready to use"
+                    : "Ready to use"
+                  }</TableCell>
                 </TableRow>
               )) : (
                 <TableRow>
                   <TableCell className="h-24 text-center">
                     No results.
+                  </TableCell>
+                  <TableCell className="h-24 text-center">
+                  </TableCell>
+                  <TableCell className="h-24 text-center">
                   </TableCell>
                 </TableRow>
 

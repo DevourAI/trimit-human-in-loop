@@ -237,6 +237,13 @@ async def test_retry_partial_transcript_step(workflow_3909774043_with_state_init
     assert output.step_name == step_name
 
 
+def assert_under_word_count_threshold(workflow, transcript, stage):
+    desired_words = workflow._desired_words_for_stage(stage)
+    assert (
+        transcript.kept_word_count < desired_words + workflow.max_word_extra_threshold
+    )
+
+
 async def test_retry_transcript_no_chunks(workflow_3909774043_with_state_init):
     workflow = workflow_3909774043_with_state_init
     step_name = "stage_0_modify_transcript_holistically"
@@ -345,12 +352,22 @@ async def test_step_until_finish(workflow_3909774043_with_transcript):
         [
             "stage_0_generate_transcript.modify_transcript_holistically",
             "stage_1_generate_transcript.cut_partial_transcripts_with_critiques",
+            "stage_1_generate_transcript.modify_transcript_holistically",
         ]
     )
     step0_tl_file = output_for_steps[0].export_result.get("video_timeline")
     assert step0_tl_file and os.stat(step0_tl_file).st_size > 0
     step1_tl_file = output_for_steps[1].export_result.get("video_timeline")
     assert step1_tl_file and os.stat(step1_tl_file).st_size > 0
+
+    first_stage_transcript = Transcript.load_from_state(
+        output_for_steps[0].outputs["current_transcript"]
+    )
+    assert_under_word_count_threshold(workflow, first_stage_transcript, 0)
+    second_stage_transcript = Transcript.load_from_state(
+        output_for_steps[2].outputs["current_transcript"]
+    )
+    assert_under_word_count_threshold(workflow, second_stage_transcript, 1)
 
     assert len(workflow.story) == 1977
     assert workflow.story == step_outputs[2].step_outputs["story"]
