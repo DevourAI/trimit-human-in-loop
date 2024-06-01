@@ -1036,7 +1036,11 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     @retry(stop=stop_after_attempt(10), wait=wait_fixed(0.1) + wait_random(0, 1))
     async def set_current_step_output_atomic(
-        self, dynamic_key, results: "CutTranscriptLinearWorkflowStepOutput"
+        self,
+        dynamic_key,
+        results: "CutTranscriptLinearWorkflowStepOutput",
+        save_to_db: bool = True,
+        use_session: bool = True,
     ):
         from trimit.backend.utils import remove_retry_suffix
         from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput
@@ -1053,10 +1057,13 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
         # This copy is necessary because beanie overwrite self's attributes when we call .get()
         copied_self_dict = copy.deepcopy(self).model_dump()
-        async with start_transaction() as session:
-            updated_self = await CutTranscriptLinearWorkflowState.find_one(
-                CutTranscriptLinearWorkflowState.id == self.id, session=session
-            )
+
+        async def update_state(session):
+            updated_self = None
+            if save_to_db:
+                updated_self = await CutTranscriptLinearWorkflowState.find_one(
+                    CutTranscriptLinearWorkflowState.id == self.id, session=session
+                )
             copied_self = CutTranscriptLinearWorkflowState(**copied_self_dict)
 
             if updated_self is None:
@@ -1085,8 +1092,16 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             copied_self.dynamic_state_step_order = updated_self.dynamic_state_step_order
 
             updated_self.merge(copied_self)
-            await updated_self.save(session=session)
-        await self.sync()
+            if save_to_db:
+                await updated_self.save(session=session)
+            for field in self.model_fields:
+                setattr(self, field, getattr(updated_self, field))
+
+        if use_session:
+            async with start_transaction() as session:
+                await update_state(session)
+        else:
+            await update_state(None)
 
     def add_to_dynamic_state_step_order(self, step_name, substep_name):
         if len(self.dynamic_state_step_order) == 0:

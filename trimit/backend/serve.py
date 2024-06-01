@@ -24,7 +24,11 @@ running_workflows = Dict.from_name(RUNNING_WORKFLOWS_DICT_NAME, create_if_missin
 
 
 async def step_workflow_until_feedback_request(
-    workflow: "CutTranscriptLinearWorkflow", user_input: str | None = None
+    workflow: "CutTranscriptLinearWorkflow",
+    user_input: str | None = None,
+    load_state=True,
+    save_state_to_db=True,
+    async_export=True,
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
@@ -36,7 +40,12 @@ async def step_workflow_until_feedback_request(
     done = False
     while first_time or not user_feedback_request:
         result = None
-        async for result, is_last in workflow.step(user_input or ""):
+        async for result, is_last in workflow.step(
+            user_input or "",
+            load_state=load_state,
+            save_state_to_db=save_state_to_db,
+            async_export=async_export,
+        ):
             yield result, is_last
 
         if not isinstance(result, CutTranscriptLinearWorkflowStepOutput):

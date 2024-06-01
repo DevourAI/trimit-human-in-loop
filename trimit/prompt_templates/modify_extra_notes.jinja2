@@ -1,4 +1,4 @@
-{%- if is_retry %}
+{% if is_retry or agent_word_length_retry_num > 0 %}
 {%- set prev_excess = transcript_nwords - prev_desired_words -%}
 {%- set excess = transcript_nwords - desired_words -%}
 {%- set new_round = desired_words != prev_desired_words -%}
@@ -24,21 +24,24 @@ However, we now want to cut the transcript down to {{ desired_words }} words.
 
 {%- endif -%}
 
-
-
-{%- if excess > 0 -%}
+{% if excess > 0 %}
 With the help of the human, you need to cut more out this time to get to the desired length of {{ desired_words }} words.
+{% if agent_word_length_retry_num > 0 %}
+Furthermore, you already went through this particular prompt {{ agent_word_length_retry_num }} time(s) and attempted to cut down the transcript to meet this word count, but did not cut enough out.
+{% endif %}
 Use the following mantra to help you achieve your goal: IF IN DOUBT, THROW IT OUT.
-{%- else -%}
+{% else %}
 The current full transcript is under the desired length, but the human editor was not happy with the result.
 With the help of the human, you need to redo your cut taking into account the new feedback.
-{%- endif -%}
+{% endif %}
 
-{%- if user_feedback -%}
+Note that the provided transcript is now from the result of the previous iteration of this task, allowing you to iteratively refine it without starting from scratch.
+
+{% if user_feedback or is_retry %}
 <critiques_from_human_editor>
-{{ user_feedback }}
+{{ user_feedback or 'No explicit feedback was provided but the user wanted you to retry'}}
 </critiques_from_human_editor>
-{%- endif -%}
+{% endif %}
 
 </extra_note>
-{%- endif -%}
+{% endif %}
