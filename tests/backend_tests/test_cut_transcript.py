@@ -324,7 +324,9 @@ async def test_retry_modify_transcript_holistically_due_to_word_count(
     assert nretries[0] > 1
     assert output is not None and isinstance(output.outputs, dict)
     modified_transcript = output.outputs["current_transcript"]
-    assert workflow._under_stage_length_threshold(modified_transcript, stage=0)
+    assert not workflow._word_count_excess(
+        modified_transcript, workflow._desired_words_for_stage(0)
+    )
 
 
 async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript):

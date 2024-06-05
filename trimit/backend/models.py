@@ -246,15 +246,18 @@ class TranscriptSegment(BaseModel):
             if start_index >= _start and start_index < _end:
                 # TODO my theory is that offsets in match_output are overlapping
                 # or that somehow the previous cuts aren't getting erased
-                breakpoint()
-                raise ValueError("Cut segment overlaps with existing cut segment")
+                raise ValueError(
+                    f"Cut segment overlaps with existing cut segment existing_cut_segments={self.cut_segments} start_index={start_index} end_index={end_index}"
+                )
             elif end_index > _start and end_index <= _end:
-                breakpoint()
-                raise ValueError("Cut segment overlaps with existing cut segment")
+                raise ValueError(
+                    f"Cut segment overlaps with existing cut segment existing_cut_segments={self.cut_segments} start_index={start_index} end_index={end_index}"
+                )
             elif start_index >= _end:
                 if i < len(self.cut_segments) and _end >= self.cut_segments[i + 1][0]:
-                    breakpoint()
-                    raise ValueError("Cut segment overlaps with existing cut segment")
+                    raise ValueError(
+                        f"Cut segment overlaps with existing cut segment existing_cut_segments={self.cut_segments} start_index={start_index} end_index={end_index}"
+                    )
                 break
         self.cut_segments.insert(i, (start_index, end_index))
 
@@ -1016,14 +1019,68 @@ class Transcript:
         for seg in segments_to_erase:
             seg.cut_segments = []
 
+    def restrict_offset_to_chunk(self, offset: OffsetToCut, chunk: TranscriptChunk):
+        new_offset = offset.model_copy()
+        if offset.seg_i_start < chunk.chunk_segment_indexes[0]:
+            new_offset.seg_i_start = chunk.chunk_segment_indexes[0]
+            new_offset.word_i_start = 0
+        if offset.seg_i_end < chunk.chunk_segment_indexes[0]:
+            return None
+        if offset.seg_i_start > chunk.chunk_segment_indexes[-1]:
+            return None
+        if offset.seg_i_end > chunk.chunk_segment_indexes[-1]:
+            if offset.word_i_end > 0:
+                new_offset.seg_i_end = chunk.chunk_segment_indexes[-1] + 1
+                new_offset.word_i_end = 0
+        assert new_offset.seg_i_end > new_offset.seg_i_start or (
+            new_offset.seg_i_end == new_offset.seg_i_start
+            and new_offset.word_i_end > new_offset.word_i_start
+        )
+        return new_offset
+
     def keep_only_cuts(
         self, offsets: list[OffsetToCut], from_chunk: TranscriptChunk | None = None
     ):
+        from trimit.backend.utils import linearize_and_dedupe_offsets
+
         segment_indexes_to_erase = None
         if from_chunk is not None:
             segment_indexes_to_erase = from_chunk.chunk_segment_indexes
+            print(
+                "keep only cuts for chunk:",
+                from_chunk.chunk_index,
+                "segment_indexes_to_erase",
+                from_chunk.chunk_segment_indexes,
+                "offsets",
+                offsets,
+            )
+        else:
+            print("keep only cuts for overall")
         self.erase_cuts(segment_indexes_to_erase)
+        if from_chunk is not None:
+            print(
+                "transcript chunk kept segments after erase",
+                from_chunk.kept_segment_indexes,
+            )
+            print(
+                "transcript chunk segment cuts after erase \n",
+                [
+                    f"seg_idx={i} cuts={self.segments[i].cut_segments}"
+                    for i in from_chunk.chunk_segment_indexes
+                ],
+            )
+
+        # TODO allow reordering and reuse of cuts!
+        offsets = linearize_and_dedupe_offsets(offsets)
+
         for offset_to_cut in offsets:
+            if from_chunk is not None:
+                offset_to_cut = self.restrict_offset_to_chunk(offset_to_cut, from_chunk)
+                if offset_to_cut is None:
+                    print(
+                        f"Offset {offset_to_cut} not in chunk {from_chunk.chunk_index}. Skipping"
+                    )
+                    continue
             seg_i_start, word_i_start, seg_i_end, word_i_end = (
                 offset_to_cut.seg_i_start,
                 offset_to_cut.word_i_start,

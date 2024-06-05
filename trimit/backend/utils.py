@@ -1121,11 +1121,18 @@ def parse_relevant_user_feedback_list_from_agent_output(
     agent_output: dict, n: int, user_feedback: str
 ):
     relevant_user_feedback_list = agent_output.get("relevant_user_feedback_list", [])
-    if len(relevant_user_feedback_list) != n:
+    if not isinstance(relevant_user_feedback_list, list):
+        print(
+            f"Expected {n} user feedback strings as list, but got {relevant_user_feedback_list}"
+        )
+        return [user_feedback] * n
+    elif len(relevant_user_feedback_list) != n:
         print(
             f"Expected {n} user feedback strings, but got {len(relevant_user_feedback_list)}"
         )
         return [user_feedback] * n
+    else:
+        relevant_user_feedback_list = [f or "" for f in relevant_user_feedback_list]
     return relevant_user_feedback_list
 
 
@@ -1230,3 +1237,28 @@ async def export_results_wrapper(workflow, state_save_key, current_substep):
     assert export_result is not None
     await workflow._save_export_result_to_step_output(state_save_key, export_result)
     return {"result": export_result}
+
+
+def linearize_and_dedupe_offsets(offsets: list["OffsetToCut"]):
+    if len(offsets) == 0:
+        return []
+    offsets = sorted(offsets, key=lambda o: (o.seg_i_start, o.word_i_start))
+    new_offsets = [offsets[0]]
+    if len(offsets) == 1:
+        return new_offsets
+    for offset in offsets[1:]:
+        if offset.seg_i_end < new_offsets[-1].seg_i_end:
+            continue
+        elif offset.seg_i_end == new_offsets[-1].seg_i_end:
+            if offset.word_i_end <= new_offsets[-1].word_i_end:
+                continue
+
+        if offset.seg_i_start < new_offsets[-1].seg_i_end:
+            new_offsets[-1].seg_i_end = offset.seg_i_end
+            new_offsets[-1].word_i_end = offset.word_i_end
+        elif offset.seg_i_start == new_offsets[-1].seg_i_end:
+            if offset.word_i_start < new_offsets[-1].word_i_end:
+                new_offsets[-1].word_i_end = new_offsets[-1].word_i_end
+        else:
+            new_offsets.append(offset)
+    return new_offsets

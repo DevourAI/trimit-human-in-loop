@@ -393,6 +393,10 @@ class CutTranscriptLinearWorkflow:
         return self.step_order.max_iterations
 
     @property
+    def ask_user_for_feedback_every_iteration(self):
+        return self.step_order.ask_user_for_feedback_every_iteration
+
+    @property
     def max_word_extra_threshold(self):
         return self.step_order.max_word_extra_threshold
 
@@ -1067,6 +1071,7 @@ class CutTranscriptLinearWorkflow:
         stage_num = parse_stage_num_from_step_name(step_name)
         if stage_num is None:
             raise ValueError(f"Step name {step_name} does not contain a stage number")
+        print(f"CUT TRANSCRIPT WITH CRITIQUES")
 
         # TODO decide whether to use user feedback for this method at all
         user_feedback = step_input.user_prompt or ""
@@ -1083,6 +1088,7 @@ class CutTranscriptLinearWorkflow:
             == len(partials_to_redo)
             == len(self.current_transcript.chunks)
         )
+        print(f"PAST RETRY")
 
         input_transcript = self.current_transcript
         assert isinstance(input_transcript, Transcript)
@@ -1102,6 +1108,7 @@ class CutTranscriptLinearWorkflow:
             kept_soundbites.align_to_transcript_chunks(partial_transcript_fresh)
         else:
             partial_transcripts = partial_transcript_fresh.chunks
+        print(f"PAST SPLIT")
 
         yield f"Cutting and critiquing partial transcripts for stage {stage_num}\n", False
         cut_partial_transcript_with_critiques_jobs = []
@@ -1152,6 +1159,7 @@ class CutTranscriptLinearWorkflow:
                 new_cut_transcript_chunk, kept_soundbites_chunk = output
                 new_kept_soundbites_chunks.append(kept_soundbites_chunk)
                 new_cut_transcript_chunks.append(new_cut_transcript_chunk)
+        print(f"PAST MERGED STREAM")
 
         assert all(
             [s is not None for s in new_kept_soundbites_chunks]
@@ -1178,6 +1186,7 @@ class CutTranscriptLinearWorkflow:
         #  for cut in final_transcript.iter_kept_cuts():
         #  yield f"```json\n{cut.model_dump_json()}\n```", False
 
+        print(f"YIELDING FROM CUT TRANSCRIPT")
         yield CutTranscriptLinearWorkflowStepResults(
             outputs={
                 "current_soundbites": kept_soundbites,
@@ -1190,7 +1199,15 @@ class CutTranscriptLinearWorkflow:
     ):
         output = None
         modified_transcript = None
-        for i in range(max(1, self.max_iterations)):
+        print(f"MODIFY TRANSCRIPT HOLISTICALLY")
+
+        iterations = max(1, self.max_iterations)
+        if self.ask_user_for_feedback_every_iteration:
+            iterations = 1
+        for i in range(max(1, iterations)):
+            print("MODIFY ITERATION", i)
+            # TODO _modify_transcript_holistically_single_iteration is returning same thing for each retry_num
+            # likely from cache, which means prompt isn't changing
             async for (
                 output,
                 is_last,
@@ -1203,9 +1220,15 @@ class CutTranscriptLinearWorkflow:
             if output.outputs:
                 modified_transcript = output.outputs["current_transcript"]
                 stage_num = parse_stage_num_from_step_name(step_input.step_name)
-                if self._under_stage_length_threshold(
-                    modified_transcript, stage=stage_num
+                print(
+                    "Checking word count excess, desired words:",
+                    self._desired_words_for_stage(stage_num),
+                )
+                print("kept owrd count", modified_transcript.kept_word_count)
+                if not self._word_count_excess(
+                    modified_transcript, self._desired_words_for_stage(stage_num)
                 ):
+                    print("NO WORD COUNT EXCESS")
                     output.outputs["retries"] = i
                     yield output, True
                     return
@@ -1215,6 +1238,7 @@ class CutTranscriptLinearWorkflow:
         yield output, True
 
     async def export_results(self, step_input: CutTranscriptLinearWorkflowStepInput):
+        await maybe_init_mongo()
         substep = self._substep_for_step_input(step_input)
         export_transcript = (
             self.export_transcript
@@ -1296,17 +1320,6 @@ class CutTranscriptLinearWorkflow:
         yield output_files, True
 
     #### HELPER FUNCTIONS ####
-
-    def _get_stage_length_seconds(self, stage_num: int):
-        return self.stage_lengths[stage_num]
-
-    def _desired_words_for_stage(self, stage_num: int):
-        return desired_words_from_length(self._get_stage_length_seconds(stage_num))
-
-    def _word_count_excess(self, transcript, desired_words):
-        return (
-            transcript.kept_word_count > desired_words + self.max_word_extra_threshold
-        )
 
     def _step_output_val_for_stage(self, stage_num, step_output_key):
         assert self.state is not None
@@ -1510,7 +1523,17 @@ class CutTranscriptLinearWorkflow:
         if substep_name == "init_state":
             return False, None
 
+        assert self.state is not None
         _, substep = self.get_step_by_name(step_name, substep_name)
+        dynamic_key = self.state.get_latest_dynamic_key_with_retry(
+            step_name, substep_name
+        )
+        if self.state.dynamic_state_retries.get(dynamic_key):
+            print("Latest state was retry")
+            return True, CutTranscriptLinearWorkflowStepInput(
+                user_prompt=user_prompt, is_retry=True
+            )
+
         if substep.chunked_feedback:
             if "identify_key_soundbites" in step_name:
                 if self.current_soundbites is None:
@@ -1537,9 +1560,15 @@ class CutTranscriptLinearWorkflow:
                     break
             assert isinstance(output, tuple) and len(output) == 2
             partials_to_redo, relevant_user_feedback_list = output
-            assert isinstance(relevant_user_feedback_list, list) and all(
-                [isinstance(s, str) for s in relevant_user_feedback_list]
-            )
+            try:
+                assert isinstance(relevant_user_feedback_list, list) and all(
+                    [isinstance(s, str) for s in relevant_user_feedback_list]
+                )
+            except:
+                print(
+                    f"relevant_user_feedback_list incorrect types: {relevant_user_feedback_list}, types={list(map(type, relevant_user_feedback_list))}"
+                )
+                relevant_user_feedback_list = [user_prompt] * len(partials_to_redo)
             return any(partials_to_redo), CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt,
                 llm_modified_partial_feedback=PartialFeedback(
@@ -1868,6 +1897,10 @@ class CutTranscriptLinearWorkflow:
         if not isinstance(output, dict):
             raise ValueError(f"Expected output to be dict, but got {type(output)}")
 
+        print(
+            "user feedback in _identify_partial_transcript_chunks_to_redo_from_user_feedback",
+            user_feedback,
+        )
         partials_to_redo = parse_partials_to_redo_from_agent_output(output, n=nchunks)
         relevant_user_feedback_list = []
         if len(partials_to_redo):
@@ -1876,6 +1909,14 @@ class CutTranscriptLinearWorkflow:
                     output, n=len(partials_to_redo), user_feedback=user_feedback
                 )
             )
+            print(
+                "relevant_user_feedback_list in if stmt in _identify_partial_transcript_chunks_to_redo_from_user_feedback",
+                relevant_user_feedback_list,
+            )
+        print(
+            "relevant_user_feedback_list outside if stmt in _identify_partial_transcript_chunks_to_redo_from_user_feedback",
+            relevant_user_feedback_list,
+        )
         yield (partials_to_redo, relevant_user_feedback_list), True
 
     async def _ask_llm_to_parse_user_prompt_for_story_retry(self, user_feedback):
@@ -2133,10 +2174,15 @@ class CutTranscriptLinearWorkflow:
             retry=self._word_count_excess(final_transcript, desired_words),
         ), True
 
-    def _under_stage_length_threshold(self, transcript, stage):
-        desired_words = self._desired_words_for_stage(stage)
+    def _get_stage_length_seconds(self, stage_num: int):
+        return self.stage_lengths[stage_num]
+
+    def _desired_words_for_stage(self, stage_num: int):
+        return desired_words_from_length(self._get_stage_length_seconds(stage_num))
+
+    def _word_count_excess(self, transcript, desired_words):
         return (
-            transcript.kept_word_count < desired_words + self.max_word_extra_threshold
+            transcript.kept_word_count > desired_words + self.max_word_extra_threshold
         )
 
     async def _agent_interaction_for_modify_transcript_holistically(
@@ -2201,6 +2247,7 @@ class CutTranscriptLinearWorkflow:
             is_retry=human_retry or not is_first_round,
             agent_word_length_retry_num=agent_word_length_retry_num,
         )
+        print("extra_notes", extra_notes)
         task_description = parse_prompt_template(
             "modify_detailed_task_description",
             transcript_nwords=transcript.kept_word_count,
@@ -2233,6 +2280,10 @@ class CutTranscriptLinearWorkflow:
         assert isinstance(output, str)
 
         transcript = match_output_to_actual_transcript_fast(transcript, output)
+        print(
+            "transcript kept words end of modify agent output func",
+            transcript.kept_word_count,
+        )
 
         kept_soundbites = (
             key_soundbites.keep_only_in_transcript(transcript)

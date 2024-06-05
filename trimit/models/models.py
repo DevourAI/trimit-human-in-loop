@@ -662,6 +662,7 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     clip_extra_trim_seconds: float = 0.1
     use_agent_output_cache: bool = True
     max_iterations: int = 3
+    ask_user_for_feedback_every_iteration: bool = False
     max_total_soundbites: int = 15
     export_transcript_text: bool = True
     export_transcript: bool = True
@@ -772,6 +773,14 @@ class StepOrderMixin(BaseModel):
     @property
     def max_iterations(self):
         return self.static_state.max_iterations
+
+    @property
+    def ask_user_for_feedback_every_iteration(self):
+        try:
+            return self.static_state.ask_user_for_feedback_every_iteration
+        except Exception as e:
+            print(f"Error getting ask_user_for_feedback_every_iteration: {e}")
+            return False
 
     @property
     def export_transcript_text(self):

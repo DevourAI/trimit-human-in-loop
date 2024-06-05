@@ -58,7 +58,6 @@ function stepIndexFromState(state: UserState): number {
 
 function stepIndexFromName(stepName: string, substepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
   const _currentAllStepIndex = allSteps.findIndex((step) => (step.name === remove_retry_suffix(substepName) && step.step_name == stepName))
-  console.log('stepName', stepName, 'substepName', substepName, 'allSteps', allSteps, 'actionSteps', actionSteps, '_currentAllStepIndex', _currentAllStepIndex)
   if (_currentAllStepIndex !== -1) {
     const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
     if (nextActionStepIndex >= actionSteps.length) {
@@ -66,7 +65,7 @@ function stepIndexFromName(stepName: string, substepName: string, allSteps: Step
     }
     return nextActionStepIndex
   } else {
-    console.error(`Could not find step ${remove_retry_suffix(stepName)} in steps array ${allSteps}`)
+    console.error(`Could not find step ${remove_retry_suffix(substepName)} in steps array`, allSteps)
   }
   return 0
 }
@@ -191,7 +190,10 @@ export default function MainStepper({ userData }) {
       setNeedsRevert(false)
     }
     const params = {
-      user_input: data.feedback || '',
+      user_input: (
+        data.feedback !== undefined && data.feedback !== null
+      ) ?
+        data.feedback : '',
       streaming: true,
       force_restart: false,
       ignore_running_workflows: true,
@@ -203,7 +205,7 @@ export default function MainStepper({ userData }) {
         let valueToAppend = value;
         if (typeof value !== 'string') {
           if (value.substep_name !== undefined) {
-            const stepIndex = stepIndexFromName(value.substep_name, allSteps, actionSteps)
+            const stepIndex = stepIndexFromName(value.step_name, value.substep_name, allSteps, actionSteps)
             setTrueStepIndex(stepIndex)
             setCurrentStepIndex(stepIndex)
             setLatestExportResult(value.export_result)
