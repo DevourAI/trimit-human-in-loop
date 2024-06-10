@@ -47,8 +47,12 @@ local_api:
 	@ENV=local VERCEL_FRONTEND_URL="http://127.0.0.1:3000" poetry run python -m uvicorn trimit.api.index:web_app --reload
 
 local_ui:
-	@echo "Starting local ui..."
-	@cd frontend && yarn dev
+	@echo "Starting local ui assuming local backend..."
+	@BACKEND=local cd frontend && yarn dev
+
+local_ui_remote_backend:
+	@echo "Starting local ui assuming remote backend..."
+	@BACKEND=remote cd frontend && yarn dev
 
 step_ephemeral:
 	@echo "Running step function locally..."
