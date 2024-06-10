@@ -12,7 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-
 export default function VideoSelector({userData, videoProcessingStatuses, setVideoHash}) {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [uploadedVideos, setUploadedVideos] = useState([]);
@@ -20,7 +19,6 @@ export default function VideoSelector({userData, videoProcessingStatuses, setVid
   useEffect(() => {
     async function fetchUploadedVideos() {
         const _uploadedVideos = await getUploadedVideos({user_email: userData.email} as GetUploadedVideoParams);
-        console.log('In VideoSelector: uploadedVideos', _uploadedVideos);
         setUploadedVideos(_uploadedVideos);
         setSelectedVideo(_uploadedVideos[0]);
     }
@@ -33,8 +31,6 @@ export default function VideoSelector({userData, videoProcessingStatuses, setVid
       setVideoHash(selectedVideo.hash);
     }
   }, [selectedVideo]);
-
-  console.log('In VideoSelector: videoProcessingStatuses', videoProcessingStatuses);
 
   return (
     <div className="rounded-md border">

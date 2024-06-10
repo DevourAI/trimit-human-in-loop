@@ -114,7 +114,6 @@ export default function MainStepper({ userData }) {
               }
             })
           }
-          console.log('main-stepper fetchLatestState newVideoProcessingStatuses', newVideoProcessingStatuses)
           setVideoProcessingStatuses(newVideoProcessingStatuses)
         }
 
@@ -139,9 +138,7 @@ export default function MainStepper({ userData }) {
       const data = await getVideoProcessingStatuses(userData.email);
       let anyPending = false
       if (data.result && data.result !== "error") {
-        console.log('videoProcessingStatuses before', videoProcessingStatuses)
         const newVideoProcessingStatuses = {...videoProcessingStatuses}
-        console.log('videoProcessingStatuses after', newVideoProcessingStatuses)
         data.result.forEach((result) => {
           const videoHash = result.video_hash
           if (result.status === "done") {
@@ -153,7 +150,6 @@ export default function MainStepper({ userData }) {
             anyPending = true
           }
         })
-        console.log('main-stepper pollForDone newVideoProcessingStatuses', newVideoProcessingStatuses)
         setVideoProcessingStatuses(newVideoProcessingStatuses)
       }
       if (anyPending) {
@@ -181,11 +177,8 @@ export default function MainStepper({ userData }) {
   }, '');
 
   async function onSubmit(stepIndex: number, data: z.infer<typeof FormSchema>) {
-    console.log("submitting")
-    console.log("feedback", data.feedback)
     setIsLoading(true)
     if (needsRevert) {
-      console.log('reverting step');
       for (let i = 0; i < trueStepIndex - stepIndex; i++) {
         await undoLastStepBeforeRetries()
       }
@@ -204,7 +197,6 @@ export default function MainStepper({ userData }) {
         let valueToAppend = value;
         if (typeof value !== 'string') {
           if (value.substep_name !== undefined) {
-            console.log("value output", value)
             const stepIndex = stepIndexFromName(value.substep_name, allSteps, actionSteps)
             setTrueStepIndex(stepIndex)
             setCurrentStepIndex(stepIndex)
@@ -294,10 +286,6 @@ export default function MainStepper({ userData }) {
 
   async function uploadVideoWrapper(videoFile) {
     const respData = await uploadVideo({videoFile, userEmail: userData.email, timelineName})
-    console.log("upload response data", respData)
-    if (respData && respData.video_hashes) {
-      console.log("got video hash", respData.video_hashes[0])
-    }
     if (respData && respData.processing_call_id) {
       const newEntries = {
         [respData.video_hashes[0]]: {
@@ -306,7 +294,7 @@ export default function MainStepper({ userData }) {
         }
       }
 
-      setVideoProcessingStatuses({videoProcessingStatuses, ...newEntries})
+      setVideoProcessingStatuses({...videoProcessingStatuses, ...newEntries})
     }
   }
 
