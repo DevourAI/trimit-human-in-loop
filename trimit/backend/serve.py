@@ -72,6 +72,7 @@ async def step(
     force_restart: bool = False,
     ignore_running_workflows: bool = False,
     timeout: float = 120,
+    async_export: bool = True,
 ):
     from trimit.backend.cut_transcript import (
         CutTranscriptLinearWorkflow,
@@ -105,7 +106,9 @@ async def step(
         else:
             workflows[id] = workflow
     running_workflows[id] = True
-    gen = step_workflow_until_feedback_request(workflow, user_input)
+    gen = step_workflow_until_feedback_request(
+        workflow, user_input, async_export=async_export
+    )
     try:
         while True:
             output = await asyncio.wait_for(gen.__anext__(), timeout)

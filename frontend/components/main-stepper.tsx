@@ -45,25 +45,33 @@ function remove_retry_suffix(stepName: string): string {
 
 
 function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
-  const actionStepNames = actionSteps.map((step) => step.name)
-  for (let i = allStepIndex; i < allSteps.length; i++) {
-    const actionStepIndex = actionStepNames.indexOf(allSteps[i].name)
-    if (actionStepIndex > -1) {
-      return actionStepIndex
-    }
-  }
-  return actionSteps.length
+  // TODO remove action steps entirely, not needed anymore. The folowing is a stub until the notion is removed from code
+  return allStepIndex
 }
 
 function stepIndexFromState(state: UserState): number {
   if (state && state.next_step) {
+<<<<<<< Updated upstream
     return stepIndexFromName(state.next_step.name, allSteps, actionSteps)
+=======
+    return stepIndexFromName(state.next_step.step_name, state.next_step.name, allSteps, actionSteps)
+  } else if (state && state.last_step) {
+    // next step is none if we have finished , but we can stay on last step for retry handling
+    // TODO: something on the UI that signals we've finished
+    return stepIndexFromName(state.last_step.step_name, state.last_step.name, allSteps, actionSteps)
+>>>>>>> Stashed changes
   }
   return 0
 }
 
+<<<<<<< Updated upstream
 function stepIndexFromName(substepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
   const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(substepName))
+=======
+function stepIndexFromName(stepName: string, substepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
+  const _currentAllStepIndex = allSteps.findIndex((step) => (step.name === remove_retry_suffix(substepName) && step.step_name == stepName))
+  console.log('stepName', stepName, 'substepName', substepName, 'allSteps', allSteps, 'actionSteps', actionSteps, '_currentAllStepIndex', _currentAllStepIndex)
+>>>>>>> Stashed changes
   if (_currentAllStepIndex !== -1) {
     const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
     if (nextActionStepIndex >= actionSteps.length) {
@@ -103,6 +111,7 @@ export default function MainStepper({ userData }) {
     async function fetchLatestState() {
         const data = await getLatestState(userParams as GetLatestStateParams);
         setLatestState(data);
+        console.log('data', data)
         setCurrentStepIndex(stepIndexFromState(data))
         if (userData.email) {
           const videoProcessesStatusesRaw = await getVideoProcessingStatuses(userData.email);
@@ -355,7 +364,14 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
     isOptionalStep,
     setStep
   } = useStepper()
+<<<<<<< Updated upstream
   setStep(currentStepIndex)
+=======
+  useEffect(() => {
+    console.log('stepIndex', currentStepIndex)
+    setStep(currentStepIndex);
+  }, [currentStepIndex]);
+>>>>>>> Stashed changes
   return (
     <>
 

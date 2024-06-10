@@ -17,6 +17,9 @@ const fetcher = (url) => fetch(url).then((res) => res.json());
 export default function Home() {
   const { data, error, isLoading } = useSWR("/userData", fetcher);
   let initialUserData = {'email': '', 'name': '', 'picture': ''};
+  if (process.env.NEXT_PUBLIC_ENV === 'local') {
+    initialUserData = {'email': 'ben@trimit.ai', 'name': 'Ben Schreck', 'picture': ''};
+  }
   if (data && data.userData && data.userData.value) {
     initialUserData = data.userData.value;
   }

@@ -2,7 +2,7 @@
 
 ## Dev setup
 
-1. Get copies of .dev/.env, .env.local, and potentially .staging/.env, .prod/.env
+1. Get copies of .dev/.env, .local/.env, and potentially .staging/.env, .prod/.env
 1. Install mongodb-community@6.0 via homebrew
 1. Stop the service if already started: `brew services stop mongodb/brew/mongodb-community@6.0`
 1. Add the following lines to /opt/homebrew/etc/mongod.conf:

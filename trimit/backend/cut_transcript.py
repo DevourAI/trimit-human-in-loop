@@ -1231,14 +1231,17 @@ class CutTranscriptLinearWorkflow:
         if last_step_index == -1:
             return 0, self.steps[0], 0
         assert last_substep_index is not None
-        if (
+        print(
+            f"last_step_index={last_step_index} len(self.steps)={len(self.steps)} last_substep_index={last_substep_index} len(self.steps[-1].substeps)={len(self.steps[-1].substeps)}"
+        )
+        if last_step_index >= len(self.steps) or (
             last_step_index >= len(self.steps) - 1
             and last_substep_index >= len(self.steps[-1].substeps) - 1
         ):
             return len(self.steps), None, None
         next_step_index = last_step_index
         next_substep_index = last_substep_index + 1
-        if next_substep_index >= len(self.steps[-1].substeps) - 1:
+        if next_substep_index > len(self.steps[-1].substeps) - 1:
             next_substep_index = 0
             next_step_index += 1
         next_step = self.steps[next_step_index]

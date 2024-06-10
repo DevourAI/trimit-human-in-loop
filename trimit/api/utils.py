@@ -4,12 +4,19 @@ from trimit.backend.conf import (
     RUNNING_WORKFLOWS_DICT_NAME,
 )
 from trimit.app import VOLUME_DIR
-from modal import Dict
+from modal import Dict, is_local
 import time
 import asyncio
 
-workflows = Dict.from_name(WORKFLOWS_DICT_NAME, create_if_missing=True)
-running_workflows = Dict.from_name(RUNNING_WORKFLOWS_DICT_NAME, create_if_missing=True)
+if is_local():
+    # TODO perhaps use redis for this locally
+    workflows = {}
+    running_workflows = {}
+else:
+    workflows = Dict.from_name(WORKFLOWS_DICT_NAME, create_if_missing=True)
+    running_workflows = Dict.from_name(
+        RUNNING_WORKFLOWS_DICT_NAME, create_if_missing=True
+    )
 
 
 async def load_or_create_workflow(

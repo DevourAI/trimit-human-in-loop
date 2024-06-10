@@ -34,8 +34,8 @@ from trimit.utils.fs_utils import (
 )
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
-from trimit.api.utils import load_or_create_workflow, workflows
-from trimit.app import app, get_volume_dir, S3_BUCKET, S3_VIDEO_PATH
+from trimit.api.utils import load_or_create_workflow
+from trimit.app import app, get_volume_dir, S3_BUCKET
 from trimit.models import (
     maybe_init_mongo,
     Video,
@@ -238,6 +238,7 @@ def step_endpoint(
         "user_input": user_input,
         "force_restart": force_restart,
         "ignore_running_workflows": ignore_running_workflows,
+        "async_export": os.environ.get("ASYNC_EXPORT", False),
     }
     from trimit.backend.serve import step as step_function
 
@@ -246,9 +247,11 @@ def step_endpoint(
 
         async def streamer():
             yield json.dumps({"message": "Running step...\n", "is_last": False}) + "\n"
-            async for partial_result, is_last in step_function.remote_gen.aio(
-                **step_params
-            ):
+            if is_local():
+                method = step_function.local
+            else:
+                method = step_function.remote_gen.aio
+            async for partial_result, is_last in method(**step_params):
                 if isinstance(partial_result, BaseModel):
                     yield json.dumps(
                         {
@@ -565,11 +568,12 @@ async def upload_multiple_files(
             volume_file_path = video.path(volume_dir)
             audio_file_path = video.audio_path(volume_dir)
         else:
-            s3_key = get_s3_key(
-                current_user, upload_datetime, Path(volume_file_path).name
-            )
-            print(f"Saving file to {S3_BUCKET}/{s3_key}")
-            await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
+            if not is_local():
+                s3_key = get_s3_key(
+                    current_user, upload_datetime, Path(volume_file_path).name
+                )
+                print(f"Saving file to {S3_BUCKET}/{s3_key}")
+                await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
             audio_file_path = get_audio_file_path(
                 current_user, upload_datetime, filename, volume_dir=volume_dir
             )

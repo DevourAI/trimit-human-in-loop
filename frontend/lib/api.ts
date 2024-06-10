@@ -95,7 +95,16 @@ export async function getStepOutput(params: StepOutputParams) {
 
 export async function step(params: StepParams, streamReaderCallback) {
   const url = new URL(`${API_URL}/step`)
+<<<<<<< Updated upstream
   Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+=======
+  Object.keys(params).forEach(key => {
+    console.log("key", key, params[key])
+    if (params[key] !== undefined && params[key] !== null) {
+      url.searchParams.append(key, params[key])
+    }
+  });
+>>>>>>> Stashed changes
   try {
     const res = await fetch(
       url.toString(),

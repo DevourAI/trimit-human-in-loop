@@ -24,8 +24,7 @@ import Ansi from "ansi-to-react";
 
 
 const FormSchema = z.object({
-  feedback: z
-    .coerce.string()
+  feedback: z.optional(z.string())
     // .min(10, {
       // message: "Bio must be at least 10 characters.",
     // })
@@ -43,6 +42,7 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
   const {
     activeStep
   } = useStepper()
+  console.log("activeStep", activeStep, "stepIndex", stepIndex);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   })
