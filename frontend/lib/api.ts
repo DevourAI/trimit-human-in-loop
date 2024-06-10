@@ -140,6 +140,26 @@ export async function uploadVideo(params: UploadVideoParams) {
   }
   return respData
 }
+export async function getVideoProcessingStatuses(userEmail: string, options = {timeout: 0}) {
+  if (!userEmail) {
+    return {"result": "error", "message": "No userEmail provided"}
+  }
+  const respData = await fetcherWithParams('get_video_processing_status', { user_email: userEmail, ...options})
+  if (respData && respData.result) {
+    return respData
+  }
+  return {"result": "error", "message": "No result found"}
+}
+export async function getFunctionCallResults(callIds: string[], options = {timeout: 0}) {
+  if (!callIds || callIds.length === 0) {
+    return {"result": "error", "message": "No callIds provided"}
+  }
+  const respData = await fetcherWithParams('check_function_call_results', { modal_call_ids: callIds, ...options})
+  if (respData && respData.result) {
+    return respData
+  }
+  return {"result": "error", "message": "No result found"}
+}
 
 function remoteVideoStreamURLForPath(path: string) {
   return `${API_URL}/video?video_path=${path}`

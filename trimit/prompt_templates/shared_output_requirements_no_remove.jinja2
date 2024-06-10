@@ -1,0 +1,16 @@
+<output_requirements>
+The beginning and end of your transcription output should be marked with <transcript> and </transcript>, respectively.
+The content inside of this output will be automatically parsed by our video generation system.
+
+Do not modify any individual words or phrases of the transcript, since we will just be cutting the existing footage.
+Instead, provide <keep></keep> tags around the segments you want to keep, and leave out the segments you want to remove,
+such that you write out the exact words in the transcript you want to keep with nothing else.
+Every segment of transcript you want to keep should have a <keep> tag before it and a </keep> tag after it.
+Each segment surrounded by a <keep> tag in your output should exactly match a contiguous block of text from the transcript.
+You must make sure that there are no stray <keep> or </keep> tags that don't have a corresponding pair.
+
+Don't be afraid to cut across sentence boundaries if it makes sense, and don't be afraid to be ruthless in what you remove.
+Filler words ("Okay", "And", "Um", "So", etc), repetitions, short answers to questions ("Yes", "Yep", "No") and other non-essential content should be removed.
+We need to keep the narrative concise and engaging.
+Generally, you should not include sentences phrased in the second-person (you, your, etc.), since these are likely coming from the interviewer.
+</output_requirements>

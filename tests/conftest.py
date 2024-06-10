@@ -116,6 +116,7 @@ async def _seed_mock_data():
             upload_datetime=DAVE_VIDEO_DATE,
             high_res_user_file_path=os.path.join(DAVE_VIDEO_FOLDER, basename),
             volume_file_path=os.path.join(DAVE_UPLOADS_DIR, low_res_hash + ".mp4"),
+            overwrite=False,
         )
 
     for path in DAVE_FULL_VIDEO_PATHS:
@@ -132,6 +133,7 @@ async def _seed_mock_data():
             upload_datetime=DAVE_VIDEO_DATE,
             high_res_user_file_path=path,
             volume_file_path=path,
+            overwrite=False,
         )
 
 
@@ -265,14 +267,20 @@ async def video_3909774043_with_speakers_in_frame(
 
 @pytest.fixture(scope="function")
 def transcript_15557970(video_15557970_with_speakers_in_frame):
-    return video_15557970_with_speakers_in_frame.transcription
+    transcript = Transcript.from_video_transcription(
+        video_15557970_with_speakers_in_frame.transcription
+    )
+    transcript.split_in_chunks(600)
+    return transcript
 
 
 @pytest.fixture(scope="function")
 def transcript_3909774043(video_3909774043_with_speakers_in_frame):
-    return Transcript.from_video_transcription(
+    transcript = Transcript.from_video_transcription(
         video_3909774043_with_speakers_in_frame.transcription
     )
+    transcript.split_in_chunks(500)
+    return transcript
 
 
 @pytest.fixture(scope="function")

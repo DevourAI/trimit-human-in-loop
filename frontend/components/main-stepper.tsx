@@ -21,6 +21,7 @@ import {
   downloadTimeline,
   downloadTranscriptText,
   downloadSoundbitesText,
+  getVideoProcessingStatuses,
 } from "@/lib/api";
 import {
   type CommonAPIParams,
@@ -36,6 +37,7 @@ import {
 import { stepData, allSteps, actionSteps } from "@/lib/data";
 
 const BASE_PROMPT = 'What do you want to create?'
+const POLL_INTERVAL = 5000
 
 function remove_retry_suffix(stepName: string): string {
   return stepName.split('_retry_', 1)[0]
@@ -77,7 +79,7 @@ function stepIndexFromName(substepName: string, allSteps: StepInfo[], actionStep
 
 export default function MainStepper({ userData }) {
   const [videoHash, setVideoHash] = useState(null)
-  const [videoProcessingCallId, setVideoProcessingCallId] = useState(null)
+  const [videoProcessingStatuses, setVideoProcessingStatuses] = useState({})
   const [latestState, setLatestState] = useState(null)
   const [userFeedbackRequest, setUserFeedbackRequest] = useState(null)
   const [trueStepIndex, setTrueStepIndex] = useState(0)
@@ -102,6 +104,17 @@ export default function MainStepper({ userData }) {
         const data = await getLatestState(userParams as GetLatestStateParams);
         setLatestState(data);
         setCurrentStepIndex(stepIndexFromState(data))
+        if (userData.email) {
+          const videoProcessesStatusesRaw = await getVideoProcessingStatuses(userData.email);
+          if (videoProcessesStatusesRaw.result && videoProcessesStatusesRaw.result !== "error") {
+            videoProcessesStatusesRaw.result.forEach((result) => {
+              videoProcessingStatuses[result.video_hash] = {
+                status: result.status,
+              }
+            })
+          }
+        }
+
     }
 
     fetchLatestState();
@@ -116,6 +129,36 @@ export default function MainStepper({ userData }) {
   useEffect(() => {
     setUserFeedbackRequest(finalResult?.user_feedback_request || BASE_PROMPT)
   }, [finalResult]);
+
+  useEffect(() => {
+    let timeoutId;
+
+    async function pollForDone() {
+      const data = await getVideoProcessingStatuses(userData.email);
+      if (data.result && data.result !== "error") {
+        const newVideoProcessingStatuses = videoProcessingStatuses
+        data.result.forEach((result) => {
+          const videoHash = result.video_hash
+          if (result.status === "done") {
+            delete newVideoProcessingStatuses[videoHash]
+          } else if (result.status === "error") {
+            console.error(`Error processing video ${videoHash}: ${result.error}`)
+            newVideoProcessingStatuses[videoHash].status = "error"
+          }
+        })
+        setVideoProcessingStatuses(newVideoProcessingStatuses)
+      } else {
+        timeoutId = setTimeout(pollForDone, POLL_INTERVAL);
+      }
+    }
+
+    if (videoProcessingStatuses.length) {
+      pollForDone();
+    }
+
+    // Clean up the timeout on component unmount
+    return () => clearTimeout(timeoutId);
+  }, [videoProcessingStatuses]);
 
   const [activePrompt, activePromptDispatch] = useReducer((state, action) => {
     switch (action.type) {
@@ -243,11 +286,18 @@ export default function MainStepper({ userData }) {
   async function uploadVideoWrapper(videoFile) {
     const respData = await uploadVideo({videoFile, userEmail: userData.email, timelineName})
     console.log("upload response data", respData)
-    if (respData && respData.videoHash) {
-      console.log("got video hash", respData.videoHash)
+    if (respData && respData.videoHashes) {
+      console.log("got video hash", respData.videoHashes[0])
     }
-    if (respData && respData.callId) {
-      setVideoProcessingCallId(respData.callId)
+    if (respData && respData.processing_call_id) {
+      const newEntries = {
+        [respData.videoHashes[0]]: {
+          callId: respData.processing_call_id,
+          status: "pending"
+        }
+      }
+
+      setVideoProcessingStatuses({videoProcessingStatuses, ...newEntries})
     }
   }
 
@@ -256,7 +306,7 @@ export default function MainStepper({ userData }) {
   return (
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
-       <VideoSelector userData={userData} setVideoHash={setVideoHash}/>
+       <VideoSelector userData={userData} videoProcessingStatuses={videoProcessingStatuses} setVideoHash={setVideoHash}/>
        <Stepper initialStep={currentStepIndex} steps={stepData.stepArray}>
          {actionSteps.map(({ name, human_readable_name }, index) => {
            return (

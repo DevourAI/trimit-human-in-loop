@@ -597,6 +597,7 @@ def find_leftover_transcript_offsets_fast(
     match_distance_threshold=0.9,
     max_additional_segment_words_multiplier=0.5,
     start_offset_weight=0.1,
+    match_on_rest=False,  # if True, keep all following words in the chunk
 ):
     # do each segment in order (need to get segments from higher level function)
     # try to first search for an approximate match, starting from beginning of transcript using window of size length of segment
@@ -638,6 +639,10 @@ def find_leftover_transcript_offsets_fast(
         else:
             breakpoint()
             print(f"Failed to find match for segment \"{' '.join(segment)}\"")
+    if match_on_rest:
+        last_offset = offsets[-1]
+        if last_offset[-1] < len(transcript):
+            offsets.append((last_offset[-1], len(transcript)))
     return offsets
 
 
@@ -795,7 +800,7 @@ async def get_offsets_to_cut(
     yield leftover_transcript_chunk.full_offsets_from_kept_offsets(offsets), True
 
 
-def split_on_keep_tags(segment):
+def split_on_keep_tags(segment, default_keep_words=False):
     words = []
     found_keep = False
     found_end_keep = False
@@ -817,8 +822,7 @@ def split_on_keep_tags(segment):
         elif word == "</keep>":
             found_end_keep = True
         words.append(word)
-    found_keep = found_keep and found_end_keep
-    return words if found_keep else []
+    return words if (found_keep or default_keep_words) else [], found_end_keep
 
 
 async def match_output_to_actual_transcript(
@@ -831,7 +835,7 @@ async def match_output_to_actual_transcript(
     leftover_transcript_chunk = actual_transcript_chunk.copy()
     offset_tasks = []
     for segment in re.split("(?<=</keep>)|(?=<keep>)", output_transcript):
-        segment_words = split_on_keep_tags(segment)
+        segment_words, found_end_keep = split_on_keep_tags(segment)
         if not segment_words:
             continue
 
@@ -865,7 +869,7 @@ def match_output_to_actual_transcript_fuzzy(
 
     all_words_to_match = []
     for segment in re.split("(?<=</keep>)|(?=<keep>)", output_transcript):
-        segment_words = split_on_keep_tags(segment)
+        segment_words, found_end_keep = split_on_keep_tags(segment)
         if not segment_words:
             continue
         segment_words_without_keep = remove_keep_tags(segment_words)
@@ -895,7 +899,7 @@ def match_output_to_actual_transcript_fast(
     start_offset_weight=0.1,
     return_offsets=False,
 ) -> TranscriptChunk | Transcript:
-    if "<transcript>" not in output or "</transcript>" not in output:
+    if "<transcript>" not in output and "</transcript>" not in output:
         if return_offsets:
             return actual_transcript_chunk.copy(), []
         return actual_transcript_chunk.copy()
@@ -903,24 +907,34 @@ def match_output_to_actual_transcript_fast(
     leftover_transcript_chunk = actual_transcript_chunk.copy()
 
     all_segments_to_match = []
+    match_on_rest = False
+
     for segment in re.split("(?<=</keep>)|(?=<keep>)", output_transcript):
-        segment_words = split_on_keep_tags(segment)
+        if not segment.strip():
+            continue
+        segment_words, found_end_keep = split_on_keep_tags(
+            segment, default_keep_words=match_on_rest
+        )
         if not segment_words:
             continue
+        if not found_end_keep:
+            match_on_rest = True
+
         segment_words_without_keep = remove_keep_tags(segment_words)
         all_segments_to_match.append(segment_words_without_keep)
 
-    # kept_offsets = find_leftover_transcript_offsets_fast(
-    text_offsets = find_leftover_transcript_offsets_fast(
+    kept_offsets = find_leftover_transcript_offsets_fast(
+        # text_offsets = find_leftover_transcript_offsets_fast(
         all_segments_to_match,
-        # leftover_transcript_chunk.kept_words,
-        leftover_transcript_chunk.words,
+        leftover_transcript_chunk.kept_words,
+        # leftover_transcript_chunk.words,
         match_distance_threshold=match_distance_threshold,
         max_additional_segment_words_multiplier=max_additional_segment_words_multiplier,
         start_offset_weight=start_offset_weight,
+        match_on_rest=match_on_rest,
     )
-    # offsets = leftover_transcript_chunk.full_offsets_from_kept_offsets(kept_offsets)
-    offsets = leftover_transcript_chunk.seg_offsets_from_text_offsets(text_offsets)
+    offsets = leftover_transcript_chunk.full_offsets_from_kept_offsets(kept_offsets)
+    # offsets = leftover_transcript_chunk.seg_offsets_from_text_offsets(text_offsets)
     # TODO last offset here is beyond transcript chunk, and also not matching
     # even though the very next segment (or 2 after) the second to last one, is the correct match
     # I just changed to use the full trhanscript words instead of kept, since sometimes the LLM returns words not in kept
@@ -1192,3 +1206,24 @@ def parse_stage_num_from_step_name(step_name):
 
 def stage_key_for_step_name(step_name, stage_num):
     return f"stage_{stage_num}_{step_name}"
+
+
+@app.function(
+    _experimental_boost=True,
+    _experimental_scheduler=True,
+    retries=3,
+    _allow_background_volume_commits=True,
+    timeout=80000,
+    image=image,
+    container_idle_timeout=30,
+)
+async def export_results_wrapper(workflow, state_save_key, current_substep):
+    print(f"Exporting results for step {state_save_key}")
+    export_result = None
+    async for export_result, is_last in workflow.export_results(current_substep.input):
+        continue
+        #  if not is_last:
+        #  yield export_result, False
+    assert export_result is not None
+    await workflow._save_export_result_to_step_output(state_save_key, export_result)
+    return {"result": export_result}

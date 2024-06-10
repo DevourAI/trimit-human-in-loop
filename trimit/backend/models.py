@@ -1423,8 +1423,45 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     step_inputs: CutTranscriptLinearWorkflowStepInput | None = None
     step_outputs: dict | None = None
     export_result: dict[str, str] | None = None
+    export_call_id: str | None = None
     error: str | None = None
     retry: bool = False
+
+    def merge(self, other: "CutTranscriptLinearWorkflowStepOutput"):
+        if self.step_name == "" and other.step_name:
+            self.step_name = other.step_name
+        elif self.step_name and other.step_name == "":
+            other.step_name = self.step_name
+        elif self.step_name and other.step_name and self.step_name != other.step_name:
+            raise ValueError(
+                f"Cannot merge outputs of different steps: {self.step_name} and {other.step_name}"
+            )
+
+        if self.substep_name == "" and other.substep_name:
+            self.substep_name = other.substep_name
+        elif self.substep_name and other.substep_name == "":
+            other.substep_name = self.substep_name
+        elif (
+            self.substep_name
+            and other.substep_name
+            and self.substep_name != other.substep_name
+        ):
+            raise ValueError(
+                f"Cannot merge outputs of different steps: {self.substep_name} and {other.substep_name}"
+            )
+        self.done = self.done or other.done
+        self.user_feedback_request = (
+            self.user_feedback_request or other.user_feedback_request
+        )
+        self.partial_user_feedback_request = (
+            self.partial_user_feedback_request or other.partial_user_feedback_request
+        )
+        self.step_inputs = self.step_inputs or other.step_inputs
+        self.step_outputs = self.step_outputs or other.step_outputs
+        self.export_result = self.export_result or other.export_result
+        self.export_call_id = self.export_call_id or other.export_call_id
+        self.error = self.error or other.error
+        self.retry = self.retry or other.retry
 
 
 class CurrentStepInfo(BaseModel):

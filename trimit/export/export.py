@@ -52,6 +52,7 @@ async def create_cut_video_from_transcript(
         output_dir=output_dir,
         video_filename_suffix=video_filename_suffix,
         prefix=prefix,
+        frame_rate=video.frame_rate or 30,
     )
 
 
@@ -63,6 +64,7 @@ async def generate_video_from_timeline(
     output_dir: str | None = None,
     video_filename_suffix: str = "",
     prefix: str = "video_",
+    frame_rate: float = 30,
 ):
     from moviepy.editor import VideoFileClip, concatenate_videoclips
 
@@ -86,7 +88,7 @@ async def generate_video_from_timeline(
     )
     final_clip.write_videofile(
         local_output_file,
-        fps=30,
+        fps=frame_rate,
         codec="libx264",
         audio_codec="aac",
         threads=os.cpu_count(),
@@ -166,7 +168,7 @@ def create_otio_timeline_from_single_video_transcript(
 
     filepath = video.path(volume_dir)
     if use_high_res_path:
-        filepath = video.high_res_user_file_path
+        filepath = os.path.basename(video.high_res_user_file_path)
     media = otio.schema.ExternalReference(
         target_url=filepath,
         available_range=otio.opentime.TimeRange(
