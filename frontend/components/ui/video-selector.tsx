@@ -34,6 +34,8 @@ export default function VideoSelector({userData, videoProcessingStatuses, setVid
     }
   }, [selectedVideo]);
 
+  console.log('In VideoSelector: videoProcessingStatuses', videoProcessingStatuses);
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -57,10 +59,10 @@ export default function VideoSelector({userData, videoProcessingStatuses, setVid
                     </video>
                   </TableCell>
                   <TableCell className="font-medium">{
-                    videoProcessingStatuses[video.video_hash]?
-                      videoProcessingStatuses[video.video_hash].status === "error" ?
+                    videoProcessingStatuses[video.hash]?
+                      videoProcessingStatuses[video.hash].status === "error" ?
                         "Error"
-                      : videoProcessingStatuses[video.video_hash].status === "pending" ?
+                      : videoProcessingStatuses[video.hash].status === "pending" ?
                         "Processing"
                       : "Ready to use"
                     : "Ready to use"

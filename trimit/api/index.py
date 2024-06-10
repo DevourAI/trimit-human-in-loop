@@ -25,6 +25,7 @@ from fastapi import (
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.utils import conf
+from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
     async_copy_to_s3,
     save_file_to_volume_as_crc_hash,
@@ -164,15 +165,18 @@ async def get_all_outputs(
     return await workflow.get_all_outputs()
 
 
-async def check_call_status(modal_call_id, timeout):
+def check_call_status(modal_call_id, timeout: float = 0):
     try:
         fc = FunctionCall.from_id(modal_call_id)
         try:
-            result = await fc.get(timeout=timeout)
+            result = fc.get(timeout=timeout)
         except TimeoutError:
             result = {"status": "pending"}
     except Exception as e:
-        result = {"status": "error", "error": str(e)}
+        if "not found" in str(e):
+            result = {"status": "done"}
+        else:
+            result = {"status": "error", "error": str(e)}
     return result
 
 
@@ -191,19 +195,24 @@ async def get_video_processing_status(
             .to_list()
         ]
     call_ids = [
-        video_processing_call_ids[(user_email, h)]
+        (
+            video_processing_call_ids[(user_email, h)]
+            if (user_email, h) in video_processing_call_ids
+            else None
+        )
         for h in video_hashes
-        if (user_email, h) in video_processing_call_ids
     ]
-    statuses = await asyncio.gather(
-        check_call_status(call_id, timeout) for call_id in call_ids
-    )
+    statuses = [
+        check_call_status(call_id, timeout=timeout) if call_id else None
+        for call_id in call_ids
+    ]
     expanded_statuses = []
     for video_hash, status in zip(video_hashes, statuses):
         if status is None:
             status = {"status": "done"}
         elif status["status"] == "done":
-            del video_processing_call_ids[(user_email, video_hash)]
+            if (user_email, video_hash) in video_processing_call_ids:
+                del video_processing_call_ids[(user_email, video_hash)]
         status["video_hash"] = video_hash
         expanded_statuses.append(status)
     return {"result": expanded_statuses}
@@ -214,7 +223,7 @@ async def get_video_processing_status(
 @web_app.get("/check_function_call_results")
 async def check_function_call_results(modal_call_ids: list[str], timeout: float = 0):
     statuses = await asyncio.gather(
-        check_call_status(call_id, timeout) for call_id in modal_call_ids
+        *[check_call_status(call_id, timeout) for call_id in modal_call_ids]
     )
     return {"result": statuses}
 

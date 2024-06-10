@@ -106,13 +106,16 @@ export default function MainStepper({ userData }) {
         setCurrentStepIndex(stepIndexFromState(data))
         if (userData.email) {
           const videoProcessesStatusesRaw = await getVideoProcessingStatuses(userData.email);
+          const newVideoProcessingStatuses = {...videoProcessingStatuses}
           if (videoProcessesStatusesRaw.result && videoProcessesStatusesRaw.result !== "error") {
             videoProcessesStatusesRaw.result.forEach((result) => {
-              videoProcessingStatuses[result.video_hash] = {
+              newVideoProcessingStatuses[result.video_hash] = {
                 status: result.status,
               }
             })
           }
+          console.log('main-stepper fetchLatestState newVideoProcessingStatuses', newVideoProcessingStatuses)
+          setVideoProcessingStatuses(newVideoProcessingStatuses)
         }
 
     }
@@ -132,11 +135,13 @@ export default function MainStepper({ userData }) {
 
   useEffect(() => {
     let timeoutId;
-
     async function pollForDone() {
       const data = await getVideoProcessingStatuses(userData.email);
+      let anyPending = false
       if (data.result && data.result !== "error") {
-        const newVideoProcessingStatuses = videoProcessingStatuses
+        console.log('videoProcessingStatuses before', videoProcessingStatuses)
+        const newVideoProcessingStatuses = {...videoProcessingStatuses}
+        console.log('videoProcessingStatuses after', newVideoProcessingStatuses)
         data.result.forEach((result) => {
           const videoHash = result.video_hash
           if (result.status === "done") {
@@ -144,15 +149,19 @@ export default function MainStepper({ userData }) {
           } else if (result.status === "error") {
             console.error(`Error processing video ${videoHash}: ${result.error}`)
             newVideoProcessingStatuses[videoHash].status = "error"
+          } else {
+            anyPending = true
           }
         })
+        console.log('main-stepper pollForDone newVideoProcessingStatuses', newVideoProcessingStatuses)
         setVideoProcessingStatuses(newVideoProcessingStatuses)
-      } else {
+      }
+      if (anyPending) {
         timeoutId = setTimeout(pollForDone, POLL_INTERVAL);
       }
     }
 
-    if (videoProcessingStatuses.length) {
+    if (Object.keys(videoProcessingStatuses).length) {
       pollForDone();
     }
 
@@ -286,12 +295,12 @@ export default function MainStepper({ userData }) {
   async function uploadVideoWrapper(videoFile) {
     const respData = await uploadVideo({videoFile, userEmail: userData.email, timelineName})
     console.log("upload response data", respData)
-    if (respData && respData.videoHashes) {
-      console.log("got video hash", respData.videoHashes[0])
+    if (respData && respData.video_hashes) {
+      console.log("got video hash", respData.video_hashes[0])
     }
     if (respData && respData.processing_call_id) {
       const newEntries = {
-        [respData.videoHashes[0]]: {
+        [respData.video_hashes[0]]: {
           callId: respData.processing_call_id,
           status: "pending"
         }
