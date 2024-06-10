@@ -1,18 +1,21 @@
-from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
-from trimit.app import app, volume, VOLUME_DIR
+import os
+import asyncio
+
 from beanie.operators import In, Set, Not
 from beanie import BulkWriter
-from trimit.models import maybe_init_mongo, Video, User, transcription_text
-import asyncio
-from .image import image, MODEL_DIR
-import os
 from modal import method, enter
-from trimit.backend.transcription import Transcription
-from trimit.utils.fs_utils import ensure_audio_path_on_volume
 from tenacity import retry, retry_if_exception_type, wait_fixed, stop_after_delay
 
+from trimit.backend.image import image, MODEL_DIR
+from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
+from trimit.app import app, volume, VOLUME_DIR
+from trimit.models import maybe_init_mongo, Video, User
+from trimit.utils.model_utils import transcription_text
+from trimit.backend.transcription import Transcription
+from trimit.utils.fs_utils import ensure_audio_path_on_volume
 
-CACHE_DIR = os.path.join(VOLUME_DIR, ".timeline_creation_cache")
+
+CACHE_DIR = os.path.join(VOLUME_DIR, ".background_processor_cache")
 VOLUME_RELOAD_TIMEOUT = 10
 
 app_kwargs = dict(
@@ -32,7 +35,7 @@ app_kwargs = dict(
     retry=retry_if_exception_type(RuntimeError),
 )
 def volume_reload_with_catch():
-    print(f"Reloading volume...")
+    print("Reloading volume...")
     volume.reload()
 
 
@@ -62,85 +65,51 @@ class BackgroundProcessor:
 
     @method()
     async def process_videos_generic_from_video_hashes(
-        self,
-        user_email: str,
-        video_hashes: list[str],
-        min_speakers: int | None = None,
-        use_existing_output=True,
+        self, user_email: str, video_hashes: list[str], use_existing_output=True
     ):
         return await self._process_videos_generic_from_video_hashes(
-            user_email,
-            video_hashes,
-            min_speakers=min_speakers,
-            use_existing_output=use_existing_output,
+            user_email, video_hashes, use_existing_output=use_existing_output
         )
 
     async def _process_videos_generic_from_video_hashes(
-        self,
-        user_email: str,
-        video_hashes: list[str],
-        min_speakers: int | None = None,
-        use_existing_output=True,
+        self, user_email: str, video_hashes: list[str], use_existing_output=True
     ):
         videos = await self._process_audio_from_video_hashes(
-            user_email,
-            video_hashes,
-            min_speakers=min_speakers,
-            use_existing_output=use_existing_output,
+            user_email, video_hashes, use_existing_output=use_existing_output
         )
 
-        scenes = await self._detect_speaker_in_frame(videos, use_existing_output)
+        scenes = await self._detect_speaker_in_frame(
+            videos, use_existing_output=use_existing_output
+        )
         return scenes
 
     @method()
     async def process_audio_from_video_hashes(
-        self,
-        user_email: str,
-        video_hashes: list[str],
-        min_speakers: int | None = None,
-        use_existing_output=True,
+        self, user_email: str, video_hashes: list[str], use_existing_output=True
     ):
         return await self._process_audio_from_video_hashes(
-            user_email,
-            video_hashes,
-            min_speakers=min_speakers,
-            use_existing_output=use_existing_output,
+            user_email, video_hashes, use_existing_output=use_existing_output
         )
 
     async def _process_audio_from_video_hashes(
-        self,
-        user_email: str,
-        video_hashes: list[str],
-        min_speakers: int | None = None,
-        use_existing_output=True,
+        self, user_email: str, video_hashes: list[str], use_existing_output=True
     ):
         await maybe_init_mongo()
         user = await User.find_one(User.email == user_email)
         if user is None:
             raise ValueError(f"User not found: {user_email}")
 
-        # TODO once matching on new speakers is working, can do this incrementally
         videos = await Video.find(
             In(Video.md5_hash, video_hashes),
             Video.user.email == user.email,
             fetch_links=True,
         ).to_list()
-        timelines = set(
-            [timeline.name for video in videos for timeline in video.timelines]
-        )
-        print(f"Timelines for videos: {timelines}")
-        # But for now I'm just always reprocessing on all the videos
-        extra_videos = await Video.find(
-            Video.user.email == user.email,
-            In(Video.timelines.name, timelines),
-            Not(In(Video.md5_hash, video_hashes)),
-            fetch_links=True,
-        ).to_list()
-        print(f"Length of extra videos: {len(extra_videos)}")
-        videos.extend(extra_videos)
+
         print(f"Processing audio for {len(videos)} videos")
 
-        videos = await self._transcribe_videos(user_email, videos, use_existing_output)
+        videos = await self._transcribe_videos(
+            user_email, videos, use_existing_output=use_existing_output
+        )
         return videos
 
     @method()
@@ -148,7 +117,7 @@ class BackgroundProcessor:
         self, user_email: str, video_hashes: list[str], use_existing_output: bool = True
     ):
         return await self._transcribe_videos_from_video_hashes(
-            user_email, video_hashes, use_existing_output
+            user_email, video_hashes, use_existing_output=use_existing_output
         )
 
     async def _transcribe_videos_from_video_hashes(
@@ -210,7 +179,7 @@ class BackgroundProcessor:
     @method()
     async def transcribe_video(self, video: Video, use_existing_output: bool = True):
         return await self._transcribe_videos(
-            video.user.email, [video], use_existing_output
+            video.user.email, [video], use_existing_output=use_existing_output
         )
 
     @method()
@@ -221,22 +190,24 @@ class BackgroundProcessor:
         videos = await Video.find(
             Video.user.email == user_email, In(Video.md5_hash, video_hashes)
         ).to_list()
-        print(videos)
-        print(use_existing_output)
-        return await self._detect_speaker_in_frame(videos, use_existing_output)
+        return await self._detect_speaker_in_frame(
+            videos, use_existing_output=use_existing_output
+        )
 
     @method()
     async def detect_speaker_in_frame(
         self, videos: list[Video], use_existing_output=True
     ):
         await maybe_init_mongo()
-        return await _detect_speaker_in_frame(videos, use_existing_output)
+        return await self._detect_speaker_in_frame(
+            videos, use_existing_output=use_existing_output
+        )
 
     async def _detect_speaker_in_frame(
         self, videos: list[Video], use_existing_output=True
     ):
         return (
             await self.speaker_in_frame_detection.detect_speaker_in_frame_from_videos(
-                videos, use_existing_output
+                videos, use_existing_output=use_existing_output
             )
         )

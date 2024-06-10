@@ -1,393 +1,29 @@
 import datetime
-from bson.dbref import DBRef
+from pathlib import Path
 import json
 import hashlib
 import os
-from trimit.utils.string import (
-    strip_punctuation_case_whitespace,
-    longest_contiguous_match,
-)
+from typing import Optional, NamedTuple
+
+from bson.dbref import DBRef
+from pymongo import IndexModel
+import pymongo
+from beanie import Document, Link, PydanticObjectId
+from beanie.operators import In
+from pydantic import Field, BaseModel, field_validator
+
 from trimit.utils.model_utils import (
     filename_from_hash,
     get_upload_folder,
     get_scene_folder,
     get_frame_folder,
-    get_generated_video_folder,
     get_audio_folder,
+    get_dynamic_state_key,
+    partial_transcription_indexes,
+    partial_transcription_words,
+    get_partial_transcription,
+    scene_name_from_video,
 )
-from tenacity import retry, stop_after_attempt, wait_random_exponential
-from beanie.exceptions import DocumentWasNotSaved, StateNotSaved
-from pymongo import IndexModel
-import pymongo
-from beanie import Document, Indexed, Link, PydanticObjectId
-from beanie.operators import In
-from pydantic import (
-    validator,
-    Field,
-    BaseModel,
-    field_validator,
-    GetCoreSchemaHandler,
-    GetJsonSchemaHandler,
-)
-
-from typing import Optional
-from typing import NamedTuple
-from pydantic.json_schema import JsonSchemaValue
-from pydantic_core import core_schema
-from typing import Optional, Any
-from pyannote.core import Annotation, Segment
-from typing_extensions import Annotated
-
-
-def annotation_to_list(annotation: Annotation):
-    return [
-        ((seg.start, seg.end), track, speaker)
-        for seg, track, speaker in annotation.itertracks(yield_label=True)
-    ]
-
-
-def scene_name_from_video_take_item(video, start_frame, end_frame, take_item):
-    if take_item is None:
-        take_item_name = "no-take-item"
-    else:
-        take_item_name = str(TakeItem.id)
-    return f"{video.md5_hash}-{start_frame}-{end_frame}-{take_item_name}"
-
-
-def find_closest_subsegment_index_start(segment, start):
-    prev_word_end = -1
-    if start < segment["words"][0]["start"]:
-        return 0
-    for i, word in enumerate(segment["words"]):
-        if start >= word["start"] and start < word["end"]:
-            return i
-        if start < word["start"] and start >= prev_word_end:
-            return i
-        prev_word_end = word["end"]
-    return len(segment["words"])
-
-
-def find_closest_subsegment_index_end(segment, end):
-    prev_word_end = -1
-    if end < segment["words"][0]["start"]:
-        return 0
-    for i, word in enumerate(segment["words"]):
-        if end >= word["start"] and end < word["end"]:
-            return i + 1
-        if end < word["start"] and end >= prev_word_end:
-            return i + 1
-        prev_word_end = word["end"]
-    return len(segment["words"])
-
-
-def partial_transcription_indexes(video, start, end):
-    prev_segment_end = -1
-    segment_index_start = None
-    segment_index_end = 0
-    subsegment_index_start = None
-    subsegment_index_end = None
-    if len(video.transcription["segments"]) == 0:
-        return 0, 0, 0, 0
-    next_segment_end = video.transcription["segments"][0]["end"]
-    for i, segment in enumerate(video.transcription["segments"]):
-        if start >= prev_segment_end and start < segment["end"]:
-            segment_index_start = i
-            subsegment_index_start = find_closest_subsegment_index_start(segment, start)
-            segment_index_end = segment_index_start + 1
-            subsegment_index_end = find_closest_subsegment_index_end(segment, end)
-        if i < len(video.transcription["segments"]) - 1:
-            next_segment_end = video.transcription["segments"][i + 1]["end"]
-        if segment_index_start is not None and end < next_segment_end:
-            segment_index_end = i
-            subsegment_index_end = find_closest_subsegment_index_end(segment, end)
-            break
-        prev_segment_end = segment["end"]
-    if segment_index_start is None:
-        segment_index_start = 0
-        subsegment_index_start = 0
-        subsegment_index_end = 0
-    return (
-        segment_index_start,
-        segment_index_end,
-        subsegment_index_start,
-        subsegment_index_end,
-    )
-
-
-def partial_transcription_words(
-    transcription,
-    segment_index_start,
-    segment_index_end,
-    subsegment_index_start,
-    subsegment_index_end,
-):
-    return [
-        word["word"]
-        for word in get_partial_transcription(
-            transcription,
-            segment_index_start,
-            segment_index_end,
-            subsegment_index_start,
-            subsegment_index_end,
-        )["word_segments"]
-    ]
-
-
-def get_partial_transcription(
-    transcription,
-    segment_index_start,
-    segment_index_end,
-    subsegment_index_start,
-    subsegment_index_end,
-):
-    segments = transcription["segments"][segment_index_start : segment_index_end + 1]
-    if len(segments) == 0:
-        return {"segments": [], "word_segments": []}
-    prior_subsegments = segments[0]["words"][:subsegment_index_start]
-    prior_segments = transcription["segments"][:segment_index_start]
-    start_segment_words = segments[0]["words"][subsegment_index_start:]
-    end_segment_words = segments[-1]["words"][:subsegment_index_end]
-    next_subsegments = segments[-1]["words"][subsegment_index_end:]
-    next_segments = transcription["segments"][segment_index_end + 1 :]
-    middle_segments = []
-    if len(segments) > 2:
-        middle_segments = segments[1:-1]
-
-    # TODO handle case where start/end need to come from adjacent segments, not subsegments
-    start_segment_start = None
-    start_segment_end = None
-    if len(start_segment_words):
-        start_segment_start = start_segment_words[0]["start"]
-        start_segment_end = start_segment_words[-1]["end"]
-    elif len(prior_subsegments):
-        start_segment_start = prior_subsegments[-1]["end"]
-    elif "start" in segments[0]:
-        start_segment_start = segments[0]["start"]
-    elif len(prior_segments):
-        start_segment_start = prior_segments[-1]["end"]
-
-    if start_segment_end is None:
-        if len(middle_segments):
-            # TODO add buffer?
-            start_segment_end = middle_segments[0]["start"]
-        elif len(end_segment_words):
-            start_segment_end = end_segment_words[0]["start"]
-        elif len(next_subsegments):
-            start_segment_end = next_subsegments[0]["start"]
-        elif len(next_segments):
-            start_segment_end = next_segments[0]["start"]
-
-    end_segment_start = None
-    end_segment_end = None
-    if len(end_segment_words):
-        end_segment_start = end_segment_words[0]["start"]
-        end_segment_end = end_segment_words[-1]["end"]
-    elif len(next_subsegments):
-        end_segment_end = next_subsegments[0]["start"]
-    elif "end" in segments[-1]:
-        end_segment_end = segments[-1]["end"]
-    elif len(next_segments):
-        end_segment_end = next_segments[0]["start"]
-    if end_segment_start is None:
-        if len(middle_segments):
-            end_segment_start = middle_segments[-1]["end"]
-        elif len(start_segment_words):
-            end_segment_start = start_segment_words[-1]["end"]
-        elif len(prior_subsegments):
-            end_segment_start = prior_subsegments[-1]["end"]
-        elif len(prior_segments):
-            end_segment_start = prior_segments[-1]["end"]
-
-    start_speaker = None
-    end_speaker = None
-    if len(segments):
-        start_speaker = segments[0].get("speaker")
-        end_speaker = segments[-1].get("speaker")
-    start_segment = {
-        "start": start_segment_start,
-        "end": start_segment_end,
-        "words": start_segment_words,
-        "speaker": start_speaker,
-    }
-    end_segment = {
-        "start": end_segment_start,
-        "end": end_segment_end,
-        "words": end_segment_words,
-        "speaker": end_speaker,
-    }
-    segments = [start_segment]
-    if middle_segments:
-        segments += middle_segments
-    if segment_index_end > segment_index_start:
-        segments.append(end_segment)
-    return {
-        "segments": [start_segment] + middle_segments + [end_segment],
-        "word_segments": [
-            word
-            for word in transcription["word_segments"]
-            if word["start"] >= start_segment["start"]
-            and word["end"] <= end_segment["end"]
-        ],
-    }
-
-
-def transcription_text(transcription):
-    if "segments" in transcription:
-        return "".join([segment["text"] for segment in transcription["segments"]])
-    return ""
-
-
-def find_segment_index_range_from_combined_range(
-    segments,
-    segment_index_start,
-    segment_index_end,
-    combined_matched_subsegment_start,
-    combined_matched_subsegment_end,
-):
-    (
-        matched_segment_index_start,
-        matched_segment_index_end,
-        matched_subsegment_start,
-        matched_subsegment_end,
-    ) = (None, None, None, None)
-    combined_word_i = 0
-    for segment_i, segment in enumerate(
-        segments[segment_index_start : segment_index_end + 1]
-    ):
-        for subsegment_i in range(len(segment["words"])):
-            if combined_word_i == combined_matched_subsegment_start:
-                matched_segment_index_start = segment_index_start + segment_i
-                matched_subsegment_start = subsegment_i
-            if combined_word_i + 1 == combined_matched_subsegment_end:
-                matched_segment_index_end = segment_index_start + segment_i
-                matched_subsegment_end = subsegment_i + 1
-            combined_word_i += 1
-    if any(
-        [
-            matched_segment_index_start is None,
-            matched_segment_index_end is None,
-            matched_subsegment_start is None,
-            matched_subsegment_end is None,
-        ]
-    ):
-        raise ValueError("Combined match range not found in segments")
-    return (
-        matched_segment_index_start,
-        matched_segment_index_end,
-        matched_subsegment_start,
-        matched_subsegment_end,
-    )
-
-
-def find_subsegment_start_end(
-    take_item: "TakeItem",
-    segment_index_start,
-    segment_index_end,
-    stripped_llm_words: list[str],
-    matched_words_threshold: float = 0.5,
-    subsegment_words_threshold: float = 0.5,
-):
-    matched_segments = take_item.transcription["segments"][
-        segment_index_start : segment_index_end + 1
-    ]
-    matched_word_objs = [wo for ms in matched_segments for wo in ms["words"]]
-
-    matched_words = [
-        strip_punctuation_case_whitespace(o["word"]) for o in matched_word_objs
-    ]
-    print(f"LLM words: {stripped_llm_words}")
-    print(f"Segment words: {matched_words}")
-    (combined_matched_subsegment_start, combined_matched_subsegment_end) = (
-        longest_contiguous_match(stripped_llm_words, matched_words)
-    )
-    subsegment_matched_word_objs = matched_word_objs[
-        combined_matched_subsegment_start:combined_matched_subsegment_end
-    ]
-    subsegment_matched_words = [
-        strip_punctuation_case_whitespace(o["word"])
-        for o in subsegment_matched_word_objs
-    ]
-
-    subsegment_words_to_llm_words = len(subsegment_matched_words) / len(
-        stripped_llm_words
-    )
-    subsegment_words_to_segment_words = len(subsegment_matched_words) / len(
-        matched_words
-    )
-
-    (
-        matched_segment_index_start,
-        matched_segment_index_end,
-        matched_subsegment_start,
-        matched_subsegment_end,
-    ) = find_segment_index_range_from_combined_range(
-        take_item.transcription["segments"],
-        segment_index_start,
-        segment_index_end,
-        combined_matched_subsegment_start,
-        combined_matched_subsegment_end,
-    )
-    start = take_item.transcription["segments"][matched_segment_index_start]["words"][
-        matched_subsegment_start
-    ]["start"]
-    end = take_item.transcription["segments"][matched_segment_index_end]["words"][
-        matched_subsegment_end - 1
-    ]["end"]
-
-    if subsegment_words_to_llm_words < 1 and subsegment_words_to_segment_words > 0:
-        expand_search_high = True
-        expand_search_low = True
-        expanded_segment_index_start = segment_index_start - 1
-        expanded_segment_index_end = segment_index_end + 1
-        if (
-            matched_segment_index_start > segment_index_start
-            or segment_index_start == 0
-        ):
-            expand_search_low = False
-            expanded_segment_index_start = segment_index_start
-        if (
-            matched_segment_index_end < segment_index_end
-            or segment_index_end == len(take_item.transcription["segments"]) - 1
-        ):
-            expand_search_high = False
-            expanded_segment_index_end = segment_index_end
-
-        if expand_search_high or expand_search_low:
-            return find_subsegment_start_end(
-                take_item,
-                expanded_segment_index_start,
-                expanded_segment_index_end,
-                stripped_llm_words,
-                matched_words_threshold,
-                subsegment_words_threshold,
-            )
-        elif subsegment_words_to_llm_words < matched_words_threshold:
-            raise ValueError("No match found")
-        else:
-            return (
-                matched_segment_index_start,
-                matched_segment_index_end,
-                matched_subsegment_start,
-                matched_subsegment_end,
-                start,
-                end,
-                subsegment_matched_words,
-                subsegment_words_to_llm_words,
-            )
-
-    elif subsegment_words_to_llm_words < matched_words_threshold:
-        raise ValueError("No match found")
-    else:
-        return (
-            matched_segment_index_start,
-            matched_segment_index_end,
-            matched_subsegment_start,
-            matched_subsegment_end,
-            start,
-            end,
-            subsegment_matched_words,
-            subsegment_words_to_llm_words,
-        )
 
 
 class DocumentWithSaveRetry(Document):
@@ -397,8 +33,13 @@ class DocumentWithSaveRetry(Document):
     async def save_with_retry(self):
         try:
             await self.save()
-        except:
-            await self.insert()
+        except Exception as e:
+            print(f"Error saving document: {e}")
+            try:
+                await self.insert()
+            except Exception as e:
+                print(f"Error inserting document: {e}")
+                raise
         #  try:
         #  await self.save_changes()
         #  print("Document saved changes")
@@ -408,37 +49,34 @@ class DocumentWithSaveRetry(Document):
 
 
 class PathMixin:
+    upload_datetime: datetime.datetime
+
     def path(self, volume_dir):
         upload_folder = get_upload_folder(
             volume_dir, self.user_email, self.upload_datetime
         )
-        file_path = upload_folder / self.filename
+        file_path = Path(upload_folder) / self.filename
         return str(file_path)
+
+    @property
+    def user_email(self) -> str: ...
+
+    @property
+    def filename(self) -> str: ...
 
 
 class User(DocumentWithSaveRetry):
-    email: Indexed(str, unique=True)
+    email: str
     password: Optional[str] = Field(default=None, min_length=8)
     name: str
     authorized_with_google: bool = False
 
+    class Settings:
+        name = "User"
+        indexes = [IndexModel([("email", pymongo.ASCENDING)], unique=True)]
+
     def __repr__(self):
         return f"User(email={self.email}, name={self.name})"
-
-    @validator("authorized_with_google", always=True, pre=True)
-    def check_authentication_method(cls, v, values, **kwargs):
-        # `values` is a dictionary containing the values of fields
-        # validated before 'authorized_with_google'
-        if "password" in values and values["password"] is not None:
-            # If password is set, it doesn't matter if authorized_with_google is True or False
-            return v
-        if v:  # If authorized_with_google is True, it's valid
-            return v
-        raise ValueError("User must have a password set or be authorized with Google")
-
-    @property
-    async def timelines(self):
-        return await Timeline.find(Timeline.user == self).to_list()
 
     @property
     async def videos(self):
@@ -451,77 +89,6 @@ class User(DocumentWithSaveRetry):
     @property
     async def frames(self):
         return await Frame.find(Frame.user == self).to_list()
-
-
-class SpeechSegment(BaseModel):
-    start: float
-    end: float
-
-
-class DiarizationSegment(BaseModel):
-    speaker: str
-    start: float
-    end: float
-
-
-class _PyannoteAnotationAnnotation:
-    segment_schema = core_schema.tuple_positional_schema(
-        [core_schema.float_schema(), core_schema.float_schema()]
-    )
-    annotation_list_schema = core_schema.list_schema(
-        core_schema.tuple_positional_schema(
-            [
-                segment_schema,
-                core_schema.union_schema(
-                    [core_schema.str_schema(), core_schema.int_schema()]
-                ),
-                core_schema.str_schema(),
-            ]
-        )
-    )
-
-    @classmethod
-    def __get_pydantic_core_schema__(
-        cls, _source_type: Any, _handler: GetCoreSchemaHandler
-    ) -> core_schema.CoreSchema:
-        def validate_from_list(
-            value: list[tuple[tuple[float, float], str | int, str]]
-        ) -> Annotation:
-            result = Annotation()
-            for (start, end), track, speaker in value:
-                segment = Segment(start, end)
-                result[segment, track] = speaker
-            return result
-
-        from_list_schema = core_schema.chain_schema(
-            [
-                cls.annotation_list_schema,
-                core_schema.no_info_plain_validator_function(validate_from_list),
-            ]
-        )
-
-        return core_schema.json_or_python_schema(
-            json_schema=from_list_schema,
-            python_schema=core_schema.union_schema(
-                [
-                    # check if it's an instance first before doing any further work
-                    core_schema.is_instance_schema(Annotation),
-                    from_list_schema,
-                ]
-            ),
-            serialization=core_schema.plain_serializer_function_ser_schema(
-                lambda instance: annotation_to_list(instance)
-            ),
-        )
-
-    @classmethod
-    def __get_pydantic_json_schema__(
-        cls, _core_schema: core_schema.CoreSchema, handler: GetJsonSchemaHandler
-    ) -> JsonSchemaValue:
-        return handler(cls.annotation_list_schema)
-
-
-PydanticPyannoteAnnotation = Annotated[Annotation, _PyannoteAnotationAnnotation]
 
 
 class PydanticFraction(NamedTuple):
@@ -579,14 +146,6 @@ class VideoMetadata(BaseModel):
         )
 
 
-#  class VideoTranscription(DocumentWithSaveRetry):
-#  segments: list[dict]
-#  word_segments: list[dict]
-#  start: float | None = None
-#  end: float | None = None
-#  text: str | None = None
-
-
 class Video(DocumentWithSaveRetry, PathMixin):
     md5_hash: str
     simple_name: Optional[str] = None
@@ -595,21 +154,15 @@ class Video(DocumentWithSaveRetry, PathMixin):
     details: Optional[VideoMetadata] = None
     high_res_user_file_path: str
     high_res_user_file_hash: Optional[str] = None
-    # transcription: Optional[Link[VideoTranscription]] = None
-    # TODO
     transcription: Optional[dict] = None
     transcription_text: Optional[str] = None
-    diarization: Optional[PydanticPyannoteAnnotation] = None
-    speech_segments: Optional[list[SpeechSegment]] = None
     video_llava_description: Optional[str] = None
     user: User
-    timelines: Optional[list[Link["Timeline"]]] = None
     summary: Optional[str] = None
     speakers_in_frame: Optional[list[str]] = None
 
     class Settings:
         name = "Video"
-        bson_encoders = {Annotation: annotation_to_list}
         indexes = [
             IndexModel([("md5_hash", pymongo.ASCENDING)], unique=True),
             [("simple_name", pymongo.ASCENDING)],
@@ -637,12 +190,6 @@ class Video(DocumentWithSaveRetry, PathMixin):
             [("user", pymongo.ASCENDING), ("md5_hash", pymongo.ASCENDING)],
             [("user", pymongo.ASCENDING), ("upload_datetime", pymongo.ASCENDING)],
             [("user", pymongo.ASCENDING), ("recorded_date", pymongo.ASCENDING)],
-            [
-                ("user", pymongo.ASCENDING),
-                ("md5_hash", pymongo.ASCENDING),
-                ("diarization.speaker", pymongo.ASCENDING),
-            ],
-            [("user", pymongo.ASCENDING), ("diarization.speaker", pymongo.ASCENDING)],
             # This exists as a weighted index model because we can
             # add other text fields to the index in the future
             #  IndexModel(
@@ -667,7 +214,9 @@ class Video(DocumentWithSaveRetry, PathMixin):
         return str(num_videos)
 
     @classmethod
-    async def from_user_email(cls, user_email: str, md5_hash: str, **kwargs) -> "Video":
+    async def from_user_email(
+        cls, user_email: str, md5_hash: str, overwrite: bool = False, **kwargs
+    ) -> "Video":
         user = await User.find_one(User.email == user_email)
         if user is None:
             raise ValueError(f"User not found: {user_email}")
@@ -675,41 +224,12 @@ class Video(DocumentWithSaveRetry, PathMixin):
             Video.md5_hash == md5_hash, Video.user.email == user_email
         )
         if existing_video is not None:
-            return existing_video
-        if "timeline_name" not in kwargs and "timelines" not in kwargs:
-            kwargs["timelines"] = []
+            if not overwrite:
+                return existing_video
+            else:
+                await existing_video.delete()
         simple_name = await Video.gen_simple_name(user_email)
         video = Video(md5_hash=md5_hash, simple_name=simple_name, user=user, **kwargs)
-        await video.save_with_retry()
-        return video
-
-    @classmethod
-    async def from_user_email_and_timeline_name(
-        cls, user_email: str, timeline_name: str, md5_hash: str, **kwargs
-    ) -> "Video":
-        timeline = await Timeline.find_or_create(user_email, timeline_name)
-        existing_video = await Video.find_one(
-            Video.md5_hash == md5_hash, Video.user.email == user_email, fetch_links=True
-        )
-        if existing_video is not None:
-            save = False
-            if "details" in kwargs:
-                existing_video.details = kwargs["details"]
-                save = True
-            if timeline.id not in [tl.id for tl in existing_video.timelines]:
-                existing_video.timelines.append(timeline)
-                save = True
-            if save:
-                await existing_video.save_with_retry()
-            return existing_video
-        simple_name = await Video.gen_simple_name(user_email)
-        video = Video(
-            md5_hash=md5_hash,
-            simple_name=simple_name,
-            user=timeline.user,
-            timelines=[timeline],
-            **kwargs,
-        )
         await video.save_with_retry()
         return video
 
@@ -725,27 +245,6 @@ class Video(DocumentWithSaveRetry, PathMixin):
             Video.user.email == user_email,
             Video.high_res_user_file_path == high_res_user_file_path,
         )
-
-    @classmethod
-    async def find_all_summaries_for_timeline(
-        cls, user_email: str, timeline_name: str
-    ) -> list[dict]:
-        videos = (
-            await Video.find(
-                Video.user.email == user_email,
-                # MAJOR TODO why isn't this working?
-                # In(Video.timelines.name, [timeline_name]),
-                fetch_links=True,
-            )
-            .project(VideoSummaryProjection)
-            .to_list()
-        )
-        return [
-            {"hash": video.md5_hash, "summary": video.summary}
-            for video in videos
-            # TODO remove
-            if timeline_name in [t.name for t in video.timelines]
-        ]
 
     @property
     def filename(self):
@@ -804,12 +303,6 @@ class VideoHighResPathProjection(BaseModel):
     high_res_user_file_path: str
 
 
-class VideoSummaryProjection(BaseModel):
-    md5_hash: str
-    summary: Optional[str] = None
-    timelines: Optional[list[Link["Timeline"]]] = None
-
-
 class UserEmailProjection(BaseModel):
     _id: PydanticObjectId
     email: str
@@ -848,7 +341,7 @@ class SceneTextProjection(BaseModel):
 
 
 class Scene(DocumentWithSaveRetry):
-    name: Indexed(str, unique=True)
+    name: str
     simple_name: Optional[str] = None
     start_frame: int
     end_frame: int
@@ -856,7 +349,6 @@ class Scene(DocumentWithSaveRetry):
     end: float
     video: Video
     user: User
-    take_item: Optional["TakeItem"] = None
     transcription_words: Optional[list[str]] = None
     segment_index_start: Optional[int] = None
     segment_index_end: Optional[int] = None
@@ -871,7 +363,10 @@ class Scene(DocumentWithSaveRetry):
     class Settings:
         name = "Scene"
         indexes = [
-            IndexModel([("name", pymongo.ASCENDING)], unique=True),
+            IndexModel(
+                [("name", pymongo.ASCENDING), ("user.email", pymongo.ASCENDING)],
+                unique=True,
+            ),
             [("simple_name", pymongo.ASCENDING)],
             [("user", pymongo.ASCENDING)],
             [("user.email", pymongo.ASCENDING)],
@@ -939,40 +434,6 @@ class Scene(DocumentWithSaveRetry):
         ).count()
         return f"{video.simple_name}-{num_video_scenes}"
 
-    async def merge_if_overlapping(
-        self, other_scene: "Scene", save: bool = True, delete_other: bool = False
-    ):
-        if not self.overlapping(other_scene):
-            return
-        self.end_frame = other_scene.end_frame
-        self.end = other_scene.end
-        self.name = scene_name_from_video_take_item(
-            self.video, self.start_frame, self.end_frame, self.take_item
-        )
-        self.segment_index_end = other_scene.segment_index_end
-        self.subsegment_index_end = other_scene.subsegment_index_end
-        # Note: we set these here rather than making them a @property
-        # so that mongodb can create an index on them
-        self.transcription_words = partial_transcription_words(
-            self.video.transcription,
-            self.segment_index_start,
-            self.segment_index_end,
-            self.subsegment_index_start,
-            self.subsegment_index_end,
-        )
-        if not self.llm_stripped_word_output:
-            self.llm_stripped_word_output = []
-        self.llm_stripped_word_output.extend(other_scene.llm_stripped_word_output or [])
-        if not self.percentage_matched_words:
-            self.percentage_matched_words = []
-        self.percentage_matched_words.extend(other_scene.percentage_matched_words or [])
-
-        if save:
-            await self.save_with_retry()
-        if delete_other:
-            await other_scene.delete()
-        return True
-
     @classmethod
     async def from_video(
         cls,
@@ -982,6 +443,7 @@ class Scene(DocumentWithSaveRetry):
         start: float | None = None,
         end: float | None = None,
         save: bool = True,
+        check_existing: bool = True,
     ) -> Optional["Scene"]:
         if start is None and start_frame is None:
             raise ValueError("Must provide start or start_frame")
@@ -993,19 +455,22 @@ class Scene(DocumentWithSaveRetry):
             print(f"Frame rate is None for video {video.md5_hash}. Defaulting to 30")
             frame_rate = 30
         if start is None:
+            assert start_frame is not None
             start = start_frame / frame_rate
         if start_frame is None:
             start_frame = int(start * frame_rate)
         if end is None:
+            assert end_frame is not None
             end = end_frame / frame_rate
         if end_frame is None:
             end_frame = int(end * frame_rate)
-        name = scene_name_from_video_take_item(video, start_frame, end_frame, None)
-        existing_scene = await Scene.find_one(
-            Scene.name == name, Scene.user == video.user, Scene.take_item == None
-        )
-        if existing_scene is not None:
-            return existing_scene
+        name = scene_name_from_video(video, start_frame, end_frame)
+        if check_existing:
+            existing_scene = await Scene.find_one(
+                Scene.name == name, Scene.user.email == video.user.email
+            )
+            if existing_scene is not None:
+                return existing_scene
 
         (
             segment_index_start,
@@ -1039,85 +504,11 @@ class Scene(DocumentWithSaveRetry):
             end=end,
             video=video,
             user=video.user,
-            take_item=None,
             transcription_words=transcription_words,
             segment_index_start=segment_index_start,
             segment_index_end=segment_index_end,
             subsegment_index_start=subsegment_index_start,
             subsegment_index_end=subsegment_index_end,
-        )
-        if save:
-            await scene.save_with_retry()
-        return scene
-
-    @classmethod
-    async def from_take_item(
-        cls,
-        take_item: "TakeItem",
-        segment_index: int,
-        llm_words: str,
-        matched_words_threshold: float = 0.5,
-        subsegment_words_threshold: float = 0.5,
-        save: bool = True,
-    ) -> Optional["Scene"]:
-        stripped_llm_words = [
-            strip_punctuation_case_whitespace(w)
-            for w in strip_punctuation_case_whitespace(llm_words).split()
-        ]
-
-        try:
-            (
-                segment_index_start,
-                segment_index_end,
-                subsegment_index_start,
-                subsegment_index_end,
-                start,
-                end,
-                matched_words,
-                percentage_matched_words,
-            ) = find_subsegment_start_end(
-                take_item,
-                segment_index,
-                segment_index,
-                stripped_llm_words,
-                matched_words_threshold=matched_words_threshold,
-                subsegment_words_threshold=subsegment_words_threshold,
-            )
-        except ValueError as e:
-            print(f"Error finding subsegments: {e}")
-            return None
-
-        video = take_item.video
-
-        frame_rate = video.frame_rate
-        if frame_rate is None:
-            print(f"Frame rate is None for video {video.md5_hash}. Defaulting to 30")
-            frame_rate = 30
-        start_frame = int(start * frame_rate)
-        end_frame = int(end * frame_rate)
-        name = scene_name_from_video_take_item(video, start_frame, end_frame, take_item)
-        existing_scene = await Scene.find_one(
-            Scene.name == name, Scene.user == video.user
-        )
-        if existing_scene is not None:
-            return existing_scene
-
-        scene = Scene(
-            name=name,
-            start_frame=start_frame,
-            end_frame=end_frame,
-            start=start,
-            end=end,
-            video=video,
-            user=video.user,
-            take_item=take_item,
-            transcription_words=matched_words,
-            segment_index_start=segment_index_start,
-            segment_index_end=segment_index_end,
-            subsegment_index_start=subsegment_index_start,
-            subsegment_index_end=subsegment_index_end,
-            llm_stripped_word_output=[stripped_llm_words],
-            percentage_matched_words=[percentage_matched_words],
         )
         if save:
             await scene.save_with_retry()
@@ -1153,93 +544,8 @@ class Scene(DocumentWithSaveRetry):
         return await Frame.find(Frame.scene.name == self.name).to_list()
 
 
-class Timeline(DocumentWithSaveRetry):
-    name: str
-    user: User
-
-    def __repr__(self):
-        return f"Timeline(user={self.user}, name={self.name})"
-
-    @property
-    def user_email(self):
-        return self.user.email
-
-    @property
-    async def timeline_versions(self):
-        return await TimelineVersion.find(
-            TimelineVersion.timeline == self, fetch_links=False
-        ).to_list()
-
-    @classmethod
-    async def find_or_create(cls, user_email: str, name: str) -> "Timeline":
-        timeline = await Timeline.find_one(
-            Timeline.name == name, Timeline.user.email == user_email
-        )
-        if timeline is None:
-            user = await User.find_one(User.email == user_email)
-            if user is None:
-                raise ValueError(f"User not found: {user_email}")
-            timeline = Timeline(name=name, user=user)
-            await timeline.save_with_retry()
-        return timeline
-
-    async def most_recent_version(
-        self, fetch_links: bool = True, nesting_depths_per_field: dict | None = None
-    ):
-        mrv = (
-            await TimelineVersion.find(
-                TimelineVersion.timeline == self,
-                fetch_links=fetch_links,
-                nesting_depths_per_field=nesting_depths_per_field,
-            )
-            .sort(-TimelineVersion.version)
-            .limit(1)
-            .to_list()
-        )
-        if len(mrv) == 0:
-            return None
-        return mrv[0]
-
-    async def new_version(
-        self,
-        resolution_x: int,
-        resolution_y: int,
-        scenes: list[Scene],
-        story: str = None,
-    ):
-        mrv = await self.most_recent_version(fetch_links=False)
-        if mrv is None:
-            version = 1
-        else:
-            version = mrv.version + 1
-        return TimelineVersion(
-            resolution_x=resolution_x,
-            resolution_y=resolution_y,
-            version=version,
-            timeline=self,
-            scenes=scenes,
-            story=story,
-        )
-
-
-class TimelineVersion(DocumentWithSaveRetry):
-    resolution_x: Optional[int] = 1920
-    resolution_y: Optional[int] = 1080
-    story: Optional[str] = None
-    version: int
-    timeline: Timeline
-    scenes: list[Scene]
-
-    def video_path(self, volume_dir):
-        video_folder = get_generated_video_folder(
-            volume_dir, self.timeline.user_email, self.timeline.name
-        )
-        file_path = video_folder / f"{self.version}.mp4"
-        return str(file_path)
-
-
 class Frame(DocumentWithSaveRetry):
-    name: Indexed(str, unique=True)
+    name: str
     frame_number: int
     ext: str
     aesthetic_score: Optional[float] = None
@@ -1338,54 +644,6 @@ class Frame(DocumentWithSaveRetry):
         return self.user.email
 
 
-class Take(DocumentWithSaveRetry):
-    user: Link[User]
-
-    # TODO i think this fails with the string class
-    # take_items: BackLink['TakeItem']
-    class Settings:
-        name = "Take"
-        indexes = [[("user", pymongo.ASCENDING)]]
-
-
-class TakeItem(DocumentWithSaveRetry):
-    video: Link[Video]
-    start: float
-    end: float
-    transcription: dict
-    transcription_text: str
-    take: Link[Take]
-
-    class Settings:
-        name = "TakeItem"
-        indexes = [
-            [("take.user", pymongo.ASCENDING), ("video.md5_hash", pymongo.ASCENDING)],
-            IndexModel(
-                [("transcription_text", pymongo.TEXT)],
-                weights={"transcription_text": 10},
-                name="text_index",
-            ),
-        ]
-
-    @classmethod
-    def create(cls, transcription: dict, **kwargs):
-        transcription_text = "".join(
-            [segment["text"] for segment in transcription["segments"]]
-        )
-        return cls(
-            transcription=transcription, transcription_text=transcription_text, **kwargs
-        )
-
-    def __repr__(self):
-        return (
-            f"TakeItem(id={self.id}, "
-            f"video={self.video.md5_hash}, "
-            f"start={self.start}, "
-            f"end={self.end}, "
-            f"transcription_text={self.transcription_text})"
-        )
-
-
 class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     user: Link[User]
     timeline_name: str
@@ -1402,16 +660,15 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     use_agent_output_cache: bool = True
     max_iterations: int = 3
     max_total_soundbites: int = 15
-    # These default to false because we have them in MongoDB
-    export_transcript_text: bool = False
-    export_transcript: bool = False
-    export_soundbites: bool = False
-    export_soundbites_text: bool = False
+    export_transcript_text: bool = True
+    export_transcript: bool = True
+    export_soundbites: bool = True
+    export_soundbites_text: bool = True
     export_timeline: bool = True
     export_video: bool = True
 
     def create_object_id(self):
-        dumped = self.model_dump(exclude=["user", "video"])
+        dumped = self.model_dump(exclude=set(["user", "video"]))
         user_ref = self.user.to_ref()
         if isinstance(user_ref, DBRef):
             user_ref = user_ref.id
@@ -1425,20 +682,40 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
         return PydanticObjectId(md5_hash[:24])
 
 
-class StepOrderMixin:
+class StepKey(BaseModel):
+    name: str
+    substeps: list[str]
+
+
+class StepOrderMixin(BaseModel):
+    _id: PydanticObjectId
+    static_state: CutTranscriptLinearWorkflowStaticState
+    dynamic_state_step_order: list[StepKey] = []
+    dynamic_state_retries: dict = {}
+
+    @property
+    def id(self):
+        if not hasattr(self, "_id"):
+            self._id = self.static_state.create_object_id()
+        return self._id
+
     def get_current_step_key_atomic(self):
         if len(self.dynamic_state_step_order):
-            return self.dynamic_state_step_order[-1]
-        return None
+            current_step = self.dynamic_state_step_order[-1]
+            current_substep = current_step.substeps[-1]
+            current_substep_index = len(current_step.substeps) - 1
+            return (current_step.name, current_substep, current_substep_index)
+        return None, None, None
 
-    def get_current_step_key_before_end(self):
-        if len(self.dynamic_state_step_order):
-            end = self.dynamic_state_step_order[-1]
-            if end == "end":
-                if len(self.dynamic_state_step_order) > 1:
-                    return self.dynamic_state_step_order[-2]
-                return None
-        return None
+    def get_step_key_before_end(self):
+        if len(self.dynamic_state_step_order) < 1:
+            return None, None
+        last_step = self.dynamic_state_step_order[-1]
+        if last_step.name == "end":
+            if len(self.dynamic_state_step_order) < 2:
+                return None, None
+            last_step = self.dynamic_state_step_order[-2]
+        return last_step.name, last_step.substeps[-1]
 
     @property
     def length_seconds(self):
@@ -1446,10 +723,12 @@ class StepOrderMixin:
 
     @property
     def video(self):
+        assert isinstance(self.static_state.video, Video), "Video not fetched from link"
         return self.static_state.video
 
     @property
     def user(self):
+        assert isinstance(self.static_state.user, User), "User not fetched from link"
         return self.static_state.user
 
     @property
@@ -1521,28 +800,8 @@ class StepOrderMixin:
         return self.static_state.clip_extra_trim_seconds
 
 
-class CutTranscriptLinearWorkflowStepOrderProjection(BaseModel, StepOrderMixin):
-    _id: PydanticObjectId
-    static_state: CutTranscriptLinearWorkflowStaticState
-    dynamic_state_step_order: list[str] = []
-    dynamic_state_retries: dict = {}
-
-    @property
-    def id(self):
-        if not hasattr(self, "_id"):
-            self._id = self.static_state.create_object_id()
-        return self._id
-
-
-async def load_step_order(state_id):
-    return await CutTranscriptLinearWorkflowState.find_one(
-        CutTranscriptLinearWorkflowState.id == state_id, fetch_links=False
-    ).project(CutTranscriptLinearWorkflowStepOrderProjection)
-
-
 class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     id: PydanticObjectId | None = None
-    static_state: CutTranscriptLinearWorkflowStaticState
     on_screen_transcript_state: dict | None = None
     original_soundbites_state: dict | None = None
     on_screen_speakers: list[str] | None = None
@@ -1552,8 +811,6 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     current_soundbites_state: dict | None = None
     user_messages: list[str] = []
     dynamic_state: dict = {}
-    dynamic_state_step_order: list[str] = []
-    dynamic_state_retries: dict = {}
     run_output_dir: str | None = None
     soundbites_output_dir: str | None = None
     output_files: dict[str, str] | None = None
@@ -1578,12 +835,11 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         setattr(self, name, value)
 
     def __getattr__(self, name):
-        if name in self.__fields__.keys():
-            return super().__getattr__(name)
-        elif name in self.dynamic_state:
+        if name in self.model_fields.keys():
+            return getattr(self, name)
+        if name in self.dynamic_state:
             return self.dynamic_state[name]
-        else:
-            return super().__getattr__(name)
+        return getattr(self, name)
 
     @property
     def user_prompt(self):
@@ -1594,12 +850,19 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             raise ValueError("run_output_dir is None")
         return os.path.join(self.run_output_dir, f"stage_{stage}")
 
+    def step_output_dir(self, step_name: str, substep_name: str):
+        if self.run_output_dir is None:
+            raise ValueError("run_output_dir is None")
+        output_dir = Path(self.run_output_dir) / step_name / substep_name
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return str(output_dir)
+
     async def revert_step(self, before_retries: bool = False):
         if len(self.dynamic_state_step_order) == 0:
             print("no steps to revert")
             return
-        if before_retries and "retry" in self.dynamic_state_step_order[-1]:
-            while "retry" in self.dynamic_state_step_order[-1]:
+        if before_retries and "retry" in self.dynamic_state_step_order[-1].substeps[-1]:
+            while "retry" in self.dynamic_state_step_order[-1].substeps[-1]:
                 await self._revert_step()
         else:
             await self._revert_step()
@@ -1607,15 +870,27 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     async def _revert_step(self):
         print("dynamic_state_step_order before revert", self.dynamic_state_step_order)
-        last_step = self.dynamic_state_step_order.pop()
-        print("last step", last_step)
-        del self.dynamic_state[last_step]
+        if len(self.dynamic_state_step_order) == 0:
+            return
+        last_step_wrapper = self.dynamic_state_step_order[-1]
+        last_substep = last_step_wrapper.substeps.pop(-1)
+        dynamic_state_key = get_dynamic_state_key(last_step_wrapper.name, last_substep)
+        print(f"last step: {dynamic_state_key}")
+        del self.dynamic_state[dynamic_state_key]
         self.dynamic_state_retries = {
-            k: v for k, v in self.dynamic_state_retries.items() if k != last_step
+            k: v
+            for k, v in self.dynamic_state_retries.items()
+            if k != dynamic_state_key
         }
-        new_last_step = self.dynamic_state_step_order[-1]
-        print("new last step", new_last_step)
-        new_last_step_outputs = self.dynamic_state[new_last_step]
+        if len(last_step_wrapper.substeps) == 0:
+            self.dynamic_state_step_order.pop()
+        new_last_step_wrapper = self.dynamic_state_step_order[-1]
+        new_last_substep = new_last_step_wrapper.substeps[-1]
+        new_dynamic_state_key = get_dynamic_state_key(
+            new_last_step_wrapper.name, new_last_substep
+        )
+        print("new last step", new_dynamic_state_key)
+        new_last_step_outputs = self.dynamic_state[new_dynamic_state_key]
         if "current_transcript_state" in new_last_step_outputs:
             print("revert current transcript state")
             self.current_transcript_state = new_last_step_outputs[
@@ -1692,58 +967,44 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         print("recreated")
         return obj
 
-    async def set_current_step_output_atomic(self, name, results):
+    async def set_current_step_output_atomic(self, step_name, substep_name, results):
         from trimit.backend.utils import add_retry_suffix
         from trimit.backend.utils import remove_retry_suffix
 
-        name = remove_retry_suffix(name)
-        retry_name = name
-        if name in self.dynamic_state_step_order:
+        substep_name = remove_retry_suffix(substep_name)
+        retry_name = substep_name
+        dynamic_key = get_dynamic_state_key(step_name, substep_name)
+        original_dynamic_key = dynamic_key
+        if dynamic_key in self.dynamic_state_step_order:
             i = 1
             while True:
-                retry_name = add_retry_suffix(name, i)
-                if retry_name in self.dynamic_state_step_order:
+                retry_name = add_retry_suffix(substep_name, i)
+                dynamic_key = get_dynamic_state_key(step_name, retry_name)
+                if dynamic_key in self.dynamic_state_step_order:
                     i += 1
                 else:
                     break
-        print("set current step output", name, retry_name)
-        self.dynamic_state[retry_name] = results
+        print("set current step output", original_dynamic_key, dynamic_key)
+        self.dynamic_state[dynamic_key] = results
         try:
             retry = results.retry
         except AttributeError:
             retry = results.get("retry", False)
-        self.dynamic_state_retries[retry_name] = retry
-        self.dynamic_state_step_order.append(retry_name)
+        self.dynamic_state_retries[dynamic_key] = retry
+        self.add_to_dynamic_state_step_order(step_name, retry_name)
         await self.save()
+
+    def add_to_dynamic_state_step_order(self, step_name, substep_name):
+        if len(self.dynamic_state_step_order) == 0:
+            self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
+        current_step = self.dynamic_state_step_order[-1]
+        if current_step.name != step_name:
+            self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
+        self.dynamic_state_step_order[-1].substeps.append(substep_name)
 
 
 class TimelineClip(BaseModel):
-    scene_name: Optional[str] = Field(
-        default=None,
-        description="The name of the retrieved scene, representing a segment of a raw video",
-    )
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-    @validator("scene_name")
-    @classmethod
-    def validate_scene_name(cls, scene_simple_name):
-        if scene_simple_name is not None and not cls.scene_exists_in_db(
-            scene_simple_name
-        ):
-            log = f"The last attempt to generate a timeline used the following nonexistent scene segment: {scene_simple_name}. Retry timeline generation with a valid scene segment name."
-            raise ValueError(log)
-        return scene_simple_name
-
-    @classmethod
-    def scene_exists_in_db(cls, scene_simple_name):
-        from trimit.models import pymongo_conn
-
-        db = pymongo_conn()
-        scene_collection = db["Scene"]
-        # TODO namespace by user
-        return scene_collection.find_one({"simple_name": scene_simple_name}) is not None
+    scene: Link[Scene]
 
 
 class TimelineOutput(BaseModel):
@@ -1755,14 +1016,4 @@ class TimelineOutput(BaseModel):
         return TimelineOutput(timeline=self.timeline + other.timeline)
 
 
-ALL_MODELS = [
-    User,
-    Video,
-    Scene,
-    Frame,
-    Timeline,
-    TimelineVersion,
-    Take,
-    TakeItem,
-    CutTranscriptLinearWorkflowState,
-]
+ALL_MODELS = [User, Video, Scene, Frame, CutTranscriptLinearWorkflowState]

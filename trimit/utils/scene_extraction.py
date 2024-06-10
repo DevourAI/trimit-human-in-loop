@@ -1,28 +1,29 @@
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
-from trimit.utils.video_utils import get_frame_rate, get_duration
+from trimit.utils.video_utils import get_video_info
 
 
 async def extract_scenes_to_disk(
     video_path: str,
     scenes: list["Scene"],
     output_dir: str,
-    frame_rate: float = None,
-    duration: float = None,
-    codec: str = None,
+    frame_rate: float | None = None,
+    duration: float | None = None,
+    codec: str | None = None,
     max_workers: int = 12,
 ) -> list[str]:
     print(f"Extracting {len(scenes)} scenes to {output_dir} from {video_path}")
     from moviepy.editor import VideoFileClip
+    from trimit.models import PydanticFraction
 
-    if frame_rate is None:
-        frame_rate = await get_frame_rate(video_path)
-        # TODO: can combine frame_rate and codec into single ffprobe call
+    if frame_rate is None or duration is None:
+        _, frame_rate_fraction, duration = await get_video_info(video_path)
+        if isinstance(frame_rate_fraction, PydanticFraction):
+            frame_rate = frame_rate_fraction.numerator / frame_rate_fraction.denominator
+        elif isinstance(frame_rate_fraction, float):
+            frame_rate = frame_rate_fraction
         if frame_rate is None:
             raise ValueError("Could not get frame rate")
-
-    if duration is None:
-        duration = get_duration(video_path)
 
     if codec is None:
         print("codec not provided. Defaulting to 'libx264'.")

@@ -22,9 +22,9 @@ const fetcherWithParams = async (url, params) => {
   }
 }
 
-const fetcherWithParamsRaw = async (url, params) => {
+const fetcherWithParamsRaw = async (url, params, options = {}) => {
   try {
-    const res = await axios.get(url, { baseURL: API_URL, params })
+    const res = await axios.get(url, { baseURL: API_URL, params, ...options })
     return res;
   } catch (error) {
     console.error('fetcherWithParamsRaw error', error);
@@ -82,6 +82,8 @@ export async function getLatestState(params: GetLatestStateParams): UserState {
 export async function getStepOutput(params: StepOutputParams) {
   if (params.user_email === '') return {}
   params.latest_retry = params.latest_retry || true
+  params.step_keys = params.step_key
+  delete params.step_key
   const data = await fetcherWithParams('get_step_outputs', params)
   if (data && data.error) {
     console.error(data.error)
@@ -124,7 +126,9 @@ export async function uploadVideo(params: UploadVideoParams) {
     files: [params.videoFile],
     timeline_name: params.timelineName,
     high_res_user_file_paths: [params.videoFile.name],
-    reprocess: true
+    reprocess: true,
+    use_existing_output: true,
+    overwrite: true
   }
 
   const respData = await postFetcherWithData('upload', data)
@@ -159,19 +163,32 @@ export async function getUploadedVideos(params: GetUploadedVideoParams) {
 }
 
 
-export async function downloadVideo(params: DownloadVideoParams) {
+const endpointForFileType = {
+  'timeline': 'download_timeline',
+  'video': 'video',
+  'transcript_text': 'download_transcript_text',
+  'soundbites_text': 'download_soundbites_text',
+}
+export async function downloadFile(params: DownloadFileParams) {
   if (params.user_email === '') return {}
   params.stream = false
-  const response = await fetcherWithParamsRaw('video', params)
+  const filetype = params.filetype
+  delete params.filetype
+  const endpoint = endpointForFileType[filetype]
+  const response = await fetcherWithParamsRaw(endpoint, params, { responseType: 'blob' })
   if (response.error) {
     console.error(response.error)
     return
   }
 
+  if (typeof response.data !== 'string' && response.data.error) {
+    console.error(response.data.error)
+    return
+  }
   const blob = new Blob([response.data], { type: response.headers['content-type'] });
   const contentDisposition = response.headers['content-disposition'];
-  console.log(response);
-  let filename = 'downloaded_video.mp4'; // Default filename
+  // TODO add user file path to default filename
+  let filename = `trimit_${filetype}_for_user_${params.user_email}.mp4`; // Default filename
   if (contentDisposition) {
     const match = contentDisposition.match(/filename="(.+)"/);
     if (match.length > 1) {
@@ -187,29 +204,15 @@ export async function downloadVideo(params: DownloadVideoParams) {
   a.click();
   window.URL.revokeObjectURL(url);
 };
+export async function downloadVideo(params: DownloadFileParams) {
+  await downloadFile({ ...params, filetype: 'video' })
+};
 export async function downloadTimeline(params: DownloadTimelineParams) {
-  if (params.user_email === '') return {}
-  const response = await fetcherWithParamsRaw('download_timeline', params)
-  if (response.error) {
-    console.error(response.error)
-    return
-  }
-  console.log(response);
-  let filename = 'downloaded_timeline.xml'; // Default filename
-  const blob = new Blob([response.data], { type: response.headers['content-type'] });
-  const contentDisposition = response.headers['content-disposition'];
-  if (contentDisposition) {
-    const match = contentDisposition.match(/filename="(.+)"/);
-    if (match.length > 1) {
-      filename = match[1];
-    }
-  }
-  const url = window.URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.style.display = 'none';
-  a.href = url;
-  a.download = filename
-  document.body.appendChild(a);
-  a.click();
-  window.URL.revokeObjectURL(url);
+  await downloadFile({ ...params, filetype: 'timeline' })
+};
+export async function downloadTranscriptText(params: DownloadFileParams) {
+  await downloadFile({ ...params, filetype: 'transcript_text' })
+};
+export async function downloadSoundbitesText(params: DownloadTimelineParams) {
+  await downloadFile({ ...params, filetype: 'soundbites_text' })
 };

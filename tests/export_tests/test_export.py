@@ -3,11 +3,19 @@ from trimit.export import (
     create_cut_video_from_transcript,
 )
 from trimit.backend.utils import match_output_to_actual_transcript_fast
+from trimit.models import maybe_init_mongo
 from trimit.utils.model_utils import get_generated_video_folder
 import os
 import pytest
+import asyncio
 
-pytestmark = pytest.mark.asyncio(scope="session")
+pytestmark = pytest.mark.asyncio()
+
+
+@pytest.fixture(autouse=True)
+async def mongo_init():
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
 
 
 async def test_create_fcp_7_xml_from_transcript(
@@ -23,23 +31,22 @@ async def test_create_fcp_7_xml_from_transcript(
         clip_extra_trim_seconds=1,
         use_high_res_path=True,
     )
-    breakpoint()
     assert os.stat(video_timeline_file).st_size > 0
 
 
 async def test_create_cut_video_from_transcript(
-    mongo_connect, video_15557970, short_cut_transcript_15557970
+    video_3909774043, short_cut_transcript_3909774043
 ):
     timeline_name = "test_timeline"
     output_dir = get_generated_video_folder(
         "tests/video_outputs/linear/generated_videos",
-        video_15557970.user.email,
+        video_3909774043.user.email,
         timeline_name,
     )
 
     cut_video_path = await create_cut_video_from_transcript(
-        video=video_15557970,
-        transcript=short_cut_transcript_15557970,
+        video=video_3909774043,
+        transcript=short_cut_transcript_3909774043,
         timeline_name=timeline_name,
         volume_dir="tests/fixtures/volume",
         output_dir=output_dir,

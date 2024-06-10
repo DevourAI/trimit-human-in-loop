@@ -45,14 +45,14 @@ async def load_or_create_workflow(
     )
     running = running_workflows.get(workflow_id, False)
     if running and not block_until and wait_until_done_running:
-        return {"error": "Workflow still running"}
+        raise ValueError("Cannot wait until done running without blocking")
     elif running and block_until and wait_until_done_running:
         start_time = time.time()
         while running:
             await asyncio.sleep(wait_interval)
             running = running_workflows.get(workflow_id, False)
             if time.time() - start_time > timeout:
-                return {"error": "Timeout (workflow still running)"}
+                raise TimeoutError("Timeout (workflow still running)")
     workflow = workflows.get(workflow_id, None)
     if not workflow:
         if with_output:

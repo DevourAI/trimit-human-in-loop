@@ -5,14 +5,22 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-import aiofiles
 from pydantic import BaseModel
 from modal import asgi_app, is_local
 from beanie import BulkWriter
 from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
-from fastapi import FastAPI, Form, UploadFile, File, Request, Query, HTTPException
+from fastapi import (
+    FastAPI,
+    Form,
+    UploadFile,
+    File,
+    Request,
+    Query,
+    HTTPException,
+    Depends,
+)
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.utils import conf
@@ -23,11 +31,7 @@ from trimit.utils.fs_utils import (
     get_s3_key,
     get_audio_file_path,
 )
-from trimit.utils.model_utils import (
-    hash_ext_from_filename,
-    save_video_with_details,
-    check_existing_video,
-)
+from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_or_create_workflow, workflows
 from trimit.app import app, get_volume_dir, S3_BUCKET, S3_VIDEO_PATH
@@ -41,6 +45,7 @@ from trimit.models import (
 from .image import image
 from trimit.backend.conf import LINEAR_WORKFLOW_OUTPUT_FOLDER
 from trimit.backend.background_processor import BackgroundProcessor
+from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
 background_processor = None
 if not is_local():
@@ -66,10 +71,10 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
                 "GET, POST, PUT, DELETE, OPTIONS"
             )
             response.headers["Access-Control-Allow-Headers"] = (
-                "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range"
+                "DNT,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Range,Content-Disposition"
             )
             response.headers["Access-Control-Expose-Headers"] = (
-                "Content-Length,Content-Range"
+                "Content-Length,Content-Range,Content-Disposition"
             )
         return response
 
@@ -89,6 +94,38 @@ app_kwargs = dict(
 )
 
 
+async def get_current_workflow(
+    timeline_name: str | None = None,
+    length_seconds: int | None = None,
+    user_email: str | None = None,
+    video_hash: str | None = None,
+    user_id: str | None = None,
+    video_id: str | None = None,
+    wait_until_done_running: bool = False,
+    block_until: bool = False,
+    timeout: float = 5,
+    wait_interval: float = 0.1,
+):
+    if timeline_name is None or length_seconds is None:
+        return None
+    try:
+        return await load_or_create_workflow(
+            timeline_name=timeline_name,
+            length_seconds=length_seconds,
+            user_email=user_email,
+            video_hash=video_hash,
+            user_id=user_id,
+            video_id=video_id,
+            with_output=True,
+            wait_until_done_running=wait_until_done_running,
+            block_until=block_until,
+            timeout=timeout,
+            wait_interval=wait_interval,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.function(**app_kwargs)
 @asgi_app()
 def frontend_server():
@@ -97,30 +134,15 @@ def frontend_server():
 
 @web_app.get("/get_step_outputs")
 async def get_step_outputs(
-    user_email: str,
-    timeline_name: str,
-    video_hash: str,
-    length_seconds: int,
     step_keys: str,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     latest_retry: bool = False,
 ):
-    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
     step_keys = step_keys.split(",")
 
-    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
-        video_hash=video_hash,
-        timeline_name=timeline_name,
-        user_email=user_email,
-        length_seconds=length_seconds,
-        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        volume_dir=get_volume_dir(),
-        new_state=False,
-    )
-
-    workflow = workflows.get(workflow.id, None)
     if not workflow:
-        return {"error": "Workflow not found"}
+        raise HTTPException(status_code=400, detail="Workflow not found")
     return {
         "outputs": await workflow.get_output_for_keys(
             step_keys, latest_retry=latest_retry
@@ -130,23 +152,11 @@ async def get_step_outputs(
 
 @web_app.get("/get_all_outputs")
 async def get_all_outputs(
-    user_email: str, timeline_name: str, video_hash: str, length_seconds: int
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
-    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
-
-    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
-        video_hash=video_hash,
-        timeline_name=timeline_name,
-        user_email=user_email,
-        length_seconds=length_seconds,
-        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        volume_dir=get_volume_dir(),
-        new_state=False,
-    )
-
-    workflow = workflows.get(workflow.id, None)
     if not workflow:
-        return {"error": "Workflow not found"}
+        raise HTTPException(status_code=400, detail="Workflow not found")
+
     return await workflow.get_all_outputs()
 
 
@@ -201,26 +211,10 @@ def step_endpoint(
 
 @web_app.get("/reset_workflow")
 async def reset_workflow(
-    timeline_name: str,
-    length_seconds: int,
-    user_email: str | None = None,
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
-    try:
-        workflow = await load_or_create_workflow(
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            user_email=user_email,
-            video_hash=video_hash,
-            user_id=user_id,
-            video_id=video_id,
-            with_output=False,
-            wait_until_done_running=False,
-        )
-    except Exception as e:
-        return {"error": str(e)}
+    if workflow is None:
+        raise HTTPException(status_code=400, detail="Workflow not found")
     print(f"Resetting workflow {workflow.id}")
     await workflow.restart_state()
     print(f"Workflow {workflow.id} reset")
@@ -228,27 +222,11 @@ async def reset_workflow(
 
 @web_app.get("/revert_workflow_step")
 async def revert_workflow_step(
-    timeline_name: str,
-    length_seconds: int,
-    user_email: str | None = None,
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     to_before_retries: bool = False,
 ):
-    try:
-        workflow = await load_or_create_workflow(
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            user_email=user_email,
-            video_hash=video_hash,
-            user_id=user_id,
-            video_id=video_id,
-            with_output=False,
-            wait_until_done_running=False,
-        )
-    except Exception as e:
-        return {"error": str(e)}
+    if workflow is None:
+        raise HTTPException(status_code=400, detail="Workflow not found")
     print(f"Reverting workflow {workflow.id}")
     await workflow.revert_step(before_retries=to_before_retries)
     print(f"Workflow {workflow.id} reverted")
@@ -256,37 +234,15 @@ async def revert_workflow_step(
 
 @web_app.get("/get_latest_state")
 async def get_latest_state(
-    timeline_name: str,
-    length_seconds: int,
-    user_email: str | None = None,
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     with_output: bool = False,
-    wait_until_done_running: bool = False,
-    block_until: bool = False,
-    timeout: float = 5,
-    wait_interval: float = 0.1,
 ):
-    try:
-        workflow = await load_or_create_workflow(
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            user_email=user_email,
-            video_hash=video_hash,
-            user_id=user_id,
-            video_id=video_id,
-            with_output=with_output,
-            wait_until_done_running=wait_until_done_running,
-            block_until=block_until,
-            timeout=timeout,
-            wait_interval=wait_interval,
-        )
-    except Exception as e:
-        return {"error": str(e)}
-    last_step_obj = await workflow.get_last_step(with_load_state=False)
+    if workflow is None:
+        raise HTTPException(status_code=400, detail="Workflow not found")
+
+    last_step_obj = await workflow.get_last_substep(with_load_state=False)
     last_step_dict = last_step_obj.to_dict() if last_step_obj else None
-    next_step_obj = await workflow.get_next_step(with_load_state=False)
+    next_step_obj = await workflow.get_next_substep(with_load_state=False)
     next_step_dict = next_step_obj.to_dict() if next_step_obj else None
 
     return_dict = {
@@ -303,44 +259,83 @@ async def get_latest_state(
     return return_dict
 
 
-@web_app.get("/download_timeline")
-async def download_timeline(
-    timeline_name: str,
-    length_seconds: int,
-    user_email: str | None = None,
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
-    wait_until_done_running: bool = False,
-    block_until: bool = False,
-    timeout: float = 5,
-    wait_interval: float = 0.1,
+@web_app.get("/download_transcript_text")
+async def download_transcript_text(
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    stream: bool = False,
 ):
-    try:
-        workflow = await load_or_create_workflow(
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            user_email=user_email,
-            video_hash=video_hash,
-            user_id=user_id,
-            video_id=video_id,
-            with_output=True,
-            wait_until_done_running=wait_until_done_running,
-            block_until=block_until,
-            timeout=timeout,
-            wait_interval=wait_interval,
-        )
-    except Exception as e:
-        return {"error": str(e)}
 
-    most_recent_file = workflow.most_recent_timeline_path
-    if most_recent_file is None:
-        return {"error": "No timeline found"}
+    if workflow is None:
+        raise HTTPException(
+            status_code=400, detail="Must provide timeline name and length_seconds"
+        )
+    export_result = await workflow.most_recent_export_result(with_load_state=False)
+    file_path = export_result.get("transcript_text")
+
+    if file_path is None:
+        raise HTTPException(status_code=400, detail="No transcript found")
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=400, detail=f"Transcript not found at {file_path}"
+        )
 
     return FileResponse(
-        most_recent_file,
+        file_path, media_type="application/xml", filename=os.path.basename(file_path)
+    )
+
+
+@web_app.get("/download_soundbites_text")
+async def download_soundbites_text(
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    stream: bool = False,
+):
+
+    if workflow is None:
+        raise HTTPException(
+            status_code=400, detail="Must provide timeline name and length_seconds"
+        )
+    export_result = await workflow.most_recent_export_result(with_load_state=False)
+    file_path = export_result.get("soundbites_text")
+
+    if file_path is None:
+        raise HTTPException(status_code=400, detail="No soundbites found")
+    if not os.path.exists(file_path):
+        raise HTTPException(
+            status_code=400, detail=f"Soundbites not found at {file_path}"
+        )
+
+    return FileResponse(
+        file_path, media_type="application/xml", filename=os.path.basename(file_path)
+    )
+
+
+@web_app.get("/download_timeline")
+async def download_timeline(
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    stream: bool = False,
+):
+
+    if workflow is None:
+        print("download_timeline: workflow is none")
+        raise HTTPException(
+            status_code=400, detail="Must provide timeline name and length_seconds"
+        )
+    export_result = await workflow.most_recent_export_result(with_load_state=False)
+    timeline_path = export_result.get("video_timeline")
+
+    if timeline_path is None:
+        print("download_timeline: timeline_path is none")
+        raise HTTPException(status_code=400, detail="No timeline found")
+    if not os.path.exists(timeline_path):
+        print("download_timeline: timeline_path not found")
+        raise HTTPException(
+            status_code=400, detail=f"Timeline not found at {timeline_path}"
+        )
+
+    return FileResponse(
+        timeline_path,
         media_type="application/xml",
-        filename=os.path.basename(most_recent_file),
+        filename=os.path.basename(timeline_path),
     )
 
 
@@ -348,43 +343,23 @@ async def download_timeline(
 async def stream_video(
     request: Request,
     video_path: str | None = None,
-    timeline_name: str | None = None,
-    length_seconds: int | None = None,
-    user_email: str | None = None,
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     stream: bool = False,
-    wait_until_done_running: bool = False,
-    block_until: bool = False,
-    timeout: float = 5,
-    wait_interval: float = 0.1,
 ):
+    if video_path is None and workflow is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Must provide video path or timeline name and length_seconds",
+        )
+    elif video_path is None:
+        assert workflow is not None
+        export_result = await workflow.most_recent_export_result(with_load_state=False)
+        video_path = export_result.get("video")
+    print("video_path", video_path)
     if video_path is None:
-        if timeline_name is None or length_seconds is None:
-            return {
-                "error": "Must provide video path or timeline name and length_seconds"
-            }
-        try:
-            workflow = await load_or_create_workflow(
-                timeline_name=timeline_name,
-                length_seconds=length_seconds,
-                user_email=user_email,
-                video_hash=video_hash,
-                user_id=user_id,
-                video_id=video_id,
-                with_output=True,
-                wait_until_done_running=wait_until_done_running,
-                block_until=block_until,
-                timeout=timeout,
-                wait_interval=wait_interval,
-            )
-        except Exception as e:
-            return {"error": str(e)}
-
-        video_path = workflow.most_recent_video_path
-    if video_path is None:
-        return {"error": "No video found"}
+        raise HTTPException(status_code=400, detail="No video found")
+    if not os.path.exists(video_path):
+        raise HTTPException(status_code=400, detail=f"Video not found at {video_path}")
     extension = os.path.splitext(video_path)[1]
     media_type = f"video/{extension[1:]}"
     if not stream:
@@ -393,14 +368,11 @@ async def stream_video(
         )
 
     def iterfile():
-        print("iterfile")
         with open(video_path, mode="rb") as file_like:  # open the file in binary mode
-            print("opened")
             yield from file_like  # yield the binary data
 
     range_header = request.headers.get("range", None)
     file_size = os.path.getsize(video_path)
-    print(f"range header: {range_header}")
     if not range_header:
         return StreamingResponse(iterfile(), media_type=media_type)
 
@@ -417,7 +389,6 @@ async def stream_video(
 
     def video_stream():
         with open(video_path, "rb") as video:
-            print(f"seeking to {start}")
             video.seek(start)
             while chunk := video.read(8192):
                 yield chunk
@@ -481,7 +452,7 @@ async def upload_multiple_files(
     user_email: str = Form(...),
     high_res_user_file_paths: list[str] = Form(...),
     timeline_name: str = Form(...),
-    force: bool = Form(False),
+    overwrite: bool = Form(False),
     use_existing_output: bool = Form(True),
     reprocess: bool = Form(False),
 ):
@@ -515,7 +486,9 @@ async def upload_multiple_files(
         video_hash = Path(volume_file_path).stem
         ext = Path(volume_file_path).suffix
 
-        video = await check_existing_video(video_hash, high_res_user_file_path, force)
+        video = await check_existing_video(
+            video_hash, high_res_user_file_path, ignore_existing=overwrite
+        )
         existing = False
         if video is not None:
             existing = True
@@ -560,7 +533,7 @@ async def upload_multiple_files(
     to_process = []
     async with BulkWriter() as bulk_writer:
         for video_detail in video_details:
-            if video_detail["existing"]:
+            if video_detail["existing"] and not overwrite:
                 if reprocess:
                     to_process.append(video_detail["video_hash"])
                     continue
@@ -574,10 +547,12 @@ async def upload_multiple_files(
                 high_res_user_file_path=video_detail["high_res_user_file_path"],
                 high_res_user_file_hash=video_detail["high_res_user_file_hash"],
                 volume_file_path=video_detail["volume_file_path"],
+                overwrite=overwrite,
             )
 
         await bulk_writer.commit()
 
+    print("USE_EXISTING_OUTPUT", use_existing_output)
     call = background_processor.process_videos_generic_from_video_hashes.spawn(
         current_user.email, to_process, use_existing_output=use_existing_output
     )

@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Callable, Optional
+from typing import Callable, Optional, Union
 import pickle
 from trimit.utils.misc import union_list_of_intervals
 import copy
@@ -1397,7 +1397,7 @@ class Soundbites(Transcript):
 
 class PartialFeedback(BaseModel):
     partials_to_redo: list[bool]
-    relevant_user_feedback_list: list[str | None]
+    relevant_user_feedback_list: list[str | None] | list[str]
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):
@@ -1405,6 +1405,7 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
     llm_modified_partial_feedback: PartialFeedback | None = None
     is_retry: bool = False
     step_name: str | None = None
+    substep_name: str | None = None
 
 
 class CutTranscriptLinearWorkflowStepResults(BaseModel):
@@ -1415,11 +1416,13 @@ class CutTranscriptLinearWorkflowStepResults(BaseModel):
 
 class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     step_name: str
+    substep_name: str
     done: bool = False
     user_feedback_request: str | None = None
     partial_user_feedback_request: str | None = None
     step_inputs: CutTranscriptLinearWorkflowStepInput | None = None
     step_outputs: dict | None = None
+    export_result: dict[str, str] | None = None
     error: str | None = None
     retry: bool = False
 
@@ -1430,9 +1433,10 @@ class CurrentStepInfo(BaseModel):
     user_feedback: bool
     input: CutTranscriptLinearWorkflowStepInput | None = None
     chunked_feedback: bool = False
+    step: Union["StepWrapper", None] = None
 
     def model_dump_json(self, *args, **kwargs):
-        return super().model_dump_json(*args, exclude={"method"}, **kwargs)
+        return super().model_dump_json(*args, exclude={"method", "step"}, **kwargs)
 
     def to_dict(self):
         return {
@@ -1440,4 +1444,15 @@ class CurrentStepInfo(BaseModel):
             "user_feedback": self.user_feedback,
             "input": self.input.model_dump() if self.input else None,
             "chunked_feedback": self.chunked_feedback,
+            "step_name": self.step.name if self.step else None,
         }
+
+
+class StepWrapper(BaseModel):
+    name: str
+    substeps: list[CurrentStepInfo]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for substep in self.substeps:
+            substep.step = self

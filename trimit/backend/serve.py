@@ -15,8 +15,9 @@ app_kwargs = dict(
     container_idle_timeout=1200,
     _experimental_boost=True,
     _experimental_scheduler=True,
+    cpu=12,
+    memory=24000,
 )
-
 
 workflows = Dict.from_name(WORKFLOWS_DICT_NAME, create_if_missing=True)
 running_workflows = Dict.from_name(RUNNING_WORKFLOWS_DICT_NAME, create_if_missing=True)
@@ -29,6 +30,7 @@ async def step_workflow_until_feedback_request(
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
+
     user_feedback_request = None
     first_time = True
     done = False
@@ -39,7 +41,7 @@ async def step_workflow_until_feedback_request(
 
         if not isinstance(result, CutTranscriptLinearWorkflowStepOutput):
             yield CutTranscriptLinearWorkflowStepOutput(
-                step_name="", done=False, error="No steps ran"
+                step_name="", substep_name="", done=False, error="No steps ran"
             ), True
             return
 
@@ -85,7 +87,10 @@ async def step(
         if workflow.id in workflows and not force_restart:
             if running_workflows.get(id, False):
                 yield CutTranscriptLinearWorkflowStepOutput(
-                    step_name="", done=False, error="Workflow already running"
+                    step_name="",
+                    substep_name="",
+                    done=False,
+                    error="Workflow already running",
                 ), True
                 return
         else:
@@ -100,7 +105,7 @@ async def step(
     except asyncio.TimeoutError:
         running_workflows[id] = False
         yield CutTranscriptLinearWorkflowStepOutput(
-            step_name="", done=False, error="Timeout"
+            step_name="", substep_name="", done=False, error="Timeout"
         ), True
     except StopAsyncIteration:
         return

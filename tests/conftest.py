@@ -1,22 +1,18 @@
 import os
+from pathlib import Path
 
 os.environ["ENV"] = "test"
-from trimit.models import get_upload_folder, maybe_init_mongo
+import diskcache as dc
 from datetime import datetime
 import pytest
 import asyncio
 import os
-from trimit.models.models import (
-    User,
-    Video,
-    Scene,
-    Frame,
-    Timeline,
-    TimelineVersion,
-    Take,
-    TakeItem,
-)
+from trimit.backend.transcription import Transcription
+from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
+from trimit.models.models import User, Video
+from trimit.models import get_upload_folder, maybe_init_mongo
 from trimit.utils.model_utils import save_video_with_details
+from trimit.backend.models import Transcript
 from dotenv import load_dotenv
 import shutil
 
@@ -76,6 +72,11 @@ DAVE_VIDEO_BASENAMES = [
 DAVE_VIDEO_DATE = datetime(2024, 1, 1)
 DAVE_UPLOADS_DIR = get_upload_folder(TEST_VOLUME_DIR, DAVE_EMAIL, DAVE_VIDEO_DATE)
 
+DAVE_FULL_VIDEO_PATHS = [
+    "tests/fixtures/volume/uploads/dave@hedhi.com/2024-01-01/15557970.mp4",
+    "tests/fixtures/volume/uploads/dave@hedhi.com/2024-01-01/3909774043.mp4",
+]
+
 TIMELINE_NAME = "test_timeline"
 
 
@@ -112,10 +113,25 @@ async def _seed_mock_data():
             timeline_name=TIMELINE_NAME,
             md5_hash=low_res_hash,
             ext=".mp4",
-            upload_datetime=datetime(2024, 1, 1),
+            upload_datetime=DAVE_VIDEO_DATE,
             high_res_user_file_path=os.path.join(DAVE_VIDEO_FOLDER, basename),
-            high_res_user_file_hash=high_res_hash,
             volume_file_path=os.path.join(DAVE_UPLOADS_DIR, low_res_hash + ".mp4"),
+        )
+
+    for path in DAVE_FULL_VIDEO_PATHS:
+        video_hash = Path(path).stem
+        video = await Video.find_one(Video.md5_hash == video_hash)
+        if video is not None:
+            continue
+
+        await save_video_with_details(
+            user_email=DAVE_EMAIL,
+            timeline_name=TIMELINE_NAME,
+            md5_hash=video_hash,
+            ext=".mp4",
+            upload_datetime=DAVE_VIDEO_DATE,
+            high_res_user_file_path=path,
+            volume_file_path=path,
         )
 
 
@@ -125,10 +141,6 @@ async def _seed_mock_data():
 #  await Video.find().delete()
 #  await Scene.find().delete()
 #  await Frame.find().delete()
-#  await Timeline.find().delete()
-#  await TimelineVersion.find().delete()
-#  await Take.find().delete()
-#  await TakeItem.find().delete()
 
 
 @pytest.fixture(scope="session")
@@ -168,3 +180,131 @@ async def kitchen_conversation_video(seed_mock_data):
 @pytest.fixture(scope="session")
 async def conversation_video(seed_mock_data):
     return await Video.find_one(Video.md5_hash == "3225395022")
+
+
+@pytest.fixture(scope="session")
+async def video_15557970(seed_mock_data):
+    return await Video.find_one(Video.md5_hash == "15557970")
+
+
+@pytest.fixture(scope="session")
+async def video_3909774043(seed_mock_data):
+    return await Video.find_one(Video.md5_hash == "3909774043")
+
+
+@pytest.fixture(scope="session")
+def transcription():
+    return Transcription(
+        TEST_MODEL_DIR, volume_dir=TEST_VOLUME_DIR, cache=dc.Cache(TEST_CACHE_DIR)
+    )
+
+
+@pytest.fixture(scope="session")
+def speaker_in_frame_detection():
+    return SpeakerInFrameDetection(
+        cache=dc.Cache(TEST_CACHE_DIR), volume_dir=TEST_VOLUME_DIR
+    )
+
+
+def transcribe_video(transcription: Transcription, video: Video):
+    hash_to_transcription = transcription.transcribe_videos([video], with_cache=True)
+    return hash_to_transcription[video.md5_hash]
+
+
+async def video_with_transcription(transcription: Transcription, video: Video):
+    video_hash = video.md5_hash
+    if video.transcription is None:
+        raw_transcript = transcribe_video(transcription, video)
+        transcript = Transcript.from_video_transcription(raw_transcript)
+        transcript.save(f"tests/fixtures/objects/transcript_{video_hash}.p")
+        video.transcription = raw_transcript
+        await video.save()
+    return video
+
+
+async def video_with_speakers_in_frame(
+    speaker_in_frame_detection: SpeakerInFrameDetection, video: Video
+):
+    # TODO REMVOE
+    video.speakers_in_frame = ["SPEAKER_00", "SPEAKER_01"]
+    await video.save()
+    if video.speakers_in_frame is None:
+        await speaker_in_frame_detection.detect_speaker_in_frame_from_videos(
+            [video], use_existing_output=True
+        )
+    return video
+
+
+@pytest.fixture(scope="session")
+async def video_15557970_with_transcription(transcription, video_15557970):
+    return await video_with_transcription(transcription, video_15557970)
+
+
+@pytest.fixture(scope="session")
+async def video_3909774043_with_transcription(transcription, video_3909774043):
+    return await video_with_transcription(transcription, video_3909774043)
+
+
+@pytest.fixture(scope="session")
+async def video_15557970_with_speakers_in_frame(
+    speaker_in_frame_detection, video_15557970_with_transcription
+):
+    return await video_with_speakers_in_frame(
+        speaker_in_frame_detection, video_15557970_with_transcription
+    )
+
+
+@pytest.fixture(scope="session")
+async def video_3909774043_with_speakers_in_frame(
+    speaker_in_frame_detection, video_3909774043_with_transcription
+):
+    return await video_with_speakers_in_frame(
+        speaker_in_frame_detection, video_3909774043_with_transcription
+    )
+
+
+@pytest.fixture(scope="function")
+def transcript_15557970(video_15557970_with_speakers_in_frame):
+    return video_15557970_with_speakers_in_frame.transcription
+
+
+@pytest.fixture(scope="function")
+def transcript_3909774043(video_3909774043_with_speakers_in_frame):
+    return Transcript.from_video_transcription(
+        video_3909774043_with_speakers_in_frame.transcription
+    )
+
+
+@pytest.fixture(scope="function")
+async def short_cut_transcript_3909774043(transcript_3909774043):
+    transcript = transcript_3909774043
+    transcript.split_in_chunks(500)
+    transcript.erase_cuts()
+    transcript.chunks[0].segments[0].cut(2, 4)
+    transcript.chunks[0].segments[2].cut(1, 3)
+    transcript.chunks[0].segments[6].cut(1, 2)
+    transcript.chunks[4].segments[6].cut(4, 9)
+    chunk_segments_to_keep = [(0, 0), (0, 2), (0, 6), (4, 6)]
+    segments_to_keep = set()
+    for chunk, chunk_seg in chunk_segments_to_keep:
+        full_seg = transcript.chunks[chunk].chunk_segment_indexes[0] + chunk_seg
+        segments_to_keep.add(full_seg)
+    transcript.kept_segments |= segments_to_keep
+    assert transcript.text == "start with with Surkana, like the data that you want"
+    return transcript
+
+
+@pytest.fixture(scope="function")
+async def short_cut_transcript_15557970(transcript_15557970):
+    transcript_15557970.split_in_chunks(500)
+    transcript_15557970.erase_cuts()
+    transcript_15557970.chunks[0].segments[0].cut(2, 4)
+    transcript_15557970.chunks[0].segments[1].cut(1, 3)
+    transcript_15557970.chunks[0].segments[5].cut(1, 2)
+    transcript_15557970.chunks[4].segments[6].cut(4, 9)
+    transcript_15557970.kept_segments |= set([0, 1, 5, 128])
+    assert (
+        transcript_15557970.text
+        == "over here. then we go. create and surface products to"
+    )
+    return transcript_15557970

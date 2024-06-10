@@ -1093,14 +1093,14 @@ async def remove_soundbites(soundbites, max_soundbites):
     yield soundbites, True
 
 
-def parse_partials_to_redo_from_agent_output(agent_output: dict, n):
+def parse_partials_to_redo_from_agent_output(agent_output: dict, n: int):
     partials_to_redo = agent_output.get("chunks_to_redo", [])
     if not partials_to_redo:
         return []
     if len(partials_to_redo) != n:
         print(f"Expected {n} partials to redo, but got {len(partials_to_redo)}")
         return [True] * n
-    return partials_to_redo
+    return [p if p else False for p in partials_to_redo]
 
 
 def parse_relevant_user_feedback_list_from_agent_output(

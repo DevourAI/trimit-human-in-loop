@@ -3,7 +3,9 @@ class CacheMixin:
         import diskcache as dc
 
         self.cache_prefix = cache_prefix
-        self.cache = cache or dc.Cache(".cache")
+        self.cache = cache
+        if self.cache is None:
+            self.cache = dc.Cache(".cache")
 
     def cache_get(self, key, *default):
         use_default = len(default) > 0

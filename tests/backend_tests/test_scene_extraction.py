@@ -1,8 +1,8 @@
 import pytest
 import os
 from trimit.utils.scene_extraction import create_scenes_from_video
-from trimit.utils.model_utils import get_scene_folder
-from trimit.models.models import Scene, scene_name_from_video_take_item
+from trimit.utils.model_utils import get_scene_folder, scene_name_from_video
+from trimit.models.models import Scene
 from ..conftest import TEST_VOLUME_DIR
 from pathlib import Path
 
@@ -29,8 +29,8 @@ async def test_extract_scenes_from_single_video(test_video_2):
     assert extracted_scenes[0].start_frame == expected_start_frame
     assert extracted_scenes[0].end_frame == expected_end_frame
     assert extracted_scenes[0].ext == video.ext
-    assert extracted_scenes[0].name == scene_name_from_video_take_item(
-        video, expected_start_frame, expected_end_frame, None
+    assert extracted_scenes[0].name == scene_name_from_video(
+        video, expected_start_frame, expected_end_frame
     )
     assert Path(extracted_scenes[0].path(TEST_VOLUME_DIR)).parent == get_scene_folder(
         TEST_VOLUME_DIR, video.user_email, video.upload_datetime
