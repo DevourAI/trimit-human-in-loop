@@ -1071,7 +1071,6 @@ class CutTranscriptLinearWorkflow:
         stage_num = parse_stage_num_from_step_name(step_name)
         if stage_num is None:
             raise ValueError(f"Step name {step_name} does not contain a stage number")
-        print(f"CUT TRANSCRIPT WITH CRITIQUES")
 
         # TODO decide whether to use user feedback for this method at all
         user_feedback = step_input.user_prompt or ""
@@ -1088,7 +1087,6 @@ class CutTranscriptLinearWorkflow:
             == len(partials_to_redo)
             == len(self.current_transcript.chunks)
         )
-        print(f"PAST RETRY")
 
         input_transcript = self.current_transcript
         assert isinstance(input_transcript, Transcript)
@@ -1108,7 +1106,6 @@ class CutTranscriptLinearWorkflow:
             kept_soundbites.align_to_transcript_chunks(partial_transcript_fresh)
         else:
             partial_transcripts = partial_transcript_fresh.chunks
-        print(f"PAST SPLIT")
 
         yield f"Cutting and critiquing partial transcripts for stage {stage_num}\n", False
         cut_partial_transcript_with_critiques_jobs = []
@@ -1159,7 +1156,6 @@ class CutTranscriptLinearWorkflow:
                 new_cut_transcript_chunk, kept_soundbites_chunk = output
                 new_kept_soundbites_chunks.append(kept_soundbites_chunk)
                 new_cut_transcript_chunks.append(new_cut_transcript_chunk)
-        print(f"PAST MERGED STREAM")
 
         assert all(
             [s is not None for s in new_kept_soundbites_chunks]
@@ -1186,7 +1182,6 @@ class CutTranscriptLinearWorkflow:
         #  for cut in final_transcript.iter_kept_cuts():
         #  yield f"```json\n{cut.model_dump_json()}\n```", False
 
-        print(f"YIELDING FROM CUT TRANSCRIPT")
         yield CutTranscriptLinearWorkflowStepResults(
             outputs={
                 "current_soundbites": kept_soundbites,
@@ -1199,13 +1194,11 @@ class CutTranscriptLinearWorkflow:
     ):
         output = None
         modified_transcript = None
-        print(f"MODIFY TRANSCRIPT HOLISTICALLY")
 
         iterations = max(1, self.max_iterations)
         if self.ask_user_for_feedback_every_iteration:
             iterations = 1
         for i in range(max(1, iterations)):
-            print("MODIFY ITERATION", i)
             # TODO _modify_transcript_holistically_single_iteration is returning same thing for each retry_num
             # likely from cache, which means prompt isn't changing
             async for (
@@ -1224,11 +1217,9 @@ class CutTranscriptLinearWorkflow:
                     "Checking word count excess, desired words:",
                     self._desired_words_for_stage(stage_num),
                 )
-                print("kept owrd count", modified_transcript.kept_word_count)
                 if not self._word_count_excess(
                     modified_transcript, self._desired_words_for_stage(stage_num)
                 ):
-                    print("NO WORD COUNT EXCESS")
                     output.outputs["retries"] = i
                     yield output, True
                     return

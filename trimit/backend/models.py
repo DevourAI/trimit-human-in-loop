@@ -1046,30 +1046,7 @@ class Transcript:
         segment_indexes_to_erase = None
         if from_chunk is not None:
             segment_indexes_to_erase = from_chunk.chunk_segment_indexes
-            print(
-                "keep only cuts for chunk:",
-                from_chunk.chunk_index,
-                "segment_indexes_to_erase",
-                from_chunk.chunk_segment_indexes,
-                "offsets",
-                offsets,
-            )
-        else:
-            print("keep only cuts for overall")
         self.erase_cuts(segment_indexes_to_erase)
-        if from_chunk is not None:
-            print(
-                "transcript chunk kept segments after erase",
-                from_chunk.kept_segment_indexes,
-            )
-            print(
-                "transcript chunk segment cuts after erase \n",
-                [
-                    f"seg_idx={i} cuts={self.segments[i].cut_segments}"
-                    for i in from_chunk.chunk_segment_indexes
-                ],
-            )
-
         # TODO allow reordering and reuse of cuts!
         offsets = linearize_and_dedupe_offsets(offsets)
 
