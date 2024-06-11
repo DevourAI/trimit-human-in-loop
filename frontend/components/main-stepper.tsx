@@ -305,9 +305,9 @@ export default function MainStepper({ userData }) {
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
        <VideoSelector userData={userData} videoProcessingStatuses={videoProcessingStatuses} setVideoHash={setVideoHash}/>
        <Stepper initialStep={currentStepIndex} steps={stepData.stepArray}>
-         {actionSteps.map(({ name, human_readable_name }, index) => {
+         {actionSteps.map(({ step_name, name, human_readable_name }, index) => {
            return (
-             <Step key={name} label={human_readable_name}>
+             <Step key={`${step_name}.${name}`} label={human_readable_name}>
                <div className="grid w-full gap-2">
                  <StepperForm
                    systemPrompt={activePrompt}

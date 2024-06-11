@@ -7,12 +7,6 @@ export const stepData: StepData = {
       human_readable_name: "Preprocess Video",
       substeps: [
         {
-          name: "init_state",
-          human_readable_name: "Initializing",
-          user_feedback: false,
-          chunked_feedback: false,
-        },
-        {
           name: "remove_off_screen_speakers",
           human_readable_name: "Remove Off-Screen Speakers",
           user_feedback: true,
@@ -50,13 +44,7 @@ export const stepData: StepData = {
       human_readable_name: "Generate Transcript, Stage 1",
       substeps: [
         {
-          name: "stage_0_cut_partial_transcripts_with_critiques",
-          human_readable_name: "Cut & Critique Partial Transcripts",
-          user_feedback: false,
-          chunked_feedback: true,
-        },
-        {
-          name: "stage_0_modify_transcript_holistically",
+          name: "modify_transcript_holistically",
           human_readable_name: "Modify Transcript Holistically",
           user_feedback: true,
           chunked_feedback: false,
@@ -68,13 +56,7 @@ export const stepData: StepData = {
       human_readable_name: "Generate Transcript, Stage 2",
       substeps: [
         {
-          name: "stage_1_cut_partial_transcripts_with_critiques",
-          human_readable_name: "Cut & Critique Partial Transcripts",
-          user_feedback: false,
-          chunked_feedback: true,
-        },
-        {
-          name: "stage_1_modify_transcript_holistically",
+          name: "modify_transcript_holistically",
           human_readable_name: "Modify Transcript Holistically",
           user_feedback: true,
           chunked_feedback: false,

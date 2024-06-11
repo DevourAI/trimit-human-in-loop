@@ -26,10 +26,10 @@ async def test_workflow_id_from_params(workflow_3909774043_with_transcript):
 async def test_workflow_with_only_step_order(workflow_3909774043_with_transcript):
     workflow = workflow_3909774043_with_transcript
     await workflow.state.set_current_step_output_atomic(
-        "remove_off_screen_speakers", {}
-    )
-    await workflow.state.set_current_step_output_atomic(
-        "remove_off_screen_speakers", {}
+        "preprocess_video.remove_off_screen_speakers",
+        {},
+        save_to_db=False,
+        use_session=False,
     )
     workflow_with_only_step_order = (
         await CutTranscriptLinearWorkflow.with_only_step_order(
@@ -58,3 +58,230 @@ async def test_workflow_with_only_step_order(workflow_3909774043_with_transcript
         with_load_state=False
     )
     assert last_step_with_state.name == last_step_with_step_order.name
+
+
+async def test_steps_object(workflow_3909774043_with_transcript):
+    steps = workflow_3909774043_with_transcript.steps
+    assert len([s for s in steps]) == len(steps.steps) == 5
+    assert steps[0].name == "preprocess_video"
+    assert steps.next_step_index(0, 0) == (0, 1)
+    assert steps.next_step_index(0, 1) == (1, 0)
+    assert steps.next_step_index(1, 0) == (2, 0)
+    assert steps.next_step_index(2, 0) == (3, 0)
+    assert steps.next_step_index(3, 0) == (3, 1)
+    assert steps.next_step_index(3, 1) == (4, 0)
+    assert steps.next_step_index(4, 0) == (4, 1)
+    assert steps.next_step_index(4, 1) == (None, None)
+    with pytest.raises(ValueError):
+        steps.next_step_index(4, 2)
+        steps.next_step_index(5, 0)
+
+    assert steps.last_step_index(0, 0) == (None, None)
+    assert steps.last_step_index(0, 1) == (0, 0)
+    assert steps.last_step_index(1, 0) == (0, 1)
+    assert steps.last_step_index(2, 0) == (1, 0)
+    assert steps.last_step_index(3, 0) == (2, 0)
+    assert steps.last_step_index(3, 1) == (3, 0)
+    assert steps.last_step_index(4, 0) == (3, 1)
+    assert steps.last_step_index(4, 1) == (4, 0)
+    with pytest.raises(ValueError):
+        steps.last_step_index(4, 2)
+        steps.next_step_index(5, 0)
+
+
+async def test_get_next_step_with_user_feedback(workflow_3909774043_with_transcript):
+    workflow = workflow_3909774043_with_transcript
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep.name == "remove_off_screen_speakers"
+    assert next_substep.step.name == "preprocess_video"
+
+    await workflow.state.set_current_step_output_atomic(
+        "preprocess_video.remove_off_screen_speakers",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep.name == "generate_story"
+    assert next_substep.step.name == "generate_story"
+
+    await workflow.state.set_current_step_output_atomic(
+        "generate_story.generate_story", {}, save_to_db=False, use_session=False
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep.name == "identify_key_soundbites"
+    assert next_substep.step.name == "identify_key_soundbites"
+
+    await workflow.state.set_current_step_output_atomic(
+        "identify_key_soundbites.identify_key_soundbites",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep.name == "modify_transcript_holistically"
+    assert next_substep.step.name == "stage_0_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_0_generate_transcript.cut_partial_transcripts_with_critiques",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep.name == "modify_transcript_holistically"
+    assert next_substep.step.name == "stage_0_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_0_generate_transcript.modify_transcript_holistically",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep.name == "modify_transcript_holistically"
+    assert next_substep.step.name == "stage_1_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_1_generate_transcript.cut_partial_transcripts_with_critiques",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep.name == "modify_transcript_holistically"
+    assert next_substep.step.name == "stage_1_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_1_generate_transcript.modify_transcript_holistically",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep is None
+
+    await workflow.state.set_current_step_output_atomic(
+        "end.end", {}, save_to_db=False, use_session=False
+    )
+    next_substep = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert next_substep is None
+
+
+async def test_get_last_step_with_user_feedback(workflow_3909774043_with_transcript):
+    workflow = workflow_3909774043_with_transcript
+    await workflow.state.set_current_step_output_atomic(
+        "end.end", {}, save_to_db=False, use_session=False
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "modify_transcript_holistically"
+    assert last_substep.step.name == "stage_1_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_1_generate_transcript.modify_transcript_holistically",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "modify_transcript_holistically"
+    assert last_substep.step.name == "stage_1_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_1_generate_transcript.cut_partial_transcripts_with_critiques",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "modify_transcript_holistically"
+    assert last_substep.step.name == "stage_0_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_0_generate_transcript.modify_transcript_holistically",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "modify_transcript_holistically"
+    assert last_substep.step.name == "stage_0_generate_transcript"
+
+    await workflow.state.set_current_step_output_atomic(
+        "stage_0_generate_transcript.cut_partial_transcripts_with_critiques",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "identify_key_soundbites"
+    assert last_substep.step.name == "identify_key_soundbites"
+
+    await workflow.state.set_current_step_output_atomic(
+        "identify_key_soundbites.identify_key_soundbites",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "identify_key_soundbites"
+    assert last_substep.step.name == "identify_key_soundbites"
+
+    await workflow.state.set_current_step_output_atomic(
+        "generate_story.generate_story", {}, save_to_db=False, use_session=False
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "generate_story"
+    assert last_substep.step.name == "generate_story"
+
+    await workflow.state.set_current_step_output_atomic(
+        "preprocess_video.remove_off_screen_speakers",
+        {},
+        save_to_db=False,
+        use_session=False,
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep.name == "remove_off_screen_speakers"
+
+    await workflow.state.set_current_step_output_atomic(
+        "preprocess_video.init_state", {}, save_to_db=False, use_session=False
+    )
+    last_substep = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
+    assert last_substep is None

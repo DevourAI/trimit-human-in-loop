@@ -16,7 +16,7 @@ from trimit.backend.models import Transcript
 from dotenv import load_dotenv
 import shutil
 
-load_dotenv(".env.local")
+load_dotenv(".local/.env")
 
 auto_seed_mock_data = False
 if os.getenv("AUTO_SEED_MOCK_DATA", "False") == "True":

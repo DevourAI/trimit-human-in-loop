@@ -383,7 +383,6 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         i += 1
     assert len(step_outputs) == len(expected_step_names)
     assert [s.substep_name == e for s, e in zip(step_outputs, expected_step_names)]
-    breakpoint()
 
     output = await workflow.get_last_output_before_end(with_load_state=False)
     output_files = output.export_result

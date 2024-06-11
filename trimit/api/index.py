@@ -311,9 +311,13 @@ async def get_latest_state(
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
-    last_step_obj = await workflow.get_last_substep(with_load_state=False)
+    last_step_obj = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
     last_step_dict = last_step_obj.to_dict() if last_step_obj else None
-    next_step_obj = await workflow.get_next_substep(with_load_state=False)
+    next_step_obj = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
     next_step_dict = next_step_obj.to_dict() if next_step_obj else None
 
     return_dict = {

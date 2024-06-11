@@ -69,6 +69,7 @@ export async function revertStepInBackend(params: RevertStepParams): UserState {
 
 export async function getLatestState(params: GetLatestStateParams): UserState {
   if (params.user_email === '') return {}
+  if (!params.video_hash) return {}
   params.with_output = params.with_output || true
   params.wait_until_done_running = params.wait_until_done_running || false
   params.block_until = params.block_until || false
@@ -84,6 +85,7 @@ export async function getLatestState(params: GetLatestStateParams): UserState {
 
 export async function getStepOutput(params: StepOutputParams) {
   if (params.user_email === '') return {}
+  if (!params.video_hash) return {}
   params.latest_retry = params.latest_retry || true
   params.step_keys = params.step_key
   delete params.step_key
@@ -198,6 +200,7 @@ const endpointForFileType = {
 }
 export async function downloadFile(params: DownloadFileParams) {
   if (params.user_email === '') return {}
+  if (!params.video_hash) return {}
   params.stream = false
   const filetype = params.filetype
   delete params.filetype
