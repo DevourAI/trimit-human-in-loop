@@ -17,7 +17,9 @@ const fetcherWithParams = async (url, params) => {
   try {
     const res = await axios.get(url, { baseURL: API_URL, params })
     const toReturn = res.data;
-    toReturn.headers = res.headers;
+    if (toReturn !== null && typeof toReturn === 'object') {
+      toReturn.headers = res.headers;
+    }
     return toReturn;
   } catch (error) {
     console.error('fetcherWithParams error', error);

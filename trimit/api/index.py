@@ -348,10 +348,10 @@ async def download_transcript_text(
     file_path = export_result.get("transcript_text")
 
     if file_path is None:
-        raise HTTPException(status_code=400, detail="No transcript found")
+        raise HTTPException(status_code=500, detail="No transcript found")
     if not os.path.exists(file_path):
         raise HTTPException(
-            status_code=400, detail=f"Transcript not found at {file_path}"
+            status_code=500, detail=f"Transcript not found at {file_path}"
         )
 
     return FileResponse(
@@ -373,10 +373,10 @@ async def download_soundbites_text(
     file_path = export_result.get("soundbites_text")
 
     if file_path is None:
-        raise HTTPException(status_code=400, detail="No soundbites found")
+        raise HTTPException(status_code=500, detail="No soundbites found")
     if not os.path.exists(file_path):
         raise HTTPException(
-            status_code=400, detail=f"Soundbites not found at {file_path}"
+            status_code=500, detail=f"Soundbites not found at {file_path}"
         )
 
     return FileResponse(
@@ -400,11 +400,11 @@ async def download_timeline(
 
     if timeline_path is None:
         print("download_timeline: timeline_path is none")
-        raise HTTPException(status_code=400, detail="No timeline found")
+        raise HTTPException(status_code=500, detail="No timeline found")
     if not os.path.exists(timeline_path):
         print("download_timeline: timeline_path not found")
         raise HTTPException(
-            status_code=400, detail=f"Timeline not found at {timeline_path}"
+            status_code=500, detail=f"Timeline not found at {timeline_path}"
         )
 
     return FileResponse(

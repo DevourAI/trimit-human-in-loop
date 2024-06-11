@@ -452,12 +452,22 @@ class CutTranscriptLinearWorkflow:
                 name="preprocess_video",
                 substeps=[
                     CurrentStepInfo(
-                        name="init_state", method=self.init_state, user_feedback=False
+                        name="init_state",
+                        method=self.init_state,
+                        user_feedback=False,
+                        export_transcript=False,
+                        export_soundbites=False,
+                        export_video=False,
+                        export_timeline=False,
                     ),
                     CurrentStepInfo(
                         name="remove_off_screen_speakers",
                         method=self.remove_off_screen_speakers,
                         user_feedback=True,
+                        export_transcript=True,
+                        export_soundbites=False,
+                        export_video=True,
+                        export_timeline=True,
                     ),
                 ],
             ),
@@ -468,6 +478,10 @@ class CutTranscriptLinearWorkflow:
                         name="generate_story",
                         method=self.generate_story,
                         user_feedback=True,
+                        export_transcript=False,
+                        export_soundbites=False,
+                        export_video=False,
+                        export_timeline=False,
                     )
                 ],
             ),
@@ -479,6 +493,10 @@ class CutTranscriptLinearWorkflow:
                         method=self.identify_key_soundbites,
                         user_feedback=True,
                         chunked_feedback=True,
+                        export_transcript=False,
+                        export_soundbites=True,
+                        export_video=False,
+                        export_timeline=False,
                     )
                 ],
             ),
@@ -492,6 +510,10 @@ class CutTranscriptLinearWorkflow:
                         method=self.cut_transcript_with_critiques,
                         user_feedback=False,
                         chunked_feedback=True,
+                        export_transcript=False,
+                        export_soundbites=True,
+                        export_video=False,
+                        export_timeline=False,
                     ),
                     CurrentStepInfo(
                         name="modify_transcript_holistically",
@@ -1180,10 +1202,32 @@ class CutTranscriptLinearWorkflow:
         yield output, True
 
     async def export_results(self, step_input: CutTranscriptLinearWorkflowStepInput):
+        substep = self._substep_for_step_input(step_input)
+        export_transcript = (
+            self.export_transcript
+            and substep.export_transcript
+            and self.current_transcript is not None
+        )
+        export_soundbites = (
+            self.export_soundbites
+            and substep.export_soundbites
+            and self.current_soundbites is not None
+        )
+        export_timeline = (
+            self.export_timeline
+            and substep.export_timeline
+            and self.current_transcript is not None
+        )
+        export_video = (
+            self.export_video
+            and substep.export_video
+            and self.current_transcript is not None
+        )
+
         output_dir = self.step_output_dir(step_input.step_name, step_input.substep_name)
         output_files = {}
         prefix = f"{Path(self.video.high_res_user_file_path).stem}_{step_input.substep_name}_"
-        if self.export_transcript and self.current_transcript is not None:
+        if export_transcript:
             yield "Exporting transcript", False
             transcript_file, transcript_text_file = save_transcript_to_disk(
                 output_dir=output_dir,
@@ -1195,7 +1239,7 @@ class CutTranscriptLinearWorkflow:
             if self.export_transcript_text:
                 output_files["transcript_text"] = transcript_text_file
 
-        if self.export_soundbites and self.current_soundbites is not None:
+        if export_soundbites:
             yield "Exporting soundbites", False
             soundbites_file, soundbites_text_file = save_transcript_to_disk(
                 output_dir=output_dir,
@@ -1208,7 +1252,7 @@ class CutTranscriptLinearWorkflow:
             if self.export_transcript_text:
                 output_files["soundbites_text"] = soundbites_text_file
 
-        if self.export_timeline and self.current_transcript is not None:
+        if export_timeline:
             yield "Exporting timeline", False
             # TODO can make this async gen and pass partial output
             video_timeline_file = create_fcp_7_xml_from_single_video_transcript(
@@ -1223,7 +1267,7 @@ class CutTranscriptLinearWorkflow:
             )
             output_files["video_timeline"] = video_timeline_file
 
-        if self.export_video and self.current_transcript is not None:
+        if export_video:
             yield "Exporting video", False
             # TODO can make this async gen and pass partial output
             cut_video_path = await create_cut_video_from_transcript(
@@ -2183,3 +2227,9 @@ class CutTranscriptLinearWorkflow:
             else None
         )
         yield (transcript, kept_soundbites), True
+
+    def _substep_for_step_input(self, step_input):
+        step_name = step_input.step_name
+        substep_name = step_input.substep_name
+        _, substep = self.get_step_by_name(step_name, substep_name)
+        return substep

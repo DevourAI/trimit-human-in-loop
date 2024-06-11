@@ -1471,6 +1471,10 @@ class CurrentStepInfo(BaseModel):
     input: CutTranscriptLinearWorkflowStepInput | None = None
     chunked_feedback: bool = False
     step: Union["StepWrapper", None] = None
+    export_transcript: Optional[bool] = True
+    export_video: Optional[bool] = True
+    export_soundbites: Optional[bool] = True
+    export_timeline: Optional[bool] = True
 
     def model_dump_json(self, *args, **kwargs):
         return super().model_dump_json(*args, exclude={"method", "step"}, **kwargs)

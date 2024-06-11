@@ -42,7 +42,6 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
   const {
     activeStep
   } = useStepper()
-  console.log("activeStep", activeStep, "stepIndex", stepIndex);
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   })

@@ -300,7 +300,6 @@ export default function MainStepper({ userData }) {
 
   const downloadParams = {user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds}
 
-  console.log('currentStepIndex', currentStepIndex)
   return (
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
