@@ -8,17 +8,15 @@ import {
 } from "@/lib/api";
 
 export default function DownloadButtons({userParams, ...options}) {
-   const downloadParams = {
-      ...userParams,
-   }
-   if (options.stepName) {
-      downloadParams.step_name = options.stepName
-   }
-   if (options.substepName) {
-      downloadParams.substep_name = options.substepName
-   }
-   console.log('download params', downloadParams)
-
+  const downloadParams = {
+     ...userParams,
+  }
+  if (options.stepName) {
+     downloadParams.step_name = options.stepName
+  }
+  if (options.substepName) {
+     downloadParams.substep_name = options.substepName
+  }
   return (
     <div className="grid w-full max-w-sm items-center gap-1.5">
        <Button onClick={() => downloadVideo(downloadParams)}>

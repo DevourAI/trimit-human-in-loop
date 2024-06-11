@@ -1660,7 +1660,7 @@ class CutTranscriptLinearWorkflow:
             partial_on_screen_transcript=assistant_cut_transcript_chunk,
             partial_on_screen_transcript_text=assistant_cut_transcript_chunk.text_with_keep_and_remove_tags,
             task_description_prompt=parse_prompt_template(
-                "critique_cut_detailed_task_description",
+                "critique_cut_detailed_task_description_no_remove",
                 num_partial_transcripts=len(
                     assistant_cut_transcript_chunk.transcript.chunks
                 ),
@@ -1749,8 +1749,8 @@ class CutTranscriptLinearWorkflow:
             narrative_story=self.story,
             num_partial_transcripts=len(partial_on_screen_transcript.transcript.chunks),
         )
-        output_reqs = parse_prompt_template("shared_output_requirements")
-        example = parse_prompt_template("shared_example")
+        output_reqs = parse_prompt_template("shared_output_requirements_no_remove")
+        example = parse_prompt_template("shared_example_no_remove")
         extra_notes = parse_prompt_template(
             "cut_partial_extra_notes",
             prev_final_transcript_words=(
@@ -1767,7 +1767,7 @@ class CutTranscriptLinearWorkflow:
             user_feedback=user_feedback,
         )
 
-        important_summary = parse_prompt_template("shared_important_summary")
+        important_summary = parse_prompt_template("shared_important_summary_no_remove")
         prompt = load_prompt_template_as_string("cut_partial_transcript")
         output = ""
         async for output, is_last in get_agent_output_modal_or_local(
@@ -2190,7 +2190,7 @@ class CutTranscriptLinearWorkflow:
             narrative_story=self.story,
         )
         output_reqs = parse_prompt_template("shared_output_requirements_no_remove")
-        example = parse_prompt_template("shared_example")
+        example = parse_prompt_template("shared_example_no_remove")
         extra_notes = parse_prompt_template(
             "modify_extra_notes",
             transcript_nwords=transcript.kept_word_count,
@@ -2206,7 +2206,7 @@ class CutTranscriptLinearWorkflow:
             transcript_nwords=transcript.kept_word_count,
             total_words=desired_words,
         )
-        important_summary = parse_prompt_template("shared_important_summary")
+        important_summary = parse_prompt_template("shared_important_summary_no_remove")
         prompt = load_prompt_template_as_string("modify_holistically")
         output = None
         async for output, is_last in get_agent_output_modal_or_local(
