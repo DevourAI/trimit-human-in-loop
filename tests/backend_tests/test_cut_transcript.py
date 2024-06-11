@@ -383,7 +383,6 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         i += 1
     assert len(step_outputs) == len(expected_step_names)
     assert [s.substep_name == e for s, e in zip(step_outputs, expected_step_names)]
-    breakpoint()
 
     output = await workflow.get_last_output_before_end(with_load_state=False)
     output_files = output.export_result
@@ -402,7 +401,15 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         "video_timeline" in substep_output.export_result
         for output in all_outputs
         for substep_output in output["substeps"]
-        if substep_output.substep_name not in ("init_state", "end")
+        if substep_output.substep_name
+        in ("remove_off_screen_speakers", "modify_transcript_holistically")
+    )
+    assert all(
+        "video_timeline" not in substep_output.export_result
+        for output in all_outputs
+        for substep_output in output["substeps"]
+        if substep_output.substep_name
+        not in ("end", "remove_off_screen_speakers", "modify_transcript_holistically")
     )
 
     output_for_steps = await workflow.get_output_for_keys(
@@ -415,8 +422,6 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
     )
     step0_tl_file = output_for_steps[0].export_result.get("video_timeline")
     assert step0_tl_file and os.stat(step0_tl_file).st_size > 0
-    step1_tl_file = output_for_steps[1].export_result.get("video_timeline")
-    assert step1_tl_file and os.stat(step1_tl_file).st_size > 0
 
     first_stage_transcript = Transcript.load_from_state(
         output_for_steps[0].step_outputs["current_transcript_state"]
@@ -474,6 +479,7 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
 
 
 async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcript):
+    # TODO fix testing outputs to be the same as the non db save above
     workflow = workflow_3909774043_with_transcript
 
     user_inputs = ["make me a video", "", "", "", "", "", "", ""]

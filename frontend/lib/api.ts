@@ -8,13 +8,18 @@ import {
 } from './types'
 import axios from 'axios';
 
-const API_URL = process.env.NEXT_PUBLIC_API_BASE_URL
+let API_URL = process.env.NEXT_PUBLIC_API_BASE_URL_REMOTE
+if (process.env.BACKEND === 'local') {
+  API_URL = process.env.NEXT_PUBLIC_API_BASE_URL_LOCAL
+}
 
 const fetcherWithParams = async (url, params) => {
   try {
     const res = await axios.get(url, { baseURL: API_URL, params })
     const toReturn = res.data;
-    toReturn.headers = res.headers;
+    if (toReturn !== null && typeof toReturn === 'object') {
+      toReturn.headers = res.headers;
+    }
     return toReturn;
   } catch (error) {
     console.error('fetcherWithParams error', error);
@@ -66,6 +71,7 @@ export async function revertStepInBackend(params: RevertStepParams): UserState {
 
 export async function getLatestState(params: GetLatestStateParams): UserState {
   if (params.user_email === '') return {}
+  if (!params.video_hash) return {}
   params.with_output = params.with_output || true
   params.wait_until_done_running = params.wait_until_done_running || false
   params.block_until = params.block_until || false
@@ -81,6 +87,7 @@ export async function getLatestState(params: GetLatestStateParams): UserState {
 
 export async function getStepOutput(params: StepOutputParams) {
   if (params.user_email === '') return {}
+  if (!params.video_hash) return {}
   params.latest_retry = params.latest_retry || true
   params.step_keys = params.step_key
   delete params.step_key
@@ -95,7 +102,11 @@ export async function getStepOutput(params: StepOutputParams) {
 
 export async function step(params: StepParams, streamReaderCallback) {
   const url = new URL(`${API_URL}/step`)
-  Object.keys(params).forEach(key => url.searchParams.append(key, params[key]));
+  Object.keys(params).forEach(key => {
+    if (params[key] !== undefined && params[key] !== null) {
+      url.searchParams.append(key, params[key])
+    }
+  });
   try {
     const res = await fetch(
       url.toString(),
@@ -191,6 +202,7 @@ const endpointForFileType = {
 }
 export async function downloadFile(params: DownloadFileParams) {
   if (params.user_email === '') return {}
+  if (!params.video_hash) return {}
   params.stream = false
   const filetype = params.filetype
   delete params.filetype

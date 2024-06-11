@@ -12,7 +12,6 @@ import {
   TableRow,
 } from "@/components/ui/table"
 
-
 export default function VideoSelector({userData, videoProcessingStatuses, setVideoHash}) {
   const [selectedVideo, setSelectedVideo] = useState(null);
   const [uploadedVideos, setUploadedVideos] = useState([]);
@@ -20,7 +19,6 @@ export default function VideoSelector({userData, videoProcessingStatuses, setVid
   useEffect(() => {
     async function fetchUploadedVideos() {
         const _uploadedVideos = await getUploadedVideos({user_email: userData.email} as GetUploadedVideoParams);
-        console.log('In VideoSelector: uploadedVideos', _uploadedVideos);
         setUploadedVideos(_uploadedVideos);
         setSelectedVideo(_uploadedVideos[0]);
     }
@@ -57,10 +55,10 @@ export default function VideoSelector({userData, videoProcessingStatuses, setVid
                     </video>
                   </TableCell>
                   <TableCell className="font-medium">{
-                    videoProcessingStatuses[video.video_hash]?
-                      videoProcessingStatuses[video.video_hash].status === "error" ?
+                    videoProcessingStatuses[video.hash]?
+                      videoProcessingStatuses[video.hash].status === "error" ?
                         "Error"
-                      : videoProcessingStatuses[video.video_hash].status === "pending" ?
+                      : videoProcessingStatuses[video.hash].status === "pending" ?
                         "Processing"
                       : "Ready to use"
                     : "Ready to use"

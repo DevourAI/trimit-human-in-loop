@@ -1218,6 +1218,9 @@ def stage_key_for_step_name(step_name, stage_num):
     container_idle_timeout=30,
 )
 async def export_results_wrapper(workflow, state_save_key, current_substep):
+    from trimit.models import maybe_init_mongo
+
+    await maybe_init_mongo()
     print(f"Exporting results for step {state_save_key}")
     export_result = None
     async for export_result, is_last in workflow.export_results(current_substep.input):

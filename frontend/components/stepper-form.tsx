@@ -24,8 +24,7 @@ import Ansi from "ansi-to-react";
 
 
 const FormSchema = z.object({
-  feedback: z
-    .coerce.string()
+  feedback: z.optional(z.string())
     // .min(10, {
       // message: "Bio must be at least 10 characters.",
     // })

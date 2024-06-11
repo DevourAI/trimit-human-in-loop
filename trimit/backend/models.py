@@ -1471,6 +1471,10 @@ class CurrentStepInfo(BaseModel):
     input: CutTranscriptLinearWorkflowStepInput | None = None
     chunked_feedback: bool = False
     step: Union["StepWrapper", None] = None
+    export_transcript: Optional[bool] = True
+    export_video: Optional[bool] = True
+    export_soundbites: Optional[bool] = True
+    export_timeline: Optional[bool] = True
 
     def model_dump_json(self, *args, **kwargs):
         return super().model_dump_json(*args, exclude={"method", "step"}, **kwargs)
@@ -1493,3 +1497,50 @@ class StepWrapper(BaseModel):
         super().__init__(*args, **kwargs)
         for substep in self.substeps:
             substep.step = self
+
+
+class Steps(BaseModel):
+    steps: list[StepWrapper]
+
+    def __iter__(self):
+        return iter(self.steps)
+
+    def __getitem__(self, index):
+        return self.steps[index]
+
+    def __len__(self):
+        return len(self.steps)
+
+    # TODO next_substep should reference next_step so we can just return next_substep
+    # instead of needing both of these
+    def substep_for_index(self, step_index, substep_index):
+        if step_index >= len(self.steps):
+            return None
+        if substep_index >= len(self.steps[step_index].substeps):
+            return None
+        return self.steps[step_index].substeps[substep_index]
+
+    def next_step_index(self, step_index, substep_index):
+        if step_index >= len(self.steps):
+            raise ValueError("Step out of bounds")
+        cur_step = self.steps[step_index]
+        if substep_index >= len(cur_step.substeps):
+            raise ValueError("Step out of bounds")
+        substep_index += 1
+        if substep_index >= len(cur_step.substeps):
+            substep_index = 0
+            step_index += 1
+            if step_index >= len(self.steps):
+                return None, None
+        return step_index, substep_index
+
+    def last_step_index(self, step_index, substep_index):
+        if step_index >= len(self.steps):
+            return len(self.steps) - 1, len(self.steps[-1].substeps) - 1
+        substep_index -= 1
+        if substep_index < 0:
+            step_index -= 1
+            substep_index = len(self.steps[step_index].substeps) - 1
+            if step_index < 0:
+                return None, None
+        return step_index, substep_index

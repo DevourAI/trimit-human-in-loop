@@ -19,9 +19,12 @@ export default function UploadVideo({uploadVideo}) {
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (selectedVideo) {
-      console.log('uploading video', selectedVideo)
       setIsUploading(true)
-      await uploadVideo(selectedVideo)
+      try {
+        await uploadVideo(selectedVideo)
+      } catch (error) {
+        console.error('Error uploading video', error)
+      }
       setIsUploading(false)
     }
   };

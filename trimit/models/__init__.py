@@ -66,7 +66,7 @@ def pymongo_conn(db: str | None = None, cert_path: str | None = None):
 
 def get_motor_client(cert_path: str | None = None, **motor_kwargs):
     if not cert_path:
-        if is_local() and not os.environ["ENV"] == "test":
+        if is_local() and not os.environ["ENV"] in ["test", "local"]:
             os.environ["MONGO_CERT_FILEPATH"] = os.environ["MONGO_CERT_FILENAME"]
         cert_path = os.environ["MONGO_CERT_FILEPATH"] or None
 

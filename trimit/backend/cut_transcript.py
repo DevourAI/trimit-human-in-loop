@@ -66,6 +66,7 @@ from trimit.backend.models import (
     StepWrapper,
     CurrentStepInfo,
     CutTranscriptLinearWorkflowStepResults,
+    Steps,
 )
 
 
@@ -451,12 +452,22 @@ class CutTranscriptLinearWorkflow:
                 name="preprocess_video",
                 substeps=[
                     CurrentStepInfo(
-                        name="init_state", method=self.init_state, user_feedback=False
+                        name="init_state",
+                        method=self.init_state,
+                        user_feedback=False,
+                        export_transcript=False,
+                        export_soundbites=False,
+                        export_video=False,
+                        export_timeline=False,
                     ),
                     CurrentStepInfo(
                         name="remove_off_screen_speakers",
                         method=self.remove_off_screen_speakers,
                         user_feedback=True,
+                        export_transcript=True,
+                        export_soundbites=False,
+                        export_video=True,
+                        export_timeline=True,
                     ),
                 ],
             ),
@@ -467,6 +478,10 @@ class CutTranscriptLinearWorkflow:
                         name="generate_story",
                         method=self.generate_story,
                         user_feedback=True,
+                        export_transcript=False,
+                        export_soundbites=False,
+                        export_video=False,
+                        export_timeline=False,
                     )
                 ],
             ),
@@ -478,6 +493,10 @@ class CutTranscriptLinearWorkflow:
                         method=self.identify_key_soundbites,
                         user_feedback=True,
                         chunked_feedback=True,
+                        export_transcript=False,
+                        export_soundbites=True,
+                        export_video=False,
+                        export_timeline=False,
                     )
                 ],
             ),
@@ -491,6 +510,10 @@ class CutTranscriptLinearWorkflow:
                         method=self.cut_transcript_with_critiques,
                         user_feedback=False,
                         chunked_feedback=True,
+                        export_transcript=False,
+                        export_soundbites=True,
+                        export_video=False,
+                        export_timeline=False,
                     ),
                     CurrentStepInfo(
                         name="modify_transcript_holistically",
@@ -501,7 +524,7 @@ class CutTranscriptLinearWorkflow:
                 ],
             )
             _steps.append(step_wrapper)
-        return _steps
+        return Steps(steps=_steps)
 
     @property
     def serializable_steps(self):
@@ -535,6 +558,7 @@ class CutTranscriptLinearWorkflow:
         assert step_order is not None
         self.step_order = step_order
 
+    # TODO all these methods need a major refactor
     async def get_last_step(self, with_load_state=True):
         if with_load_state:
             await self.load_step_order()
@@ -543,7 +567,10 @@ class CutTranscriptLinearWorkflow:
     async def get_last_substep(self, with_load_state=True):
         if with_load_state:
             await self.load_step_order()
-        last_step_index, step, substep_index = self._get_last_step_with_index()
+        try:
+            last_step_index, step, substep_index = self._get_last_step_with_index()
+        except ValueError:
+            return None
         if step is not None:
             if substep_index >= len(step.substeps):
                 assert last_step_index >= len(self.steps)
@@ -551,19 +578,78 @@ class CutTranscriptLinearWorkflow:
             return step.substeps[substep_index]
         return None
 
+    async def get_last_substep_with_user_feedback(self, with_load_state=True):
+        if with_load_state:
+            await self.load_step_order()
+        try:
+            step_index, step, substep_index = self._get_last_step_with_index()
+        except ValueError:
+            return None
+        while True:
+            if step is None or step_index is None:
+                return None
+            else:
+                assert substep_index is not None
+                assert step_index is not None
+                if substep_index >= len(step.substeps):
+                    assert step_index >= len(self.steps)
+                    substep_index = len(step.substeps) - 1
+                    step_index = len(self.steps) - 1
+                step = self.steps[step_index]
+                substep = step.substeps[substep_index]
+                if substep.user_feedback:
+                    return substep
+                try:
+                    step_index, substep_index = self.steps.last_step_index(
+                        step_index, substep_index
+                    )
+                except ValueError:
+                    return None
+
     async def get_next_step(self, with_load_state=True):
         if with_load_state:
             await self.load_step_order()
-        return self._get_next_step_with_index()[1:]
+        try:
+            return self._get_next_step_with_index()[1:]
+        except ValueError:
+            return None
 
     async def get_next_substep(self, with_load_state=True):
         if with_load_state:
             await self.load_step_order()
-        step, substep_index = self._get_next_step_with_index()[1:]
+        try:
+            step, substep_index = self._get_next_step_with_index()[1:]
+        except ValueError:
+            return None
         if step is not None:
             assert substep_index is not None
             return step.substeps[substep_index]
         return None
+
+    # TODO this function name is overloaded with _get_next_step_with_user_feedback
+    # which has a different meaning and is used in a different context
+    async def get_next_substep_with_user_feedback(self, with_load_state=True):
+        if with_load_state:
+            await self.load_step_order()
+        try:
+            step_index, step, substep_index = self._get_next_step_with_index()
+        except ValueError:
+            return None
+        while True:
+            if step is not None:
+                assert substep_index is not None
+                substep = step.substeps[substep_index]
+                if substep.user_feedback:
+                    return substep
+                try:
+                    step_index, substep_index = self.steps.next_step_index(
+                        step_index, substep_index
+                    )
+                except ValueError:
+                    return None
+                step = self.steps[step_index]
+            else:
+                return None
 
     async def get_last_output(self, with_load_state=True):
         if with_load_state:
@@ -1116,10 +1202,32 @@ class CutTranscriptLinearWorkflow:
         yield output, True
 
     async def export_results(self, step_input: CutTranscriptLinearWorkflowStepInput):
+        substep = self._substep_for_step_input(step_input)
+        export_transcript = (
+            self.export_transcript
+            and substep.export_transcript
+            and self.current_transcript is not None
+        )
+        export_soundbites = (
+            self.export_soundbites
+            and substep.export_soundbites
+            and self.current_soundbites is not None
+        )
+        export_timeline = (
+            self.export_timeline
+            and substep.export_timeline
+            and self.current_transcript is not None
+        )
+        export_video = (
+            self.export_video
+            and substep.export_video
+            and self.current_transcript is not None
+        )
+
         output_dir = self.step_output_dir(step_input.step_name, step_input.substep_name)
         output_files = {}
         prefix = f"{Path(self.video.high_res_user_file_path).stem}_{step_input.substep_name}_"
-        if self.export_transcript and self.current_transcript is not None:
+        if export_transcript:
             yield "Exporting transcript", False
             transcript_file, transcript_text_file = save_transcript_to_disk(
                 output_dir=output_dir,
@@ -1131,7 +1239,7 @@ class CutTranscriptLinearWorkflow:
             if self.export_transcript_text:
                 output_files["transcript_text"] = transcript_text_file
 
-        if self.export_soundbites and self.current_soundbites is not None:
+        if export_soundbites:
             yield "Exporting soundbites", False
             soundbites_file, soundbites_text_file = save_transcript_to_disk(
                 output_dir=output_dir,
@@ -1144,7 +1252,7 @@ class CutTranscriptLinearWorkflow:
             if self.export_transcript_text:
                 output_files["soundbites_text"] = soundbites_text_file
 
-        if self.export_timeline and self.current_transcript is not None:
+        if export_timeline:
             yield "Exporting timeline", False
             # TODO can make this async gen and pass partial output
             video_timeline_file = create_fcp_7_xml_from_single_video_transcript(
@@ -1159,7 +1267,7 @@ class CutTranscriptLinearWorkflow:
             )
             output_files["video_timeline"] = video_timeline_file
 
-        if self.export_video and self.current_transcript is not None:
+        if export_video:
             yield "Exporting video", False
             # TODO can make this async gen and pass partial output
             cut_video_path = await create_cut_video_from_transcript(
@@ -1228,19 +1336,14 @@ class CutTranscriptLinearWorkflow:
     def _get_next_step_with_index(self):
         # TODO use get_step_by_name
         last_step_index, _, last_substep_index = self._get_last_step_with_index()
-        if last_step_index == -1:
+        if last_step_index < 0:
             return 0, self.steps[0], 0
+        next_step_index, next_substep_index = self.steps.next_step_index(
+            last_step_index, last_substep_index
+        )
+        if next_step_index is None:
+            return len(self.steps), None, len(self.steps[-1].substeps)
         assert last_substep_index is not None
-        if (
-            last_step_index >= len(self.steps) - 1
-            and last_substep_index >= len(self.steps[-1].substeps) - 1
-        ):
-            return len(self.steps), None, None
-        next_step_index = last_step_index
-        next_substep_index = last_substep_index + 1
-        if next_substep_index >= len(self.steps[-1].substeps) - 1:
-            next_substep_index = 0
-            next_step_index += 1
         next_step = self.steps[next_step_index]
         return next_step_index, next_step, next_substep_index
 
@@ -1276,17 +1379,13 @@ class CutTranscriptLinearWorkflow:
             last_substep.input.substep_name = last_substep.name
             return last_step, last_substep_index
 
-        if (
-            last_step_index >= len(self.steps) - 1
-            and last_substep_index >= len(last_step.substeps) - 1
-        ):
+        next_step_index, next_substep_index = self.steps.next_step_index(
+            last_step_index, last_substep_index
+        )
+
+        if next_step_index is None:
             return None, None
 
-        next_substep_index = last_substep_index + 1
-        next_step_index = last_step_index
-        if next_substep_index >= len(last_step.substeps):
-            next_step_index += 1
-            next_substep_index = 0
         next_step = self.steps[next_step_index]
         next_substep = next_step.substeps[next_substep_index]
         next_substep.input = CutTranscriptLinearWorkflowStepInput(
@@ -1297,6 +1396,8 @@ class CutTranscriptLinearWorkflow:
             step_name=next_step.name,
             substep_name=next_substep.name,
         )
+        # TODO next_substep should reference next_step so we can just return next_substep
+        # instead of needing both of these
         return next_step, next_substep_index
 
     async def _save_raw_step_result(self, step_result_raw):
@@ -2126,3 +2227,9 @@ class CutTranscriptLinearWorkflow:
             else None
         )
         yield (transcript, kept_soundbites), True
+
+    def _substep_for_step_input(self, step_input):
+        step_name = step_input.step_name
+        substep_name = step_input.substep_name
+        _, substep = self.get_step_by_name(step_name, substep_name)
+        return substep

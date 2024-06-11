@@ -45,25 +45,24 @@ function remove_retry_suffix(stepName: string): string {
 
 
 function findNextActionStepIndex(allStepIndex, allSteps, actionSteps) {
-  const actionStepNames = actionSteps.map((step) => step.name)
-  for (let i = allStepIndex; i < allSteps.length; i++) {
-    const actionStepIndex = actionStepNames.indexOf(allSteps[i].name)
-    if (actionStepIndex > -1) {
-      return actionStepIndex
-    }
-  }
-  return actionSteps.length
+  // TODO remove action steps entirely, not needed anymore. The folowing is a stub until the notion is removed from code
+  return allStepIndex
 }
 
 function stepIndexFromState(state: UserState): number {
   if (state && state.next_step) {
-    return stepIndexFromName(state.next_step.name, allSteps, actionSteps)
+    return stepIndexFromName(state.next_step.step_name, state.next_step.name, allSteps, actionSteps)
+  } else if (state && state.last_step) {
+    // next step is none if we have finished , but we can stay on last step for retry handling
+    // TODO: something on the UI that signals we've finished
+    return stepIndexFromName(state.last_step.step_name, state.last_step.name, allSteps, actionSteps)
   }
   return 0
 }
 
-function stepIndexFromName(substepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
-  const _currentAllStepIndex = allSteps.findIndex((step) => step.name === remove_retry_suffix(substepName))
+function stepIndexFromName(stepName: string, substepName: string, allSteps: StepInfo[], actionSteps: StepInfo[]): number {
+  const _currentAllStepIndex = allSteps.findIndex((step) => (step.name === remove_retry_suffix(substepName) && step.step_name == stepName))
+  console.log('stepName', stepName, 'substepName', substepName, 'allSteps', allSteps, 'actionSteps', actionSteps, '_currentAllStepIndex', _currentAllStepIndex)
   if (_currentAllStepIndex !== -1) {
     const nextActionStepIndex = findNextActionStepIndex(_currentAllStepIndex, allSteps, actionSteps)
     if (nextActionStepIndex >= actionSteps.length) {
@@ -103,16 +102,19 @@ export default function MainStepper({ userData }) {
     async function fetchLatestState() {
         const data = await getLatestState(userParams as GetLatestStateParams);
         setLatestState(data);
+        console.log('data', data)
         setCurrentStepIndex(stepIndexFromState(data))
         if (userData.email) {
           const videoProcessesStatusesRaw = await getVideoProcessingStatuses(userData.email);
+          const newVideoProcessingStatuses = {...videoProcessingStatuses}
           if (videoProcessesStatusesRaw.result && videoProcessesStatusesRaw.result !== "error") {
             videoProcessesStatusesRaw.result.forEach((result) => {
-              videoProcessingStatuses[result.video_hash] = {
+              newVideoProcessingStatuses[result.video_hash] = {
                 status: result.status,
               }
             })
           }
+          setVideoProcessingStatuses(newVideoProcessingStatuses)
         }
 
     }
@@ -132,11 +134,11 @@ export default function MainStepper({ userData }) {
 
   useEffect(() => {
     let timeoutId;
-
     async function pollForDone() {
       const data = await getVideoProcessingStatuses(userData.email);
+      let anyPending = false
       if (data.result && data.result !== "error") {
-        const newVideoProcessingStatuses = videoProcessingStatuses
+        const newVideoProcessingStatuses = {...videoProcessingStatuses}
         data.result.forEach((result) => {
           const videoHash = result.video_hash
           if (result.status === "done") {
@@ -144,15 +146,18 @@ export default function MainStepper({ userData }) {
           } else if (result.status === "error") {
             console.error(`Error processing video ${videoHash}: ${result.error}`)
             newVideoProcessingStatuses[videoHash].status = "error"
+          } else {
+            anyPending = true
           }
         })
         setVideoProcessingStatuses(newVideoProcessingStatuses)
-      } else {
+      }
+      if (anyPending) {
         timeoutId = setTimeout(pollForDone, POLL_INTERVAL);
       }
     }
 
-    if (videoProcessingStatuses.length) {
+    if (Object.keys(videoProcessingStatuses).length) {
       pollForDone();
     }
 
@@ -172,11 +177,8 @@ export default function MainStepper({ userData }) {
   }, '');
 
   async function onSubmit(stepIndex: number, data: z.infer<typeof FormSchema>) {
-    console.log("submitting")
-    console.log("feedback", data.feedback)
     setIsLoading(true)
     if (needsRevert) {
-      console.log('reverting step');
       for (let i = 0; i < trueStepIndex - stepIndex; i++) {
         await undoLastStepBeforeRetries()
       }
@@ -195,7 +197,6 @@ export default function MainStepper({ userData }) {
         let valueToAppend = value;
         if (typeof value !== 'string') {
           if (value.substep_name !== undefined) {
-            console.log("value output", value)
             const stepIndex = stepIndexFromName(value.substep_name, allSteps, actionSteps)
             setTrueStepIndex(stepIndex)
             setCurrentStepIndex(stepIndex)
@@ -285,19 +286,15 @@ export default function MainStepper({ userData }) {
 
   async function uploadVideoWrapper(videoFile) {
     const respData = await uploadVideo({videoFile, userEmail: userData.email, timelineName})
-    console.log("upload response data", respData)
-    if (respData && respData.videoHashes) {
-      console.log("got video hash", respData.videoHashes[0])
-    }
     if (respData && respData.processing_call_id) {
       const newEntries = {
-        [respData.videoHashes[0]]: {
+        [respData.video_hashes[0]]: {
           callId: respData.processing_call_id,
           status: "pending"
         }
       }
 
-      setVideoProcessingStatuses({videoProcessingStatuses, ...newEntries})
+      setVideoProcessingStatuses({...videoProcessingStatuses, ...newEntries})
     }
   }
 
@@ -308,9 +305,9 @@ export default function MainStepper({ userData }) {
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
        <VideoSelector userData={userData} videoProcessingStatuses={videoProcessingStatuses} setVideoHash={setVideoHash}/>
        <Stepper initialStep={currentStepIndex} steps={stepData.stepArray}>
-         {actionSteps.map(({ name, human_readable_name }, index) => {
+         {actionSteps.map(({ step_name, name, human_readable_name }, index) => {
            return (
-             <Step key={name} label={human_readable_name}>
+             <Step key={`${step_name}.${name}`} label={human_readable_name}>
                <div className="grid w-full gap-2">
                  <StepperForm
                    systemPrompt={activePrompt}
@@ -326,7 +323,7 @@ export default function MainStepper({ userData }) {
              </Step>
            )
          })}
-  {/*<Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />*/}
+       <Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />
        </Stepper>
        <Button onClick={() => downloadVideo(downloadParams)}>
           Download latest video
@@ -355,7 +352,9 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
     isOptionalStep,
     setStep
   } = useStepper()
-  setStep(currentStepIndex)
+  useEffect(() => {
+    setStep(currentStepIndex);
+  }, [currentStepIndex]);
   return (
     <>
 

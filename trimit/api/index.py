@@ -25,6 +25,7 @@ from fastapi import (
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.utils import conf
+from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
     async_copy_to_s3,
     save_file_to_volume_as_crc_hash,
@@ -34,8 +35,8 @@ from trimit.utils.fs_utils import (
 )
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
-from trimit.api.utils import load_or_create_workflow, workflows
-from trimit.app import app, get_volume_dir, S3_BUCKET, S3_VIDEO_PATH
+from trimit.api.utils import load_or_create_workflow
+from trimit.app import app, get_volume_dir, S3_BUCKET
 from trimit.models import (
     maybe_init_mongo,
     Video,
@@ -164,15 +165,18 @@ async def get_all_outputs(
     return await workflow.get_all_outputs()
 
 
-async def check_call_status(modal_call_id, timeout):
+def check_call_status(modal_call_id, timeout: float = 0):
     try:
         fc = FunctionCall.from_id(modal_call_id)
         try:
-            result = await fc.get(timeout=timeout)
+            result = fc.get(timeout=timeout)
         except TimeoutError:
             result = {"status": "pending"}
     except Exception as e:
-        result = {"status": "error", "error": str(e)}
+        if "not found" in str(e):
+            result = {"status": "done"}
+        else:
+            result = {"status": "error", "error": str(e)}
     return result
 
 
@@ -191,19 +195,24 @@ async def get_video_processing_status(
             .to_list()
         ]
     call_ids = [
-        video_processing_call_ids[(user_email, h)]
+        (
+            video_processing_call_ids[(user_email, h)]
+            if (user_email, h) in video_processing_call_ids
+            else None
+        )
         for h in video_hashes
-        if (user_email, h) in video_processing_call_ids
     ]
-    statuses = await asyncio.gather(
-        check_call_status(call_id, timeout) for call_id in call_ids
-    )
+    statuses = [
+        check_call_status(call_id, timeout=timeout) if call_id else None
+        for call_id in call_ids
+    ]
     expanded_statuses = []
     for video_hash, status in zip(video_hashes, statuses):
         if status is None:
             status = {"status": "done"}
         elif status["status"] == "done":
-            del video_processing_call_ids[(user_email, video_hash)]
+            if (user_email, video_hash) in video_processing_call_ids:
+                del video_processing_call_ids[(user_email, video_hash)]
         status["video_hash"] = video_hash
         expanded_statuses.append(status)
     return {"result": expanded_statuses}
@@ -214,7 +223,7 @@ async def get_video_processing_status(
 @web_app.get("/check_function_call_results")
 async def check_function_call_results(modal_call_ids: list[str], timeout: float = 0):
     statuses = await asyncio.gather(
-        check_call_status(call_id, timeout) for call_id in modal_call_ids
+        *[check_call_status(call_id, timeout) for call_id in modal_call_ids]
     )
     return {"result": statuses}
 
@@ -238,6 +247,7 @@ def step_endpoint(
         "user_input": user_input,
         "force_restart": force_restart,
         "ignore_running_workflows": ignore_running_workflows,
+        "async_export": os.environ.get("ASYNC_EXPORT", False),
     }
     from trimit.backend.serve import step as step_function
 
@@ -246,9 +256,11 @@ def step_endpoint(
 
         async def streamer():
             yield json.dumps({"message": "Running step...\n", "is_last": False}) + "\n"
-            async for partial_result, is_last in step_function.remote_gen.aio(
-                **step_params
-            ):
+            if is_local():
+                method = step_function.local
+            else:
+                method = step_function.remote_gen.aio
+            async for partial_result, is_last in method(**step_params):
                 if isinstance(partial_result, BaseModel):
                     yield json.dumps(
                         {
@@ -299,9 +311,13 @@ async def get_latest_state(
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
-    last_step_obj = await workflow.get_last_substep(with_load_state=False)
+    last_step_obj = await workflow.get_last_substep_with_user_feedback(
+        with_load_state=False
+    )
     last_step_dict = last_step_obj.to_dict() if last_step_obj else None
-    next_step_obj = await workflow.get_next_substep(with_load_state=False)
+    next_step_obj = await workflow.get_next_substep_with_user_feedback(
+        with_load_state=False
+    )
     next_step_dict = next_step_obj.to_dict() if next_step_obj else None
 
     return_dict = {
@@ -332,10 +348,10 @@ async def download_transcript_text(
     file_path = export_result.get("transcript_text")
 
     if file_path is None:
-        raise HTTPException(status_code=400, detail="No transcript found")
+        raise HTTPException(status_code=500, detail="No transcript found")
     if not os.path.exists(file_path):
         raise HTTPException(
-            status_code=400, detail=f"Transcript not found at {file_path}"
+            status_code=500, detail=f"Transcript not found at {file_path}"
         )
 
     return FileResponse(
@@ -357,10 +373,10 @@ async def download_soundbites_text(
     file_path = export_result.get("soundbites_text")
 
     if file_path is None:
-        raise HTTPException(status_code=400, detail="No soundbites found")
+        raise HTTPException(status_code=500, detail="No soundbites found")
     if not os.path.exists(file_path):
         raise HTTPException(
-            status_code=400, detail=f"Soundbites not found at {file_path}"
+            status_code=500, detail=f"Soundbites not found at {file_path}"
         )
 
     return FileResponse(
@@ -384,11 +400,11 @@ async def download_timeline(
 
     if timeline_path is None:
         print("download_timeline: timeline_path is none")
-        raise HTTPException(status_code=400, detail="No timeline found")
+        raise HTTPException(status_code=500, detail="No timeline found")
     if not os.path.exists(timeline_path):
         print("download_timeline: timeline_path not found")
         raise HTTPException(
-            status_code=400, detail=f"Timeline not found at {timeline_path}"
+            status_code=500, detail=f"Timeline not found at {timeline_path}"
         )
 
     return FileResponse(
@@ -565,11 +581,12 @@ async def upload_multiple_files(
             volume_file_path = video.path(volume_dir)
             audio_file_path = video.audio_path(volume_dir)
         else:
-            s3_key = get_s3_key(
-                current_user, upload_datetime, Path(volume_file_path).name
-            )
-            print(f"Saving file to {S3_BUCKET}/{s3_key}")
-            await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
+            if not is_local():
+                s3_key = get_s3_key(
+                    current_user, upload_datetime, Path(volume_file_path).name
+                )
+                print(f"Saving file to {S3_BUCKET}/{s3_key}")
+                await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
             audio_file_path = get_audio_file_path(
                 current_user, upload_datetime, filename, volume_dir=volume_dir
             )
