@@ -422,6 +422,7 @@ async def stream_video(
     stream: bool = False,
 ):
     if video_path is None and workflow is None:
+        print("Must provide video path or timeline name and length_seconds")
         raise HTTPException(
             status_code=400,
             detail="Must provide video path or timeline name and length_seconds",
@@ -430,10 +431,10 @@ async def stream_video(
         assert workflow is not None
         export_result = await workflow.most_recent_export_result(with_load_state=False)
         video_path = export_result.get("video")
-    print("video_path", video_path)
     if video_path is None:
         raise HTTPException(status_code=400, detail="No video found")
     if not os.path.exists(video_path):
+        print(f"Video not found at {video_path}")
         raise HTTPException(status_code=400, detail=f"Video not found at {video_path}")
     extension = os.path.splitext(video_path)[1]
     media_type = f"video/{extension[1:]}"
