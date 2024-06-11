@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import React, { createContext, useContext, useState, useReducer, useEffect } from 'react';
 import { StepperForm, FormSchema } from "@/components/stepper-form"
 import UploadVideo from "@/components/ui/upload-video"
+import DownloadButtons from "@/components/ui/download-buttons"
 import VideoSelector from "@/components/ui/video-selector"
 import { decodeStreamAsJSON } from "@/lib/streams";
 import {
@@ -17,10 +18,6 @@ import {
   resetWorkflow,
   revertStepInBackend,
   uploadVideo,
-  downloadVideo,
-  downloadTimeline,
-  downloadTranscriptText,
-  downloadSoundbitesText,
   getVideoProcessingStatuses,
 } from "@/lib/api";
 import {
@@ -32,7 +29,6 @@ import {
   type StepInfo,
   type UserState,
   type StepParams,
-  type DownloadVideoParams
 } from "@/lib/types";
 import { stepData, allSteps, actionSteps } from "@/lib/data";
 
@@ -308,8 +304,6 @@ export default function MainStepper({ userData }) {
     }
   }
 
-  const downloadParams = {user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds}
-
   return (
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
@@ -326,7 +320,7 @@ export default function MainStepper({ userData }) {
                    prompt={userFeedbackRequest}
                    stepIndex={index}
                    onSubmit={onSubmit}
-                   userData={userData}
+                   userParams={userParams}
                    step={actionSteps[index]}
                  />
                </div>
@@ -340,18 +334,6 @@ export default function MainStepper({ userData }) {
          hasCompletedAllSteps={hasCompletedAllSteps}
        />
        </Stepper>
-       <Button onClick={() => downloadVideo(downloadParams)}>
-          Download latest video
-       </Button>
-       <Button onClick={() => downloadTimeline(downloadParams)}>
-          Download latest timeline
-       </Button>
-       <Button onClick={() => downloadTranscriptText(downloadParams)}>
-          Download latest transcript
-       </Button>
-       <Button onClick={() => downloadSoundbitesText(downloadParams)}>
-          Download latest soundbites transcript
-       </Button>
     </div>
   )
 }

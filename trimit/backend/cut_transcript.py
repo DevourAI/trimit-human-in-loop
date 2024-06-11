@@ -438,12 +438,25 @@ class CutTranscriptLinearWorkflow:
         return stage_lengths
 
     async def most_recent_export_result(self, with_load_state=True):
-        if self.state is None:
-            return {}
         last_output = await self.get_last_output_before_end(
             with_load_state=with_load_state
         )
+        if last_output is None:
+            return {}
         return last_output.export_result or {}
+
+    async def export_result_for_step_substep_name(
+        self, step_name: str, substep_name: str, with_load_state=True
+    ):
+        if with_load_state:
+            await self.load_state()
+        assert self.state is not None
+
+        state_key = get_dynamic_state_key(step_name, substep_name)
+        output = self._get_output_for_key(state_key)
+        if output is None:
+            return {}
+        return output.export_result or {}
 
     @property
     def steps(self):

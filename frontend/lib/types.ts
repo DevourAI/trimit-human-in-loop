@@ -83,17 +83,13 @@ export interface UploadVideoParams {
   timelineName: string
 }
 
-export interface DownloadVideoParams {
+export interface DownloadFileParams {
   user_email: string
   timeline_name: string
   length_seconds: number
   video_hash: string
-}
-export interface DownloadTimelineParams {
-  user_email: string
-  timeline_name: string
-  length_seconds: number
-  video_hash: string
+  step_name?: string
+  substep_name?: string
 }
 
 export type Video = {
