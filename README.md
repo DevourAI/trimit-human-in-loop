@@ -20,16 +20,20 @@
 
 
 ## Local frontend dev
+```sh
+local_ui_remote_backend
+```
 
-To start the local api, run:
+It's possible to run the ui using a local fastapi backend too:
 ```sh
 make local_api
 ```
 
-And the local ui:
-```
+```sh
 make local_ui
 ```
+
+There are still some outstanding issues to make this local_api work as expected though
 
 ## Deploy server to dev
 
