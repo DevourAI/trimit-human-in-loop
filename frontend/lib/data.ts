@@ -45,7 +45,7 @@ export const stepData: StepData = {
       substeps: [
         {
           name: "modify_transcript_holistically",
-          human_readable_name: "Modify Transcript Holistically",
+          human_readable_name: "Modify Transcript Holistically (Stage 1)",
           user_feedback: true,
           chunked_feedback: false,
         },
@@ -57,7 +57,7 @@ export const stepData: StepData = {
       substeps: [
         {
           name: "modify_transcript_holistically",
-          human_readable_name: "Modify Transcript Holistically",
+          human_readable_name: "Modify Transcript Holistically (Stage 2)",
           user_feedback: true,
           chunked_feedback: false,
         },
