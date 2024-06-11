@@ -4,7 +4,8 @@ import {
   type ResetWorkflowParams,
   type RevertStepParams,
   type StepParams,
-  type UploadVideoParams
+  type UploadVideoParams,
+  type DownloadFileParams
 } from './types'
 import axios from 'axios';
 
@@ -239,12 +240,12 @@ export async function downloadFile(params: DownloadFileParams) {
 export async function downloadVideo(params: DownloadFileParams) {
   await downloadFile({ ...params, filetype: 'video' })
 };
-export async function downloadTimeline(params: DownloadTimelineParams) {
+export async function downloadTimeline(params: DownloadFileParams) {
   await downloadFile({ ...params, filetype: 'timeline' })
 };
 export async function downloadTranscriptText(params: DownloadFileParams) {
   await downloadFile({ ...params, filetype: 'transcript_text' })
 };
-export async function downloadSoundbitesText(params: DownloadTimelineParams) {
+export async function downloadSoundbitesText(params: DownloadFileParams) {
   await downloadFile({ ...params, filetype: 'soundbites_text' })
 };

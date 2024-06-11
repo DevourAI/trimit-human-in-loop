@@ -337,6 +337,8 @@ async def get_latest_state(
 @web_app.get("/download_transcript_text")
 async def download_transcript_text(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    step_name: str | None = None,
+    substep_name: str | None = None,
     stream: bool = False,
 ):
 
@@ -344,7 +346,19 @@ async def download_transcript_text(
         raise HTTPException(
             status_code=400, detail="Must provide timeline name and length_seconds"
         )
-    export_result = await workflow.most_recent_export_result(with_load_state=False)
+
+    if step_name is None:
+        export_result = await workflow.most_recent_export_result(with_load_state=False)
+    else:
+        if substep_name is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide both substep_name if step_name is provided",
+            )
+
+        export_result = await workflow.export_result_for_step_substep_name(
+            step_name=step_name, substep_name=substep_name, with_load_state=False
+        )
     file_path = export_result.get("transcript_text")
 
     if file_path is None:
@@ -362,6 +376,8 @@ async def download_transcript_text(
 @web_app.get("/download_soundbites_text")
 async def download_soundbites_text(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    step_name: str | None = None,
+    substep_name: str | None = None,
     stream: bool = False,
 ):
 
@@ -369,7 +385,18 @@ async def download_soundbites_text(
         raise HTTPException(
             status_code=400, detail="Must provide timeline name and length_seconds"
         )
-    export_result = await workflow.most_recent_export_result(with_load_state=False)
+    if step_name is None:
+        export_result = await workflow.most_recent_export_result(with_load_state=False)
+    else:
+        if substep_name is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide both substep_name if step_name is provided",
+            )
+
+        export_result = await workflow.export_result_for_step_substep_name(
+            step_name=step_name, substep_name=substep_name, with_load_state=False
+        )
     file_path = export_result.get("soundbites_text")
 
     if file_path is None:
@@ -387,6 +414,8 @@ async def download_soundbites_text(
 @web_app.get("/download_timeline")
 async def download_timeline(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    step_name: str | None = None,
+    substep_name: str | None = None,
     stream: bool = False,
 ):
 
@@ -395,7 +424,19 @@ async def download_timeline(
         raise HTTPException(
             status_code=400, detail="Must provide timeline name and length_seconds"
         )
-    export_result = await workflow.most_recent_export_result(with_load_state=False)
+    if step_name is None:
+        export_result = await workflow.most_recent_export_result(with_load_state=False)
+    else:
+        if substep_name is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Must provide both substep_name if step_name is provided",
+            )
+
+        export_result = await workflow.export_result_for_step_substep_name(
+            step_name=step_name, substep_name=substep_name, with_load_state=False
+        )
+
     timeline_path = export_result.get("video_timeline")
 
     if timeline_path is None:
@@ -419,21 +460,38 @@ async def stream_video(
     request: Request,
     video_path: str | None = None,
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    step_name: str | None = None,
+    substep_name: str | None = None,
     stream: bool = False,
 ):
     if video_path is None and workflow is None:
+        print("Must provide video path or timeline name and length_seconds")
         raise HTTPException(
             status_code=400,
             detail="Must provide video path or timeline name and length_seconds",
         )
     elif video_path is None:
         assert workflow is not None
-        export_result = await workflow.most_recent_export_result(with_load_state=False)
+        if step_name is None:
+            export_result = await workflow.most_recent_export_result(
+                with_load_state=False
+            )
+        else:
+            if substep_name is None:
+                raise HTTPException(
+                    status_code=400,
+                    detail="Must provide both substep_name if step_name is provided",
+                )
+
+            export_result = await workflow.export_result_for_step_substep_name(
+                step_name=step_name, substep_name=substep_name, with_load_state=False
+            )
+
         video_path = export_result.get("video")
-    print("video_path", video_path)
     if video_path is None:
         raise HTTPException(status_code=400, detail="No video found")
     if not os.path.exists(video_path):
+        print(f"Video not found at {video_path}")
         raise HTTPException(status_code=400, detail=f"Video not found at {video_path}")
     extension = os.path.splitext(video_path)[1]
     media_type = f"video/{extension[1:]}"

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import React, { createContext, useContext, useState, useReducer, useEffect } from 'react';
 import { StepperForm, FormSchema } from "@/components/stepper-form"
 import UploadVideo from "@/components/ui/upload-video"
+import DownloadButtons from "@/components/ui/download-buttons"
 import VideoSelector from "@/components/ui/video-selector"
 import { decodeStreamAsJSON } from "@/lib/streams";
 import {
@@ -17,10 +18,6 @@ import {
   resetWorkflow,
   revertStepInBackend,
   uploadVideo,
-  downloadVideo,
-  downloadTimeline,
-  downloadTranscriptText,
-  downloadSoundbitesText,
   getVideoProcessingStatuses,
 } from "@/lib/api";
 import {
@@ -32,7 +29,6 @@ import {
   type StepInfo,
   type UserState,
   type StepParams,
-  type DownloadVideoParams
 } from "@/lib/types";
 import { stepData, allSteps, actionSteps } from "@/lib/data";
 
@@ -55,7 +51,7 @@ function stepIndexFromState(state: UserState): number {
   } else if (state && state.last_step) {
     // next step is none if we have finished , but we can stay on last step for retry handling
     // TODO: something on the UI that signals we've finished
-    return stepIndexFromName(state.last_step.step_name, state.last_step.name, allSteps, actionSteps)
+    return -1
   }
   return 0
 }
@@ -87,6 +83,7 @@ export default function MainStepper({ userData }) {
   const [finalResult, setFinalResult] = useState({})
   const [isLoading, setIsLoading] = useState(false)
   const [needsRevert, setNeedsRevert] = useState(false)
+  const [hasCompletedAllSteps, setHasCompletedAllSteps] = useState(false)
 
   const timelineName = 'timelineName'
   const lengthSeconds = 60
@@ -103,7 +100,11 @@ export default function MainStepper({ userData }) {
         const data = await getLatestState(userParams as GetLatestStateParams);
         setLatestState(data);
         console.log('data', data)
-        setCurrentStepIndex(stepIndexFromState(data))
+        let stepIndex = stepIndexFromState(data)
+        if (stepIndex === -1) {
+          stepIndex = actionSteps.length - 1
+        }
+        setCurrentStepIndex(stepIndex)
         if (userData.email) {
           const videoProcessesStatusesRaw = await getVideoProcessingStatuses(userData.email);
           const newVideoProcessingStatuses = {...videoProcessingStatuses}
@@ -124,8 +125,13 @@ export default function MainStepper({ userData }) {
 
   useEffect(() => {
     setUserFeedbackRequest(latestState?.output?.user_feedback_request)
-    setTrueStepIndex(stepIndexFromState(latestState))
-
+    const stepIndex = stepIndexFromState(latestState)
+    if (stepIndex !== -1) {
+      setTrueStepIndex(stepIndex)
+    } else {
+      setTrueStepIndex(actionSteps.length - 1)
+      setHasCompletedAllSteps(true)
+    }
   }, [latestState]);
 
   useEffect(() => {
@@ -298,8 +304,6 @@ export default function MainStepper({ userData }) {
     }
   }
 
-  const downloadParams = {user_email: userData.email, timeline_name: timelineName, video_hash: videoHash, length_seconds: lengthSeconds}
-
   return (
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>
@@ -316,38 +320,30 @@ export default function MainStepper({ userData }) {
                    prompt={userFeedbackRequest}
                    stepIndex={index}
                    onSubmit={onSubmit}
-                   userData={userData}
+                   userParams={userParams}
                    step={actionSteps[index]}
                  />
                </div>
              </Step>
            )
          })}
-       <Footer currentStepIndex={currentStepIndex} prevStepWrapper={prevStepWrapper} restart={restart} />
+       <Footer
+         currentStepIndex={currentStepIndex}
+         prevStepWrapper={prevStepWrapper}
+         restart={restart}
+         hasCompletedAllSteps={hasCompletedAllSteps}
+       />
        </Stepper>
-       <Button onClick={() => downloadVideo(downloadParams)}>
-          Download latest video
-       </Button>
-       <Button onClick={() => downloadTimeline(downloadParams)}>
-          Download latest timeline
-       </Button>
-       <Button onClick={() => downloadTranscriptText(downloadParams)}>
-          Download latest transcript
-       </Button>
-       <Button onClick={() => downloadSoundbitesText(downloadParams)}>
-          Download latest soundbites transcript
-       </Button>
     </div>
   )
 }
 
-const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
+const Footer = ({restart, prevStepWrapper, currentStepIndex, hasCompletedAllSteps}) => {
   const {
     nextStep,
     prevStep,
     resetSteps,
     isDisabledStep,
-    hasCompletedAllSteps,
     isLastStep,
     isOptionalStep,
     setStep
@@ -355,12 +351,13 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex}) => {
   useEffect(() => {
     setStep(currentStepIndex);
   }, [currentStepIndex]);
+
   return (
     <>
 
       {hasCompletedAllSteps && (
         <div className="h-40 flex items-center justify-center my-4 border bg-secondary text-primary rounded-md">
-          <h1 className="text-xl">Woohoo! All steps completed! 🎉</h1>
+          <h3 className="text-xl">TrimIt finished editing your video, but feel free to provide additional feedback or go back to previous steps</h3>
         </div>
       )}
       <div className="w-full flex justify-end gap-2">

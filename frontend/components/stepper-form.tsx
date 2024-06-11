@@ -8,6 +8,7 @@ import {
 } from "@/components/ui/stepper"
 
 import { Button } from "@/components/ui/button"
+import DownloadButtons from "@/components/ui/download-buttons"
 import {
   Form,
   FormControl,
@@ -38,7 +39,7 @@ const AnsiFormattedText = ({ text }) => {
   return <p>{text}</p>;
 };
 
-export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, userData, step, prompt, onSubmit }) {
+export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, userParams, step, prompt, onSubmit }) {
   const {
     activeStep
   } = useStepper()
@@ -84,6 +85,7 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
         />
         <Button disabled={isLoading} type="submit">Submit</Button>
       </form>
+      <DownloadButtons userParams={userParams} stepName={step.step_name} substepName={step.name} />
       <Button className="w-1/12" onClick={undoLastStep} >Undo</Button>
     </Form>
   )
