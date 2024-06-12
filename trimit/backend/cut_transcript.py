@@ -1369,6 +1369,9 @@ class CutTranscriptLinearWorkflow:
         last_step_index, last_step, last_substep_index = (
             self._get_last_step_with_index()
         )
+        print(
+            "last_step_index", last_step_index, "last_substep_index", last_substep_index
+        )
         if last_step_index == -1 and last_substep_index == -1:
             first_step = self.steps[0]
             first_substep = first_step.substeps[0]
@@ -1404,6 +1407,9 @@ class CutTranscriptLinearWorkflow:
 
         next_step_index, next_substep_index = self.steps.next_step_index(
             last_step_index, last_substep_index
+        )
+        print(
+            "next_step_index", next_step_index, "next_substep_index", next_substep_index
         )
 
         if next_step_index is None:

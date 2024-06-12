@@ -1123,14 +1123,20 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     def add_to_dynamic_state_step_order(self, step_name, substep_name):
         if len(self.dynamic_state_step_order) == 0:
             self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
+        if self._already_in_dynamic_state_step_order(step_name, substep_name):
+            return
+
         current_step = self.dynamic_state_step_order[-1]
         if current_step.name != step_name:
             self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
-        if (
-            len(self.dynamic_state_step_order[-1].substeps) == 0
-            or substep_name != self.dynamic_state_step_order[-1].substeps[-1]
-        ):
-            self.dynamic_state_step_order[-1].substeps.append(substep_name)
+        self.dynamic_state_step_order[-1].substeps.append(substep_name)
+
+    def _already_in_dynamic_state_step_order(self, step_name, substep_name):
+        for existing_step in self.dynamic_state_step_order:
+            for existing_substep in existing_step.substeps:
+                if existing_step.name == step_name and existing_substep == substep_name:
+                    return True
+        return False
 
 
 class TimelineClip(BaseModel):
