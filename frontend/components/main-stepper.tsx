@@ -81,7 +81,6 @@ export default function MainStepper({ userData }) {
   const [latestExportResult, setLatestExportResult] = useState({})
   const [finalResult, setFinalResult] = useState({})
   const [isLoading, setIsLoading] = useState(false)
-  const [needsRevert, setNeedsRevert] = useState(false)
   const [hasCompletedAllSteps, setHasCompletedAllSteps] = useState(false)
 
   const timelineName = 'timelineName'
@@ -183,11 +182,10 @@ export default function MainStepper({ userData }) {
 
   async function onSubmit(stepIndex: number, data: z.infer<typeof FormSchema>) {
     setIsLoading(true)
-    if (needsRevert) {
+    if (trueStepIndex > stepIndex) {
       for (let i = 0; i < trueStepIndex - stepIndex; i++) {
         await undoLastStepBeforeRetries()
       }
-      setNeedsRevert(false)
     }
     const params = {
       user_input: (
@@ -289,7 +287,19 @@ export default function MainStepper({ userData }) {
     setFinalResult(await getStepOutput(
       { step_key: currentStepKey, ...userParams}
     ))
-    setNeedsRevert(true)
+  }
+  async function nextStepWrapper() {
+    if (currentStepIndex >= trueStepIndex) {
+      return
+    }
+    setCurrentStepIndex(currentStepIndex + 1)
+    const currentSubstepName = actionSteps[currentStepIndex].name
+    const currentStepName = actionSteps[currentStepIndex].step_name
+    const currentStepKey = `${currentStepName}.${currentSubstepName}`
+    activePromptDispatch({ type: 'restart', value: '' });
+    setFinalResult(await getStepOutput(
+      { step_key: currentStepKey, ...userParams}
+    ))
   }
 
   async function uploadVideoWrapper(videoFile) {
@@ -334,7 +344,9 @@ export default function MainStepper({ userData }) {
          })}
        <Footer
          currentStepIndex={currentStepIndex}
+         trueStepIndex={trueStepIndex}
          prevStepWrapper={prevStepWrapper}
+         nextStepWrapper={nextStepWrapper}
          restart={restart}
          hasCompletedAllSteps={hasCompletedAllSteps}
        />
@@ -343,7 +355,7 @@ export default function MainStepper({ userData }) {
   )
 }
 
-const Footer = ({restart, prevStepWrapper, currentStepIndex, hasCompletedAllSteps}) => {
+const Footer = ({restart, prevStepWrapper, nextStepWrapper, currentStepIndex, trueStepIndex, hasCompletedAllSteps}) => {
   const {
     nextStep,
     prevStep,
@@ -378,8 +390,12 @@ const Footer = ({restart, prevStepWrapper, currentStepIndex, hasCompletedAllStep
           >
             Prev
           </Button>
-          <Button size="sm" onClick={nextStep}>
-            {isLastStep ? "Finish" : isOptionalStep ? "Skip" : "Next"}
+          <Button
+            size="sm"
+            onClick={nextStepWrapper}
+            disabled={currentStepIndex >= trueStepIndex}
+          >
+            {"Next"}
           </Button>
           </>
       </div>
