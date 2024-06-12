@@ -740,10 +740,10 @@ class CutTranscriptLinearWorkflow:
         if self.state is not None:
             await self.state.revert_step(before_retries=before_retries)
 
-    async def revert_state_to_before(self, step_name: str, substep_name: str):
+    async def revert_step_to_before(self, step_name: str, substep_name: str):
         await self.load_state()
         if self.state is not None:
-            await self.state.revert_state_to_before(step_name, substep_name)
+            await self.state.revert_step_to_before(step_name, substep_name)
 
     async def delete(self):
         if self.state is not None:

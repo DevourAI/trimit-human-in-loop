@@ -64,10 +64,30 @@ const postFetcherWithData = async (url, data) => {
 }
 
 export async function resetWorkflow(params: ResetWorkflowParams): UserState {
-  await fetcherWithParams('reset_workflow', params)
+  const result = await fetcherWithParams('reset_workflow', params)
+  if (result && result.success && result.success === false) {
+    return false
+  }
+  return true
 }
-export async function revertStepInBackend(params: RevertStepParams): UserState {
-  await fetcherWithParams('revert_workflow_step', params)
+export async function revertStepInBackend(params: RevertStepParams) {
+  const result = await fetcherWithParams('revert_workflow_step', params)
+  if (result && result.success && result.success === false) {
+    return false
+  }
+  return true
+
+}
+
+export async function revertStepToInBackend(params: RevertStepToParams) {
+  const result = await fetcherWithParams('revert_workflow_step_to', params)
+  console.log('revertStepToInBackend result', result)
+  if (result && result.error !== undefined) {
+    console.log('returning false')
+    return false
+  }
+  console.log('returning true')
+  return true
 }
 
 export async function getLatestState(params: GetLatestStateParams): UserState {
@@ -82,6 +102,7 @@ export async function getLatestState(params: GetLatestStateParams): UserState {
   const data = await fetcherWithParams('get_latest_state', params)
   if (data && data.error) {
     console.error(data.error)
+    return {success: false, error: data.error}
   } else if (data) {
     return data;
   }
