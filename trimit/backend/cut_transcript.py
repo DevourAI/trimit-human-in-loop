@@ -740,6 +740,11 @@ class CutTranscriptLinearWorkflow:
         if self.state is not None:
             await self.state.revert_step(before_retries=before_retries)
 
+    async def revert_state_to_before(self, step_name: str, substep_name: str):
+        await self.load_state()
+        if self.state is not None:
+            await self.state.revert_state_to_before(step_name, substep_name)
+
     async def delete(self):
         if self.state is not None:
             await self.state.delete()
@@ -1508,7 +1513,9 @@ class CutTranscriptLinearWorkflow:
         assert self.state is not None
         key = get_dynamic_state_key(step_name, substep_name)
         if latest_retry:
-            key = self.state.get_latest_dynamic_key_with_retry(step_name, substep_name)
+            key = self.state.get_latest_dynamic_key_with_retry_from(
+                step_name, substep_name
+            )
         return self._get_output_for_key(key)
 
     def _get_output_for_key(self, key: str):

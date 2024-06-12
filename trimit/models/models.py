@@ -898,6 +898,18 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         output_dir.mkdir(parents=True, exist_ok=True)
         return str(output_dir)
 
+    async def revert_step_to_before(self, step_name: str, substep_name: str, save=True):
+        if not self._already_in_dynamic_state_step_order(step_name, substep_name):
+            raise ValueError(f"have not reached step {step_name}.{substep_name} yet")
+        state_key = get_dynamic_state_key(step_name, substep_name)
+        latest_state_key = self.get_latest_dynamic_key_with_retry()
+        while latest_state_key != state_key:
+            await self._revert_step()
+            latest_state_key = self.get_latest_dynamic_key_with_retry()
+        await self._revert_step()
+        if save:
+            await self.save()
+
     async def revert_step(self, before_retries: bool = False):
         if len(self.dynamic_state_step_order) == 0:
             print("no steps to revert")
@@ -910,7 +922,6 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         await self.save()
 
     async def _revert_step(self):
-        print("dynamic_state_step_order before revert", self.dynamic_state_step_order)
         if len(self.dynamic_state_step_order) == 0:
             return
         last_step_wrapper = self.dynamic_state_step_order[-1]
@@ -925,6 +936,8 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         }
         if len(last_step_wrapper.substeps) == 0:
             self.dynamic_state_step_order.pop()
+        if len(self.dynamic_state_step_order) == 0:
+            return
         new_last_step_wrapper = self.dynamic_state_step_order[-1]
         new_last_substep = new_last_step_wrapper.substeps[-1]
         new_dynamic_state_key = get_dynamic_state_key(
@@ -943,7 +956,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                 "current_soundbites_state"
             ]
 
-    async def restart(self):
+    async def restart(self, save=True):
         # TODO understand save_changes and why it doesnt work here
         self.on_screen_speakers = None
         self.run_output_dir = None
@@ -960,7 +973,8 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         #  print("is_changed", self.is_changed)
         #  print("changes", self.get_changes())
         #  await self.save_with_retry()
-        await self.save()
+        if save:
+            await self.save()
         # print("len dynamic state end of restart", len(self.dynamic_state))
 
     @classmethod
@@ -1008,7 +1022,15 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         print("recreated")
         return obj
 
-    def get_latest_dynamic_key_with_retry(self, step_name, substep_name):
+    def get_latest_dynamic_key_with_retry(self):
+        if len(self.dynamic_state_step_order) == 0:
+            return None
+        step = self.dynamic_state_step_order[-1]
+        step_name = step.name
+        substep_name = step.substeps[-1]
+        return get_dynamic_state_key(step_name, substep_name)
+
+    def get_latest_dynamic_key_with_retry_from(self, step_name, substep_name):
         from trimit.backend.utils import remove_retry_suffix
 
         substep_name = remove_retry_suffix(substep_name)

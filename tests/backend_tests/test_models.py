@@ -285,3 +285,64 @@ async def test_get_last_step_with_user_feedback(workflow_3909774043_with_transcr
         with_load_state=False
     )
     assert last_substep is None
+
+
+async def set_state_to(state, step_key):
+    await state.restart(save=False)
+    steps = [
+        "preprocess_video.init_state",
+        "preprocess_video.remove_off_screen_speakers",
+        "generate_story.generate_story",
+        "identify_key_soundbites.identify_key_soundbites",
+        "stage_0_generate_transcript.cut_partial_transcripts_with_critiques",
+        "stage_0_generate_transcript.modify_transcript_holistically",
+        "stage_1_generate_transcript.cut_partial_transcripts_with_critiques",
+        "stage_1_generate_transcript.modify_transcript_holistically",
+    ]
+    for _step_key in steps:
+        await state.set_current_step_output_atomic(
+            _step_key, {}, save_to_db=False, use_session=False
+        )
+        if _step_key == step_key:
+            break
+
+
+async def test_revert_step_to_before(workflow_3909774043_with_transcript):
+    workflow = workflow_3909774043_with_transcript
+    await set_state_to(workflow.state, "preprocess_video.remove_off_screen_speakers")
+    await workflow.state.revert_step_to_before(
+        "preprocess_video", "remove_off_screen_speakers", save=False
+    )
+    last_substep = await workflow.get_last_substep(with_load_state=False)
+    assert last_substep.name == "init_state"
+    assert last_substep.step.name == "preprocess_video"
+
+    await set_state_to(workflow.state, "preprocess_video.remove_off_screen_speakers")
+    await workflow.state.revert_step_to_before(
+        "preprocess_video", "init_state", save=False
+    )
+    last_substep = await workflow.get_last_substep(with_load_state=False)
+    assert last_substep is None
+
+    await set_state_to(
+        workflow.state,
+        "stage_0_generate_transcript.cut_partial_transcripts_with_critiques",
+    )
+    await workflow.state.revert_step_to_before(
+        "preprocess_video", "remove_off_screen_speakers", save=False
+    )
+    last_substep = await workflow.get_last_substep(with_load_state=False)
+    assert last_substep.name == "init_state"
+    assert last_substep.step.name == "preprocess_video"
+
+    await set_state_to(
+        workflow.state, "stage_1_generate_transcript.modify_transcript_holistically"
+    )
+    await workflow.state.revert_step_to_before(
+        "stage_0_generate_transcript",
+        "cut_partial_transcripts_with_critiques",
+        save=False,
+    )
+    last_substep = await workflow.get_last_substep(with_load_state=False)
+    assert last_substep.name == "identify_key_soundbites"
+    assert last_substep.step.name == "identify_key_soundbites"

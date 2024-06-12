@@ -27,7 +27,6 @@ export default function Home() {
 
   return (
       <div className="container relative">
-        <MainNav />
         <PageHeader>
           <PageHeaderHeading>TrimIt Interview Builder</PageHeaderHeading>
           <PageHeaderDescription>

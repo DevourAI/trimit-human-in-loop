@@ -76,6 +76,8 @@ async def step(
     timeout: float = 120,
     async_export: bool = True,
     retry_step: bool = False,
+    step_name: str | None = None,
+    substep_name: str | None = None,
 ):
     from trimit.backend.cut_transcript import (
         CutTranscriptLinearWorkflow,
@@ -93,7 +95,12 @@ async def step(
         volume_dir=VOLUME_DIR,
         new_state=force_restart,
     )
-    await workflow.load_state()
+    if step_name is not None:
+        if substep_name is None:
+            raise ValueError("substep_name must be provided if step_name is provided")
+        await workflow.revert_state_to_before(step_name, substep_name)
+    else:
+        await workflow.load_state()
     id = workflow.id
 
     if not ignore_running_workflows:
