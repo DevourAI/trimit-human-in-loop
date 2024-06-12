@@ -29,6 +29,7 @@ async def step_workflow_until_feedback_request(
     load_state=True,
     save_state_to_db=True,
     async_export=True,
+    retry_step=False,
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
@@ -45,6 +46,7 @@ async def step_workflow_until_feedback_request(
             load_state=load_state,
             save_state_to_db=save_state_to_db,
             async_export=async_export,
+            retry_step=retry_step and first_time,
         ):
             yield result, is_last
 
@@ -73,6 +75,7 @@ async def step(
     ignore_running_workflows: bool = False,
     timeout: float = 120,
     async_export: bool = True,
+    retry_step: bool = False,
 ):
     from trimit.backend.cut_transcript import (
         CutTranscriptLinearWorkflow,
@@ -107,7 +110,7 @@ async def step(
             workflows[id] = workflow
     running_workflows[id] = True
     gen = step_workflow_until_feedback_request(
-        workflow, user_input, async_export=async_export
+        workflow, user_input, async_export=async_export, retry_step=retry_step
     )
     try:
         while True:

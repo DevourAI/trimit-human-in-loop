@@ -48,16 +48,15 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
   })
 
   function innerOnSubmit(data: z.infer<typeof FormSchema>) {
-    onSubmit(stepIndex, data)
-    toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    })
+    onSubmit(stepIndex, false, data)
   }
+
+  function onRetryClick() {
+    // Manually gather the form data using getValues
+    const formData = form.getValues();
+    onSubmit(stepIndex, true, formData)
+  }
+
 
   return (
     <Form {...form}>
@@ -84,6 +83,7 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
           )}
         />
         <Button disabled={isLoading} type="submit">Submit</Button>
+        <Button disabled={isLoading} type="button" onClick={onRetryClick}>Retry</Button>
       </form>
       <DownloadButtons userParams={userParams} stepName={step.step_name} substepName={step.name} />
       <Button className="w-1/12" onClick={undoLastStep} >Undo</Button>

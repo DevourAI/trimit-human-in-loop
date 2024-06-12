@@ -804,12 +804,13 @@ class CutTranscriptLinearWorkflow:
         load_state=True,
         save_state_to_db=True,
         async_export=True,
+        retry_step=False,
     ):
         if load_state:
             await self.load_state()
         assert self.state is not None
         current_step, current_substep_index = (
-            await self._get_next_step_with_user_feedback(user_feedback)
+            await self._get_next_step_with_user_feedback(user_feedback, retry_step)
         )
         if not current_step:
             step_result = CutTranscriptLinearWorkflowStepOutput(
@@ -1364,7 +1365,9 @@ class CutTranscriptLinearWorkflow:
         next_step = self.steps[next_step_index]
         return next_step_index, next_step, next_substep_index
 
-    async def _get_next_step_with_user_feedback(self, user_feedback: str | None = None):
+    async def _get_next_step_with_user_feedback(
+        self, user_feedback: str | None = None, retry_step: bool = False
+    ):
         # TODO use get_step_by_name
         last_step_index, last_step, last_substep_index = (
             self._get_last_step_with_index()
@@ -1382,8 +1385,9 @@ class CutTranscriptLinearWorkflow:
                 substep_name=first_step.substeps[0].name,
             )
             return first_step, 0
+
         # we've already done all steps once, repeat the last step as a retry
-        force_retry = False
+        force_retry = retry_step
         if last_step_index >= len(self.steps):
             last_step_index -= 1
             last_substep_index -= 1

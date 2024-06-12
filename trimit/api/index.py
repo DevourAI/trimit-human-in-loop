@@ -238,6 +238,7 @@ def step_endpoint(
     streaming: bool = False,
     force_restart: bool = False,
     ignore_running_workflows: bool = False,
+    retry_step: bool = False,
 ):
     step_params = {
         "user_email": user_email,
@@ -248,6 +249,7 @@ def step_endpoint(
         "force_restart": force_restart,
         "ignore_running_workflows": ignore_running_workflows,
         "async_export": os.environ.get("ASYNC_EXPORT", False),
+        "retry_step": retry_step,
     }
     from trimit.backend.serve import step as step_function
 

@@ -180,10 +180,16 @@ export default function MainStepper({ userData }) {
     }
   }, '');
 
-  async function onSubmit(stepIndex: number, data: z.infer<typeof FormSchema>) {
+  async function onSubmit(stepIndex: number, retry: boolean, data: z.infer<typeof FormSchema>) {
     setIsLoading(true)
     if (trueStepIndex > stepIndex) {
       for (let i = 0; i < trueStepIndex - stepIndex; i++) {
+        await undoLastStepBeforeRetries()
+      }
+      // if it's a retry, we want stepIndex equal to trueStepIndex
+      // otherwise, we want it to be one before
+      // this will become much simpler if we just send the step name/index we want to run
+      if (!retry) {
         await undoLastStepBeforeRetries()
       }
     }
@@ -195,6 +201,7 @@ export default function MainStepper({ userData }) {
       streaming: true,
       force_restart: false,
       ignore_running_workflows: true,
+      retry_step: retry,
       ...userParams,
     } as StepParams
     await step(params, async (reader) => {
