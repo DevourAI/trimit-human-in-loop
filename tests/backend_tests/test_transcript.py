@@ -1,6 +1,8 @@
 from trimit.backend.models import TranscriptSegment, Transcript, OffsetToCut, Soundbites
 import pytest
 
+from trimit.backend.utils import linearize_and_dedupe_offsets
+
 pytestmark = pytest.mark.asyncio(scope="session")
 
 
@@ -332,3 +334,220 @@ async def test_soundbites_keep_only_in_transcript(soundbites_3909774043):
     transcript.kept_segments = set(list(segment_indexes)[:1])
     soundbites_chunk_partial = chunk.keep_only_in_transcript(transcript.chunks[0])
     assert len(soundbites_chunk_partial.soundbites) == 1
+
+
+async def test_restrict_offset_to_chunk(transcript_15557970):
+    transcript_15557970.split_in_chunks(500)
+    chunk_1 = transcript_15557970.chunks[1]
+    chunk_1_start_seg = chunk_1.chunk_segment_indexes[0]
+    chunk_1_end_seg = chunk_1.chunk_segment_indexes[-1]
+
+    offset_in_bounds = OffsetToCut(
+        seg_i_start=chunk_1_start_seg,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=0,
+    )
+    offset_partial_out_of_bounds_left = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=0,
+    )
+    offset_partial_out_of_bounds_right = OffsetToCut(
+        seg_i_start=chunk_1_start_seg,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=1,
+    )
+    offset_partial_out_of_bounds_both = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 2,
+        word_i_end=1,
+    )
+    expected_offset = offset_in_bounds.model_copy()
+
+    for test_offset in [
+        offset_in_bounds,
+        offset_partial_out_of_bounds_left,
+        offset_partial_out_of_bounds_right,
+        offset_partial_out_of_bounds_both,
+    ]:
+        new_offset = transcript_15557970.restrict_offset_to_chunk(test_offset, chunk_1)
+        assert new_offset == expected_offset
+
+    offset_out_of_bounds_left = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_start_seg - 1,
+        word_i_end=1,
+    )
+    offset_out_of_bounds_right = OffsetToCut(
+        seg_i_start=chunk_1_end_seg + 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=1,
+    )
+
+    for test_offset in [offset_out_of_bounds_left, offset_out_of_bounds_right]:
+        new_offset = transcript_15557970.restrict_offset_to_chunk(test_offset, chunk_1)
+        assert new_offset is None
+
+
+async def test_keep_only_cuts(transcript_15557970):
+    transcript_15557970.split_in_chunks(500)
+    chunk_1 = transcript_15557970.chunks[1]
+    chunk_1_start_seg = chunk_1.chunk_segment_indexes[0]
+    chunk_1_end_seg = chunk_1.chunk_segment_indexes[-1]
+
+    offset_in_bounds = OffsetToCut(
+        seg_i_start=chunk_1_start_seg,
+        word_i_start=1,
+        seg_i_end=chunk_1_end_seg,
+        word_i_end=len(chunk_1.segments[-1].words) - 1,
+    )
+    offset_partial_out_of_bounds_left = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=0,
+    )
+    offset_partial_out_of_bounds_right = OffsetToCut(
+        seg_i_start=chunk_1_start_seg,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=1,
+    )
+    offset_partial_out_of_bounds_both = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 2,
+        word_i_end=1,
+    )
+    offset_out_of_bounds_left = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_start_seg - 1,
+        word_i_end=1,
+    )
+    offset_out_of_bounds_right = OffsetToCut(
+        seg_i_start=chunk_1_end_seg + 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=1,
+    )
+
+    expected_kept_segments = list(range(chunk_1_start_seg, chunk_1_end_seg + 1))
+    expected_words = [
+        w
+        for s_idx in expected_kept_segments
+        for w in transcript_15557970.segments[s_idx].words
+    ][1:-1]
+    transcript = transcript_15557970.copy()
+    transcript.keep_only_cuts([offset_in_bounds], from_chunk=chunk_1)
+    assert transcript.chunks[1].kept_words == expected_words
+
+    expected_words = [
+        w
+        for s_idx in expected_kept_segments
+        for w in transcript_15557970.segments[s_idx].words
+    ]
+
+    transcript = transcript_15557970.copy()
+    transcript.keep_only_cuts([offset_partial_out_of_bounds_left], from_chunk=chunk_1)
+    assert transcript.chunks[1].kept_words == expected_words
+    transcript = transcript_15557970.copy()
+    transcript.keep_only_cuts([offset_partial_out_of_bounds_right], from_chunk=chunk_1)
+    assert transcript.chunks[1].kept_words == expected_words
+    transcript = transcript_15557970.copy()
+    transcript.keep_only_cuts([offset_partial_out_of_bounds_both], from_chunk=chunk_1)
+    assert transcript.chunks[1].kept_words == expected_words
+    transcript = transcript_15557970.copy()
+    transcript.keep_only_cuts([offset_partial_out_of_bounds_both], from_chunk=chunk_1)
+    assert transcript.chunks[1].kept_words == expected_words
+    transcript = transcript_15557970.copy()
+
+    expected_words = []
+    transcript.keep_only_cuts([offset_out_of_bounds_left], from_chunk=chunk_1)
+    assert transcript.chunks[1].kept_words == expected_words
+    transcript = transcript_15557970.copy()
+    transcript.keep_only_cuts([offset_out_of_bounds_right], from_chunk=chunk_1)
+    assert transcript.chunks[1].kept_words == expected_words
+
+
+async def test_keep_only_cuts(transcript_15557970):
+    transcript_15557970.split_in_chunks(500)
+    chunk_1 = transcript_15557970.chunks[1]
+    chunk_1_start_seg = chunk_1.chunk_segment_indexes[0]
+    chunk_1_end_seg = chunk_1.chunk_segment_indexes[-1]
+
+    offset_in_bounds = OffsetToCut(
+        seg_i_start=chunk_1_start_seg,
+        word_i_start=1,
+        seg_i_end=chunk_1_end_seg,
+        word_i_end=len(chunk_1.segments[-1].words) - 1,
+    )
+    offset_partial_out_of_bounds_left = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=0,
+    )
+    offset_partial_out_of_bounds_right = OffsetToCut(
+        seg_i_start=chunk_1_start_seg,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=1,
+    )
+    offset_partial_out_of_bounds_both = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 2,
+        word_i_end=1,
+    )
+    offset_out_of_bounds_left = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_start_seg - 1,
+        word_i_end=1,
+    )
+    offset_out_of_bounds_right = OffsetToCut(
+        seg_i_start=chunk_1_end_seg + 1,
+        word_i_start=0,
+        seg_i_end=chunk_1_end_seg + 1,
+        word_i_end=1,
+    )
+
+    offset_disjoint_left = OffsetToCut(
+        seg_i_start=chunk_1_start_seg - 2,
+        word_i_start=0,
+        seg_i_end=chunk_1_start_seg - 2,
+        word_i_end=2,
+    )
+
+    new_offsets = linearize_and_dedupe_offsets(
+        [
+            offset_in_bounds,
+            offset_partial_out_of_bounds_left,
+            offset_partial_out_of_bounds_right,
+            offset_partial_out_of_bounds_both,
+            offset_out_of_bounds_left,
+            offset_out_of_bounds_right,
+            offset_disjoint_left,
+        ]
+    )
+    assert new_offsets == [
+        OffsetToCut(
+            seg_i_start=chunk_1_start_seg - 2,
+            word_i_start=0,
+            seg_i_end=chunk_1_start_seg - 2,
+            word_i_end=2,
+        ),
+        OffsetToCut(
+            seg_i_start=chunk_1_start_seg - 1,
+            word_i_start=0,
+            seg_i_end=chunk_1_end_seg + 2,
+            word_i_end=1,
+        ),
+    ]

@@ -71,8 +71,10 @@ export async function revertStepInBackend(params: RevertStepParams): UserState {
 }
 
 export async function getLatestState(params: GetLatestStateParams): UserState {
-  if (params.user_email === '') return {}
+  if (!params.user_email) return {}
   if (!params.video_hash) return {}
+  if (!params.length_seconds) return {}
+  if (!params.timeline_name) return {}
   params.with_output = params.with_output || true
   params.wait_until_done_running = params.wait_until_done_running || false
   params.block_until = params.block_until || false

@@ -662,6 +662,7 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     clip_extra_trim_seconds: float = 0.1
     use_agent_output_cache: bool = True
     max_iterations: int = 3
+    ask_user_for_feedback_every_iteration: bool = False
     max_total_soundbites: int = 15
     export_transcript_text: bool = True
     export_transcript: bool = True
@@ -772,6 +773,14 @@ class StepOrderMixin(BaseModel):
     @property
     def max_iterations(self):
         return self.static_state.max_iterations
+
+    @property
+    def ask_user_for_feedback_every_iteration(self):
+        try:
+            return self.static_state.ask_user_for_feedback_every_iteration
+        except Exception as e:
+            print(f"Error getting ask_user_for_feedback_every_iteration: {e}")
+            return False
 
     @property
     def export_transcript_text(self):
@@ -1065,6 +1074,14 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                     CutTranscriptLinearWorkflowState.id == self.id, session=session
                 )
             copied_self = CutTranscriptLinearWorkflowState(**copied_self_dict)
+            for k, v in copied_self.dynamic_state.items():
+                if isinstance(v, dict):
+                    try:
+                        copied_self.dynamic_state[k] = (
+                            CutTranscriptLinearWorkflowStepOutput(**v)
+                        )
+                    except:
+                        continue
 
             if updated_self is None:
                 updated_self = copied_self
@@ -1106,14 +1123,20 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     def add_to_dynamic_state_step_order(self, step_name, substep_name):
         if len(self.dynamic_state_step_order) == 0:
             self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
+        if self._already_in_dynamic_state_step_order(step_name, substep_name):
+            return
+
         current_step = self.dynamic_state_step_order[-1]
         if current_step.name != step_name:
             self.dynamic_state_step_order.append(StepKey(name=step_name, substeps=[]))
-        if (
-            len(self.dynamic_state_step_order[-1].substeps) == 0
-            or substep_name != self.dynamic_state_step_order[-1].substeps[-1]
-        ):
-            self.dynamic_state_step_order[-1].substeps.append(substep_name)
+        self.dynamic_state_step_order[-1].substeps.append(substep_name)
+
+    def _already_in_dynamic_state_step_order(self, step_name, substep_name):
+        for existing_step in self.dynamic_state_step_order:
+            for existing_substep in existing_step.substeps:
+                if existing_step.name == step_name and existing_substep == substep_name:
+                    return True
+        return False
 
 
 class TimelineClip(BaseModel):

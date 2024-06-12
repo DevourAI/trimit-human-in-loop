@@ -1,5 +1,6 @@
 "use client"
 
+import { useState, useRef } from 'react';
 import { zodResolver } from "@hookform/resolvers/zod"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -26,12 +27,6 @@ import Ansi from "ansi-to-react";
 
 const FormSchema = z.object({
   feedback: z.optional(z.string())
-    // .min(10, {
-      // message: "Bio must be at least 10 characters.",
-    // })
-    // .max(160, {
-      // message: "Bio must not be longer than 30 characters.",
-  //}),
 })
 
 const AnsiFormattedText = ({ text }) => {
@@ -39,38 +34,62 @@ const AnsiFormattedText = ({ text }) => {
   return <p>{text}</p>;
 };
 
-export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, userParams, step, prompt, onSubmit }) {
+export function StepperForm({
+  systemPrompt,
+  isLoading,
+  undoLastStep,
+  stepIndex,
+  userParams,
+  step,
+  prompt,
+  onSubmit
+}) {
   const {
     activeStep
   } = useStepper()
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   })
+  const [textAreaValue, setTextAreaValue] = useState('');
+  const [prevUserMessage, setPrevUserMessage] = useState('');
 
-  function innerOnSubmit(data: z.infer<typeof FormSchema>) {
-    onSubmit(stepIndex, data)
-    toast({
-      title: "You submitted the following values:",
-      description: (
-        <pre className="mt-2 w-[340px] rounded-md bg-slate-950 p-4">
-          <code className="text-white">{JSON.stringify(data, null, 2)}</code>
-        </pre>
-      ),
-    })
+  function innerOnSubmit(retry, data: z.infer<typeof FormSchema>) {
+    setPrevUserMessage(textAreaValue)
+    setTextAreaValue('');
+    onSubmit(stepIndex, retry, data)
   }
+
+  function onRetryClick() {
+    const formData = form.getValues();
+    innerOnSubmit(true, formData)
+  }
+
+  const handleTextAreaChange = (event) => {
+    setTextAreaValue(event.target.value)
+  }
+
+  const textAreaRef = useRef<HTMLTextAreaElement>(null);
 
   return (
     <Form {...form}>
       <p><Ansi useClasses>{stepIndex == activeStep ? systemPrompt || '': ''}</Ansi></p>
-      <form onSubmit={form.handleSubmit(innerOnSubmit)} className="w-2/3 space-y-6">
+      <form onSubmit={form.handleSubmit((data)=>innerOnSubmit(false, data))} className="w-2/3 space-y-6">
         <FormField
           control={form.control}
           name="feedback"
-          render={({ field }) => (
+          render={({ field }) => {
+            const originalOnChange = field.onChange
+            field.onChange = (event) => {
+              handleTextAreaChange(event)
+              originalOnChange()
+            }
+            field.value = textAreaValue
+            return (
             <FormItem>
               <FormLabel><Ansi useClasses>{prompt || ''}</Ansi></FormLabel>
               <FormControl>
                 <Textarea
+                  ref={textAreaRef}
                   placeholder="You can write anything you want."
                   className="resize-none"
                   {...field}
@@ -81,9 +100,12 @@ export function StepperForm({ systemPrompt, isLoading, undoLastStep, stepIndex, 
               </FormDescription> */}
               <FormMessage />
             </FormItem>
-          )}
+            )
+          }}
         />
+        <p><b>Previous message:</b>{prevUserMessage}</p>
         <Button disabled={isLoading} type="submit">Submit</Button>
+        <Button disabled={isLoading} type="button" onClick={onRetryClick}>Retry</Button>
       </form>
       <DownloadButtons userParams={userParams} stepName={step.step_name} substepName={step.name} />
       <Button className="w-1/12" onClick={undoLastStep} >Undo</Button>

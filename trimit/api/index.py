@@ -238,6 +238,7 @@ def step_endpoint(
     streaming: bool = False,
     force_restart: bool = False,
     ignore_running_workflows: bool = False,
+    retry_step: bool = False,
 ):
     step_params = {
         "user_email": user_email,
@@ -248,6 +249,7 @@ def step_endpoint(
         "force_restart": force_restart,
         "ignore_running_workflows": ignore_running_workflows,
         "async_export": os.environ.get("ASYNC_EXPORT", False),
+        "retry_step": retry_step,
     }
     from trimit.backend.serve import step as step_function
 
@@ -326,9 +328,9 @@ async def get_latest_state(
         "all_steps": workflow.serializable_steps,
         "video_id": str(workflow.video.id),
         "user_id": str(workflow.user.id),
+        "user_messages": workflow.user_messages,
+        "step_history_state": workflow.serializable_state_step_order,
     }
-    print("last step", last_step_dict.get("name") if last_step_dict else None)
-    print("next step", next_step_dict.get("name") if next_step_dict else None)
     if with_output:
         return_dict["output"] = await workflow.get_last_output(with_load_state=False)
     return return_dict
