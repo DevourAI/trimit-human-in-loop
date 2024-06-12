@@ -306,6 +306,9 @@ export default function MainStepper({ userData }) {
     }
   }
 
+  console.log('currentStepIndex', currentStepIndex)
+  console.log('trueStepIndex', trueStepIndex)
+
   return (
     <div className="flex w-full flex-col gap-4">
        <UploadVideo uploadVideo={uploadVideoWrapper}/>

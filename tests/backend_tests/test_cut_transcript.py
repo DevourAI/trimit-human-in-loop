@@ -386,6 +386,16 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
     assert len(step_outputs) == len(expected_step_names)
     assert [s.substep_name == e for s, e in zip(step_outputs, expected_step_names)]
 
+    # try after we finish
+    result = None
+    async for result, is_last in workflow.step(
+        "", load_state=False, save_state_to_db=False, async_export=False
+    ):
+        pass
+    assert result is not None
+    assert result.step_name == "stage_1_generate_transcript"
+    assert result.substep_name == "modify_transcript_holistically"
+
     output = await workflow.get_last_output_before_end(with_load_state=False)
     output_files = output.export_result
     for file_key in [
@@ -440,21 +450,21 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         Soundbite(**sb)
         for sb in workflow.state.dynamic_state[
             "identify_key_soundbites.identify_key_soundbites"
-        ]["step_outputs"]["current_soundbites_state"]["soundbites"]
+        ].step_outputs["current_soundbites_state"]["soundbites"]
     ] == step_outputs[3].step_outputs["current_soundbites_state"]["soundbites"]
 
     assert [
         Soundbite(**sb)
         for sb in workflow.state.dynamic_state[
             "stage_0_generate_transcript.modify_transcript_holistically"
-        ]["step_outputs"]["current_soundbites_state"]["soundbites"]
+        ].step_outputs["current_soundbites_state"]["soundbites"]
     ] == step_outputs[5].step_outputs["current_soundbites_state"]["soundbites"]
 
     assert (
         Transcript.load_from_state(
             workflow.state.dynamic_state[
                 "stage_0_generate_transcript.modify_transcript_holistically"
-            ]["step_outputs"]["current_transcript_state"]
+            ].step_outputs["current_transcript_state"]
         ).kept_word_count
         == Transcript.load_from_state(
             step_outputs[5].step_outputs["current_transcript_state"]
@@ -465,14 +475,14 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         Soundbite(**sb)
         for sb in workflow.state.dynamic_state[
             "stage_1_generate_transcript.modify_transcript_holistically"
-        ]["step_outputs"]["current_soundbites_state"]["soundbites"]
+        ].step_outputs["current_soundbites_state"]["soundbites"]
     ] == step_outputs[7].step_outputs["current_soundbites_state"]["soundbites"]
 
     assert (
         Transcript.load_from_state(
             workflow.state.dynamic_state[
                 "stage_1_generate_transcript.modify_transcript_holistically"
-            ]["step_outputs"]["current_transcript_state"]
+            ].step_outputs["current_transcript_state"]
         ).kept_word_count
         == Transcript.load_from_state(
             step_outputs[7].step_outputs["current_transcript_state"]

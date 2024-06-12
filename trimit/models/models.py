@@ -1074,6 +1074,14 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                     CutTranscriptLinearWorkflowState.id == self.id, session=session
                 )
             copied_self = CutTranscriptLinearWorkflowState(**copied_self_dict)
+            for k, v in copied_self.dynamic_state.items():
+                if isinstance(v, dict):
+                    try:
+                        copied_self.dynamic_state[k] = (
+                            CutTranscriptLinearWorkflowStepOutput(**v)
+                        )
+                    except:
+                        continue
 
             if updated_self is None:
                 updated_self = copied_self

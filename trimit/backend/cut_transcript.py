@@ -1379,13 +1379,19 @@ class CutTranscriptLinearWorkflow:
                 substep_name=first_step.substeps[0].name,
             )
             return first_step, 0
+        # we've already done all steps once, repeat the last step as a retry
+        force_retry = False
+        if last_step_index >= len(self.steps):
+            last_step_index -= 1
+            last_substep_index -= 1
+            force_retry = True
 
         assert isinstance(last_step, StepWrapper)
         assert last_substep_index is not None
         last_substep = last_step.substeps[last_substep_index]
 
         retry, retry_input = await self._decide_retry(
-            last_step.name, last_substep.name, user_feedback
+            last_step.name, last_substep.name, user_feedback, force_retry=force_retry
         )
         if retry:
             print("retrying", retry_input)
@@ -1507,12 +1513,14 @@ class CutTranscriptLinearWorkflow:
         return results
 
     async def _decide_retry(
-        self, step_name: str, substep_name: str, user_prompt: str | None
+        self,
+        step_name: str,
+        substep_name: str,
+        user_prompt: str | None,
+        force_retry=False,
     ):
-        if not user_prompt:
-            return False, None
-        if substep_name == "init_state":
-            return False, None
+        if not user_prompt or substep_name == "init_state":
+            return force_retry, None
 
         assert self.state is not None
         _, substep = self.get_step_by_name(step_name, substep_name)
@@ -1560,7 +1568,9 @@ class CutTranscriptLinearWorkflow:
                     f"relevant_user_feedback_list incorrect types: {relevant_user_feedback_list}, types={list(map(type, relevant_user_feedback_list))}"
                 )
                 relevant_user_feedback_list = [user_prompt] * len(partials_to_redo)
-            return any(partials_to_redo), CutTranscriptLinearWorkflowStepInput(
+            return force_retry or any(
+                partials_to_redo
+            ), CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt,
                 llm_modified_partial_feedback=PartialFeedback(
                     partials_to_redo=partials_to_redo,
@@ -1592,7 +1602,7 @@ class CutTranscriptLinearWorkflow:
                 f"retry step: {step_name}, retry_output: {output}, user_prompt: {user_prompt}"
             )
 
-            return output, CutTranscriptLinearWorkflowStepInput(
+            return force_retry or output, CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt, is_retry=True
             )
 
