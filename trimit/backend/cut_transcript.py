@@ -54,6 +54,7 @@ from trimit.export import (
     create_cut_video_from_transcript,
     create_fcp_7_xml_from_single_video_transcript,
     save_transcript_to_disk,
+    save_soundbites_videos_to_disk,
 )
 from trimit.backend.models import (
     Transcript,
@@ -425,6 +426,16 @@ class CutTranscriptLinearWorkflow:
         return self.state.step_output_dir(step_name, substep_name)
 
     @property
+    def soundbites_video_dir(self):
+        assert self.state is not None
+        return self.state.soundbites_video_dir
+
+    @property
+    def soundbites_timeline_dir(self):
+        assert self.state is not None
+        return self.state.soundbites_timeline_dir
+
+    @property
     def last_step_name(self):
         return self.steps[-1].name
 
@@ -533,7 +544,7 @@ class CutTranscriptLinearWorkflow:
                         user_feedback=False,
                         chunked_feedback=True,
                         export_transcript=False,
-                        export_soundbites=True,
+                        export_soundbites=False,
                         export_video=False,
                         export_timeline=False,
                     ),
@@ -542,6 +553,10 @@ class CutTranscriptLinearWorkflow:
                         method=self.modify_transcript_holistically,
                         user_feedback=True,
                         chunked_feedback=False,
+                        export_transcript=True,
+                        export_soundbites=False,
+                        export_video=True,
+                        export_timeline=True,
                     ),
                 ],
             )
@@ -1287,7 +1302,29 @@ class CutTranscriptLinearWorkflow:
                 suffix="_soundbites",
                 prefix=f"{prefix}transcript_",
             )
-            output_files["soundbites"] = soundbites_file
+            soundbites_video_files = await save_soundbites_videos_to_disk(
+                video=self.video,
+                output_dir=self.soundbites_video_dir,
+                volume_dir=self.volume_dir,
+                soundbites=self.current_soundbites,
+                clip_extra_trim_seconds=self.clip_extra_trim_seconds,
+                prefix=f"{prefix}_" + "{}",
+                timeline_name=self.timeline_name,
+            )
+            soundbites_timeline_file = create_fcp_7_xml_from_single_video_transcript(
+                video=self.video,
+                transcript=self.current_soundbites,
+                timeline_name=self.timeline_name,
+                volume_dir=self.volume_dir,
+                output_dir=self.soundbites_timeline_dir,
+                clip_extra_trim_seconds=self.clip_extra_trim_seconds,
+                use_high_res_path=True,
+                prefix=f"{prefix}soundbites_timeline_",
+            )
+
+            output_files["soundbites_transcript"] = soundbites_file
+            output_files["soundbites_videos"] = soundbites_video_files
+            output_files["soundbites_timeline"] = soundbites_timeline_file
             if self.export_transcript_text:
                 output_files["soundbites_text"] = soundbites_text_file
 

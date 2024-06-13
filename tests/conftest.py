@@ -9,6 +9,7 @@ import asyncio
 import os
 from trimit.backend.transcription import Transcription
 from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
+from trimit.backend.models import Soundbites
 from trimit.models.models import User, Video
 from trimit.models import get_upload_folder, maybe_init_mongo
 from trimit.utils.model_utils import save_video_with_details
@@ -306,13 +307,33 @@ async def short_cut_transcript_3909774043(transcript_3909774043):
 async def short_cut_transcript_15557970(transcript_15557970):
     transcript_15557970.split_in_chunks(500)
     transcript_15557970.erase_cuts()
-    transcript_15557970.chunks[0].segments[0].cut(2, 4)
-    transcript_15557970.chunks[0].segments[1].cut(1, 3)
-    transcript_15557970.chunks[0].segments[5].cut(1, 2)
-    transcript_15557970.chunks[4].segments[6].cut(4, 9)
-    transcript_15557970.kept_segments |= set([0, 1, 5, 128])
+    chunk_indexes = [0, 0, 1]
+    segment_indexes = [6, 7, 10]
+    cuts = [(3, 6), (0, 9), (0, 6)]
+    for chunk_idx, seg_idx, cut in zip(chunk_indexes, segment_indexes, cuts):
+        chunk = transcript_15557970.chunks[chunk_idx]
+        chunk.segments[seg_idx].cut(*cut)
+        transcript_15557970.kept_segments.add(
+            chunk.full_segment_index_from_chunk_segment_index(seg_idx)
+        )
     assert (
         transcript_15557970.text
-        == "over here. then we go. create and surface products to"
+        == "I'm Parbinder Darawal, I'm the VP GM over at CVS Media Exchange, We're number one in this category"
     )
     return transcript_15557970
+
+
+def load_soundbites(video_hash):
+    return Soundbites.load_from_file(
+        f"tests/fixtures/objects/soundbites_{video_hash}.p"
+    )
+
+
+@pytest.fixture(scope="function")
+def soundbites_3909774043():
+    return load_soundbites("3909774043")
+
+
+@pytest.fixture(scope="function")
+def soundbites_15557970():
+    return load_soundbites("15557970")

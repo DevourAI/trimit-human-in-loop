@@ -13,12 +13,7 @@ from trimit.models import maybe_init_mongo, Video
 from trimit.utils.video_utils import convert_video_to_audio
 
 CONF["chunk_delay"] = 0
-from trimit.backend.models import (
-    Transcript,
-    TranscriptChunk,
-    Soundbites,
-    SoundbitesChunk,
-)
+from trimit.backend.models import Transcript, TranscriptChunk, SoundbitesChunk
 
 
 @pytest.fixture(scope="session")
@@ -487,12 +482,6 @@ def load_story(video_hash):
     return story
 
 
-def load_soundbites(video_hash):
-    return Soundbites.load_from_file(
-        f"tests/fixtures/objects/soundbites_{video_hash}.p"
-    )
-
-
 def load_soundbites_chunk(video_hash, chunk):
     return SoundbitesChunk.load_from_file(
         f"tests/fixtures/objects/soundbites_chunk_{chunk}_{video_hash}.p"
@@ -512,16 +501,6 @@ def transcript_chunk_0_3909774043():
 @pytest.fixture(scope="function")
 def story_3909774043():
     return load_story("3909774043")
-
-
-@pytest.fixture(scope="function")
-def soundbites_3909774043():
-    return load_soundbites("3909774043")
-
-
-@pytest.fixture(scope="function")
-def soundbites_3909774043_small():
-    return load_soundbites("3909774043_small")
 
 
 @pytest.fixture(scope="function")
@@ -638,7 +617,7 @@ async def workflow_15557970_with_transcript(
 async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
     workflow = workflow_15557970_with_transcript
     output = None
-    async for output in workflow.step("make me a video"):
+    async for output, _ in workflow.step("make me a video"):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert workflow.user_messages == ["make me a video"]

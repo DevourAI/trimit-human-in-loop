@@ -898,6 +898,22 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         output_dir.mkdir(parents=True, exist_ok=True)
         return str(output_dir)
 
+    @property
+    def soundbites_video_dir(self):
+        if self.run_output_dir is None:
+            raise ValueError("run_output_dir is None")
+        output_dir = Path(self.run_output_dir) / "soundbites_videos"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return str(output_dir)
+
+    @property
+    def soundbites_timeline_dir(self):
+        if self.run_output_dir is None:
+            raise ValueError("run_output_dir is None")
+        output_dir = Path(self.run_output_dir) / "soundbites_timeline"
+        output_dir.mkdir(parents=True, exist_ok=True)
+        return str(output_dir)
+
     async def revert_step_to_before(self, step_name: str, substep_name: str, save=True):
         if not self._already_in_dynamic_state_step_order(step_name, substep_name):
             raise ValueError(f"have not reached step {step_name}.{substep_name} yet")

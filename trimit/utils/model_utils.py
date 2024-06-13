@@ -42,6 +42,10 @@ def get_generated_video_folder(volume_dir, user_email, timeline_name):
     return Path(volume_dir) / "generated_timeline_versions" / user_email / timeline_name
 
 
+def get_generated_soundbite_clips_folder(volume_dir, user_email, timeline_name):
+    return Path(volume_dir) / "generated_soundbite_clips" / user_email / timeline_name
+
+
 def get_transcript_cache_dir(volume_dir, user_email, timeline_name):
     return Path(volume_dir) / "transcript_cache" / user_email / timeline_name
 
