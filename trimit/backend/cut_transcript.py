@@ -740,6 +740,11 @@ class CutTranscriptLinearWorkflow:
         if self.state is not None:
             await self.state.revert_step(before_retries=before_retries)
 
+    async def revert_step_to_before(self, step_name: str, substep_name: str):
+        await self.load_state()
+        if self.state is not None:
+            await self.state.revert_step_to_before(step_name, substep_name)
+
     async def delete(self):
         if self.state is not None:
             await self.state.delete()
@@ -1377,9 +1382,6 @@ class CutTranscriptLinearWorkflow:
         last_step_index, last_step, last_substep_index = (
             self._get_last_step_with_index()
         )
-        print(
-            "last_step_index", last_step_index, "last_substep_index", last_substep_index
-        )
         if last_step_index == -1 and last_substep_index == -1:
             first_step = self.steps[0]
             first_substep = first_step.substeps[0]
@@ -1508,7 +1510,9 @@ class CutTranscriptLinearWorkflow:
         assert self.state is not None
         key = get_dynamic_state_key(step_name, substep_name)
         if latest_retry:
-            key = self.state.get_latest_dynamic_key_with_retry(step_name, substep_name)
+            key = self.state.get_latest_dynamic_key_with_retry_from(
+                step_name, substep_name
+            )
         return self._get_output_for_key(key)
 
     def _get_output_for_key(self, key: str):
@@ -2263,7 +2267,6 @@ class CutTranscriptLinearWorkflow:
             is_retry=human_retry or not is_first_round,
             agent_word_length_retry_num=agent_word_length_retry_num,
         )
-        print("extra_notes", extra_notes)
         task_description = parse_prompt_template(
             "modify_detailed_task_description",
             transcript_nwords=transcript.kept_word_count,
@@ -2296,10 +2299,6 @@ class CutTranscriptLinearWorkflow:
         assert isinstance(output, str)
 
         transcript = match_output_to_actual_transcript_fast(transcript, output)
-        print(
-            "transcript kept words end of modify agent output func",
-            transcript.kept_word_count,
-        )
 
         kept_soundbites = (
             key_soundbites.keep_only_in_transcript(transcript)

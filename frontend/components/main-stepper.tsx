@@ -17,6 +17,7 @@ import {
   getStepOutput,
   resetWorkflow,
   revertStepInBackend,
+  revertStepToInBackend,
   uploadVideo,
   getVideoProcessingStatuses,
 } from "@/lib/api";
@@ -25,6 +26,7 @@ import {
   type StepOutputParams,
   type GetLatestStateParams,
   type RevertStepParams,
+  type RevertStepToParams,
   type ResetWorkflowParams,
   type StepInfo,
   type UserState,
@@ -68,6 +70,10 @@ function stepIndexFromName(stepName: string, substepName: string, allSteps: Step
     console.error(`Could not find step ${remove_retry_suffix(substepName)} in steps array`, allSteps)
   }
   return 0
+}
+
+function stepNameFromIndex(stepIndex: number) {
+  return [actionSteps[stepIndex].step_name, actionSteps[stepIndex].name]
 }
 
 
@@ -183,14 +189,15 @@ export default function MainStepper({ userData }) {
   async function onSubmit(stepIndex: number, retry: boolean, data: z.infer<typeof FormSchema>) {
     setIsLoading(true)
     if (trueStepIndex > stepIndex) {
-      for (let i = 0; i < trueStepIndex - stepIndex; i++) {
-        await undoLastStepBeforeRetries()
+      let success = false
+      if (retry) {
+        success = await revertStepTo(stepIndex + 1)
+      } else {
+        success = await revertStepTo(stepIndex)
       }
-      // if it's a retry, we want stepIndex equal to trueStepIndex
-      // otherwise, we want it to be one before
-      // this will become much simpler if we just send the step name/index we want to run
-      if (!retry) {
-        await undoLastStepBeforeRetries()
+      console.log('success', success)
+      if (!success) {
+        return
       }
     }
     const params = {
@@ -264,7 +271,6 @@ export default function MainStepper({ userData }) {
   }
 
   async function revertStep(toBeforeRetries) {
-    // revertStepInBackend should take a step name or index as a parameter and do multiple reverts if needed
     setIsLoading(true)
     activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult({})
@@ -274,6 +280,26 @@ export default function MainStepper({ userData }) {
     setCurrentStepIndex(stepIndexFromState(latestState))
     setIsLoading(false)
   }
+
+  async function revertStepTo(stepIndex: number) {
+    setIsLoading(true)
+    const [stepName, substepName] = stepNameFromIndex(stepIndex)
+    console.log('stepName', stepName, 'substepName', substepName)
+    const success = await revertStepToInBackend({step_name: stepName, substep_name: substepName, ...userParams} as RevertStepToParams)
+    console.log('in revertStepTo success', success)
+    setIsLoading(false)
+    if (success ) {
+      activePromptDispatch({ type: 'restart', value: '' });
+      setFinalResult({})
+      const latestState = await getLatestState(userParams as GetLatestStateParams)
+      setLatestState(latestState)
+      setCurrentStepIndex(stepIndexFromState(latestState))
+      setIsLoading(false)
+      return success
+    }
+    return success
+  }
+
   async function undoLastStep() {
     await revertStep(false)
   }

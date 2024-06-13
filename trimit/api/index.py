@@ -305,6 +305,19 @@ async def revert_workflow_step(
     print(f"Workflow {workflow.id} reverted")
 
 
+@web_app.get("/revert_workflow_step_to")
+async def revert_workflow_step_to(
+    step_name: str,
+    substep_name: str,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+):
+    if workflow is None:
+        raise HTTPException(status_code=400, detail="Workflow not found")
+    print(f"Reverting workflow {workflow.id}")
+    await workflow.revert_step_to_before(step_name, substep_name)
+    print(f"Workflow {workflow.id} reverted to {step_name}.{substep_name}")
+
+
 @web_app.get("/get_latest_state")
 async def get_latest_state(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),

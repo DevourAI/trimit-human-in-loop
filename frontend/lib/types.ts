@@ -33,6 +33,11 @@ export interface RevertStepParams extends CommonAPIParams {
   to_before_retries: boolean
 }
 
+export interface RevertStepToParams extends CommonAPIParams {
+  step_name: string
+  substep_name: string
+}
+
 export interface ResetWorkflowParams extends CommonAPIParams {}
 export interface GetUploadedVideoParams {
   user_email: string
