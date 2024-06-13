@@ -346,3 +346,18 @@ async def test_revert_step_to_before(workflow_3909774043_with_transcript):
     last_substep = await workflow.get_last_substep(with_load_state=False)
     assert last_substep.name == "identify_key_soundbites"
     assert last_substep.step.name == "identify_key_soundbites"
+
+
+async def test_kept_cuts_with_start_end(soundbites_15557970):
+    transcript = soundbites_15557970.transcript
+    cuts = transcript.segments[6].cuts_with_start_end(3, 5)
+    assert len(cuts) == 3
+    assert cuts[0].text == "Yep, so hey,"
+    assert cuts[1].text == "I'm Parbinder"
+    assert cuts[2].text == "Darawal, or Parbs, everybody calls me."
+
+
+async def test_soundbites_iter_kept_cuts(soundbites_3909774043):
+    cuts = [c for c in soundbites_3909774043.iter_kept_cuts()]
+    cuts_text = " ".join([c.text for c in cuts])
+    assert cuts_text == soundbites_3909774043.text.replace("\n", " ")

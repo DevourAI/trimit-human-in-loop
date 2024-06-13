@@ -24,6 +24,10 @@ class Cut(BaseModel):
     def end(self):
         return self.words[-1].end if len(self.words) else -1
 
+    @property
+    def text(self):
+        return " ".join([wi.word for wi in self.words])
+
 
 class TranscriptSegment(BaseModel):
     speaker: str
@@ -129,28 +133,53 @@ class TranscriptSegment(BaseModel):
                 return True
         return False
 
-    def iter_cuts(self):
+    def cuts_with_start_end(self, start_word_index=None, end_word_index=None):
         cut_list = []
         cur_segment = Cut(words=[], segment=self)
         is_kept = False
+        if start_word_index is None:
+            start_word_index = 0
+        if end_word_index is None:
+            end_word_index = len(self.words)
+
         for i, word_info in enumerate(self.word_start_ends):
-            if self.word_i_kept(i) and not is_kept:
-                if cur_segment:
+            if i < start_word_index:
+                pass
+            elif i >= end_word_index:
+                if is_kept and len(cur_segment.words):
+                    is_kept = False
+                    cur_segment.is_kept = True
+                    cut_list.append(cur_segment)
+                    cur_segment = Cut(words=[], segment=self)
+            elif self.word_i_kept(i) and not is_kept:
+                if len(cur_segment.words):
                     cur_segment.is_kept = False
                     cut_list.append(cur_segment)
                     cur_segment = Cut(words=[], segment=self)
                 is_kept = True
             elif not self.word_i_kept(i) and is_kept:
-                if cur_segment:
+                if len(cur_segment.words):
                     cur_segment.is_kept = True
                     cut_list.append(cur_segment)
                     cur_segment = Cut(words=[], segment=self)
                 is_kept = False
             cur_segment.words.append(word_info)
-        if cur_segment:
+        if len(cur_segment.words):
             cur_segment.is_kept = is_kept
             cut_list.append(cur_segment)
         return cut_list
+
+    def iter_cuts(self):
+        return self.cuts_with_start_end(None, None)
+
+    def kept_cuts_with_start_end(self, start_word_index=None, end_word_index=None):
+        return [
+            c
+            for c in self.cuts_with_start_end(
+                start_word_index=start_word_index, end_word_index=end_word_index
+            )
+            if c.is_kept
+        ]
 
     @property
     def text(self):
@@ -606,6 +635,9 @@ class TranscriptChunk:
     def keep_only_cuts(self, offsets: list[OffsetToCut]):
         # Assumes offsets are full offsets from transcript, not chunk
         self.transcript.keep_only_cuts(offsets, from_chunk=self)
+
+    def full_segment_index_from_chunk_segment_index(self, chunk_segment_index: int):
+        return self.chunk_segment_indexes[0] + chunk_segment_index
 
     @property
     def state(self):
@@ -1152,6 +1184,59 @@ class Soundbite(BaseModel):
     start_word_index: Optional[int] = 0
     end_segment_index: int
     end_word_index: Optional[int] = None
+    _soundbites_obj: "Soundbites" = None
+
+    @classmethod
+    def from_dict_with_parent_obj(
+        cls,
+        parent_obj,
+        start_segment_index,
+        end_segment_index,
+        start_word_index=0,
+        end_word_index=None,
+    ):
+        sb = cls(
+            start_segment_index=start_segment_index,
+            end_segment_index=end_segment_index,
+            start_word_index=start_word_index,
+            end_word_index=end_word_index,
+        )
+        sb._soundbites_obj = parent_obj
+        return sb
+
+    @property
+    def soundbite_segments(self):
+        if not hasattr(self, "_soundbites_obj"):
+            raise AttributeError(
+                "must set _soundbites_obj to get segments directly from Soundbite instance"
+            )
+        transcript = self._soundbites_obj.transcript
+        return [
+            transcript.segments[i]
+            for i in range(self.start_segment_index, self.end_segment_index + 1)
+            if i in transcript.kept_segments
+        ]
+
+    def iter_kept_cuts(self):
+        segments = self.soundbite_segments
+        if len(segments) == 1:
+            for cut in segments[0].kept_cuts_with_start_end(
+                self.start_word_index, self.end_word_index
+            ):
+                yield cut
+        elif len(segments) >= 2:
+            for cut in segments[0].kept_cuts_with_start_end(
+                self.start_word_index, end_word_index=None
+            ):
+                yield cut
+            if len(segments) > 2:
+                for seg in segments[1:-1]:
+                    for cut in seg.iter_cuts():
+                        yield cut
+            for cut in segments[-1].kept_cuts_with_start_end(
+                end_word_index=self.end_word_index
+            ):
+                yield cut
 
 
 class SoundbitesChunk(TranscriptChunk):
@@ -1214,7 +1299,9 @@ class SoundbitesChunk(TranscriptChunk):
     def soundbites(self, new_chunk_soundbites):
         self.remove_existing_chunk_soundbites()
         for soundbite in new_chunk_soundbites:
-            self.soundbites_object.add_soundbite(soundbite)
+            if isinstance(soundbite, Soundbite):
+                soundbite = soundbite.model_dump()
+            self.soundbites_object.add_soundbite(**soundbite)
 
     def keep_only_in_transcript(self, transcript: Transcript | TranscriptChunk):
         if isinstance(transcript, TranscriptChunk):
@@ -1260,7 +1347,9 @@ class Soundbites(Transcript):
         self.transcript = transcript
         self.soundbites = []
         for soundbite in soundbites:
-            self.add_soundbite(soundbite)
+            if isinstance(soundbite, Soundbite):
+                soundbite = soundbite.model_dump()
+            self.add_soundbite(**soundbite)
 
     @property
     def chunks(self):
@@ -1274,15 +1363,8 @@ class Soundbites(Transcript):
         ]
 
     def iter_soundbite_segments(self):
-        kept_segments_sorted = sorted(self.transcript.kept_segments)
-        for i, soundbite in enumerate(self.soundbites):
-            segments = [
-                self.transcript.segments[i]
-                for i in kept_segments_sorted
-                if i >= soundbite.start_segment_index
-                and i <= soundbite.end_segment_index
-            ]
-            yield i, segments
+        for i in range(len(self.soundbites)):
+            yield i, self.soundbites[i].soundbite_segments
 
     def iter(self):
         return enumerate(self.soundbites)
@@ -1312,31 +1394,34 @@ class Soundbites(Transcript):
                 )
                 yield i, " ".join([s for s in text_segs if s])
 
+    def iter_kept_cuts(self):
+        for soundbite in self.soundbites:
+            for cut in soundbite.iter_kept_cuts():
+                yield cut
+
     @property
     def text(self):
         return "\n".join([seg_text for i, seg_text in self.iter_text() if seg_text])
 
     def copy(self):
-        return Soundbites(self.transcript.copy(), self.soundbites)
+        return Soundbites(self.transcript.copy(), [s.copy() for s in self.soundbites])
 
     @classmethod
     async def from_keep_tags(cls, transcript, text_with_keep_tags):
         from trimit.backend.utils import match_output_to_actual_transcript_fast
 
-        soundbites = []
         transcript, offsets = match_output_to_actual_transcript_fast(
             transcript, text_with_keep_tags, return_offsets=True
         )
+        soundbites_obj = cls(transcript, [])
         for offset in offsets:
-            soundbites.append(
-                Soundbite(
-                    start_segment_index=offset.seg_i_start,
-                    start_word_index=offset.word_i_start,
-                    end_segment_index=offset.seg_i_end,
-                    end_word_index=offset.word_i_end,
-                )
+            soundbites_obj.add_soundbite(
+                start_segment_index=offset.seg_i_start,
+                start_word_index=offset.word_i_start,
+                end_segment_index=offset.seg_i_end,
+                end_word_index=offset.word_i_end,
             )
-        return cls(transcript, soundbites)
+        return soundbites_obj
 
     def keep_only_in_transcript(self, transcript: Transcript | TranscriptChunk):
         if isinstance(transcript, TranscriptChunk):
@@ -1358,9 +1443,20 @@ class Soundbites(Transcript):
         ]
         return new_instance
 
-    def add_soundbite(self, soundbite):
-        if isinstance(soundbite, dict):
-            soundbite = Soundbite(**soundbite)
+    def add_soundbite(
+        self,
+        start_segment_index,
+        end_segment_index,
+        start_word_index=0,
+        end_word_index=None,
+    ):
+        soundbite = Soundbite.from_dict_with_parent_obj(
+            parent_obj=self,
+            start_segment_index=start_segment_index,
+            end_segment_index=end_segment_index,
+            start_word_index=start_word_index,
+            end_word_index=end_word_index,
+        )
         assert soundbite.start_segment_index in self.transcript.kept_segments
         assert soundbite.end_segment_index in self.transcript.kept_segments
         start_seg = self.transcript.segments[soundbite.start_segment_index]
@@ -1456,7 +1552,7 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     partial_user_feedback_request: str | None = None
     step_inputs: CutTranscriptLinearWorkflowStepInput | None = None
     step_outputs: dict | None = None
-    export_result: dict[str, str] | None = None
+    export_result: dict[str, str | list[str]] | None = None
     export_call_id: str | None = None
     error: str | None = None
     retry: bool = False
