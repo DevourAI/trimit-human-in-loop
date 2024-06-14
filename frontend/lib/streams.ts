@@ -38,7 +38,7 @@ export async function decodeStreamAsJSON(
             lastValue = processChunk(parts[i]);
         }
         buffer = parts[parts.length - 1];
-        return {done: false, success: false}
+        return {done: false, success: true}
     }
     function processChunk(text) {
         if (text) {
@@ -63,6 +63,7 @@ export async function decodeStreamAsJSON(
         }
         return null;
     }
+    let nFailures = 0
     while (true) {
         const result = await read();
         if (result.success && result.done) {

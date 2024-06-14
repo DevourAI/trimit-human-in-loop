@@ -1,6 +1,7 @@
 import pytest
 from trimit.utils.fs_utils import ensure_audio_path_on_volume
-from ..conftest import TEST_VOLUME_DIR, TEST_MODEL_DIR, TEST_CACHE_DIR
+from trimit.backend.transcription import add_missing_speakers, add_missing_times
+from ..conftest import TEST_VOLUME_DIR
 import diskcache as dc
 import numpy as np
 
@@ -16,6 +17,74 @@ def check_expected_segments(expected_segments, actual_segments):
         assert np.isclose(segment.end, expected_segment.end)
         assert speaker == expected_speaker
         assert track == expected_track
+
+
+@pytest.mark.long
+async def test_add_missing_speakers():
+    align_result = {
+        "segments": [
+            {"words": [{"word": "word1", "start": 1, "end": 2}]},
+            {
+                "words": [
+                    {"word": "word2", "speaker": "SPEAKER_01", "start": 1, "end": 2},
+                    {"word": "word3", "speaker": "SPEAKER_01", "start": 2, "end": 3},
+                ],
+                "speaker": "SPEAKER_01",
+            },
+            {"words": [{"word": "word4", "start": 3, "end": 4}]},
+            {"words": [{"word": "word5", "start": 6, "end": 7}]},
+            {
+                "words": [
+                    {"word": "word6", "start": 7, "end": 8},
+                    {"word": "word7", "start": 8, "end": 9, "speaker": "SPEAKER_02"},
+                ],
+                "speaker": "SPEAKER_02",
+            },
+            {
+                "words": [
+                    {"word": "word8", "speaker": "SPEAKER_02", "start": 7, "end": 8},
+                    {"word": "word9", "speaker": "SPEAKER_02", "start": 8, "end": 9},
+                ],
+                "speaker": "SPEAKER_02",
+            },
+            {"words": [{"word": "word10", "start": 9, "end": 10}]},
+        ],
+        "word_segments": [],
+    }
+    for seg in align_result["segments"]:
+        for word in seg["words"]:
+            align_result["word_segments"].append(word)
+    add_missing_times(align_result)
+    add_missing_speakers(align_result)
+    desired_seg_speakers = [
+        "SPEAKER_01",
+        "SPEAKER_01",
+        "SPEAKER_01",
+        "SPEAKER_02",
+        "SPEAKER_02",
+        "SPEAKER_02",
+        "SPEAKER_02",
+    ]
+    desired_word_speakers = [
+        "SPEAKER_01",
+        "SPEAKER_01",
+        "SPEAKER_01",
+        "SPEAKER_01",
+        "SPEAKER_02",
+        "SPEAKER_02",
+        "SPEAKER_02",
+        "SPEAKER_02",
+        "SPEAKER_02",
+        "SPEAKER_02",
+    ]
+    segment_speakers = [s.get("speaker") for s in align_result["segments"]]
+    word_speakers = [
+        w.get("speaker") for s in align_result["segments"] for w in s["words"]
+    ]
+    word_seg_speakers = [w.get("speaker") for w in align_result["word_segments"]]
+    assert segment_speakers == desired_seg_speakers
+    assert word_speakers == desired_word_speakers
+    assert word_seg_speakers == desired_word_speakers
 
 
 @pytest.mark.long

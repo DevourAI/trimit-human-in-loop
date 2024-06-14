@@ -234,7 +234,11 @@ async def get_video_processing_status(
             status = {"status": "done"}
         elif status["status"] == "done":
             if (user.email, video_hash) in video_processing_call_ids:
-                del video_processing_call_ids[(user.email, video_hash)]
+                try:
+                    del video_processing_call_ids[(user.email, video_hash)]
+                except KeyError:
+                    # TODO not sure why this happens since we check the key on the previous line
+                    video_processing_call_ids[(user.email, video_hash)] = None
         status["video_hash"] = video_hash
         expanded_statuses.append(status)
     return {"result": expanded_statuses}
