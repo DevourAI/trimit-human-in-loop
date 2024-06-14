@@ -1,3 +1,5 @@
+const MAX_READ_FAILURES = 10;
+
 export function createChunkDecoder() {
     const decoder = new TextDecoder();
     return (chunk: Uint8Array): string => decoder.decode(chunk, { stream: true });
@@ -13,12 +15,21 @@ export async function decodeStreamAsJSON(
     let lastValue = null;
 
     async function read() {
-        const { done, value } = await reader.read();
+        let done = false
+        let value = '';
+        try {
+            const res = await reader.read();
+            done = res.done
+            value = res.value
+        } catch (error) {
+            console.error(error);
+            return {done: false, success: false}
+        }
         if (done) {
             if (buffer.length > 0) {
                 lastValue = processChunk(buffer);
             }
-            return done;
+            return {done, success: true};
         }
         const chunk = new TextDecoder("utf-8").decode(value);
         buffer += chunk;
@@ -27,6 +38,7 @@ export async function decodeStreamAsJSON(
             lastValue = processChunk(parts[i]);
         }
         buffer = parts[parts.length - 1];
+        return {done: false, success: false}
     }
     function processChunk(text) {
         if (text) {
@@ -52,9 +64,15 @@ export async function decodeStreamAsJSON(
         return null;
     }
     while (true) {
-        const done = await read();
-        if (done) {
+        const result = await read();
+        if (result.success && result.done) {
             break;
+        } else if (!result.success) {
+            nFailures++
+            if (nFailures >= MAX_READ_FAILURES) {
+                console.error(`max read failures reached (${MAX_READ_FAILURES}), breaking`)
+                break;
+            }
         }
     }
     if (!lastValue) {

@@ -31,6 +31,7 @@ async def load_or_create_workflow(
     block_until: bool = False,
     timeout: float = 5,
     wait_interval: float = 0.1,
+    force_restart: bool = False,
 ):
     if not video_hash and not video_id:
         raise ValueError("video_hash or video_id must be provided")
@@ -69,11 +70,11 @@ async def load_or_create_workflow(
                 if "user_email" in workflow_params:
                     del workflow_params["user_email"]
                 workflow = await CutTranscriptLinearWorkflow.from_video_id(
-                    video_id=video_id, **workflow_params
+                    video_id=video_id, new_state=force_restart, **workflow_params
                 )
             else:
                 workflow = await CutTranscriptLinearWorkflow.from_video_hash(
-                    **workflow_params
+                    new_state=force_restart, **workflow_params
                 )
         else:
             workflow = await CutTranscriptLinearWorkflow.with_only_step_order(

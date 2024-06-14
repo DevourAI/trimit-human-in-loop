@@ -5,7 +5,7 @@ import {
   useStepper,
 } from "@/components/ui/stepper"
 import { Button } from "@/components/ui/button"
-import React, { createContext, useContext, useState, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useState, useReducer, useEffect, useRef } from 'react';
 import { StepperForm, FormSchema } from "@/components/stepper-form"
 import UploadVideo from "@/components/ui/upload-video"
 import DownloadButtons from "@/components/ui/download-buttons"
@@ -142,28 +142,33 @@ export default function MainStepper({ userData }) {
     setUserFeedbackRequest(finalResult?.user_feedback_request || BASE_PROMPT)
   }, [finalResult]);
 
+  const timeoutId = useRef(null);
   useEffect(() => {
-    let timeoutId;
     async function pollForDone() {
       const data = await getVideoProcessingStatuses(userData.email);
       let anyPending = false
       if (data.result && data.result !== "error") {
+        let changed = false
         const newVideoProcessingStatuses = {...videoProcessingStatuses}
         data.result.forEach((result) => {
           const videoHash = result.video_hash
           if (result.status === "done") {
             delete newVideoProcessingStatuses[videoHash]
+            changed = true
           } else if (result.status === "error") {
             console.error(`Error processing video ${videoHash}: ${result.error}`)
             newVideoProcessingStatuses[videoHash].status = "error"
+            changed = true
           } else {
             anyPending = true
           }
         })
-        setVideoProcessingStatuses(newVideoProcessingStatuses)
+        if (changed) {
+          setVideoProcessingStatuses(newVideoProcessingStatuses)
+        }
       }
       if (anyPending) {
-        timeoutId = setTimeout(pollForDone, POLL_INTERVAL);
+        timeoutId.current = setTimeout(pollForDone, POLL_INTERVAL);
       }
     }
 
@@ -172,7 +177,11 @@ export default function MainStepper({ userData }) {
     }
 
     // Clean up the timeout on component unmount
-    return () => clearTimeout(timeoutId);
+    return () => {
+      if (timeoutId.current) {
+        clearTimeout(timeoutId.current);
+      }
+    }
   }, [videoProcessingStatuses]);
 
   const [activePrompt, activePromptDispatch] = useReducer((state, action) => {
@@ -186,32 +195,7 @@ export default function MainStepper({ userData }) {
     }
   }, '');
 
-  async function onSubmit(stepIndex: number, retry: boolean, data: z.infer<typeof FormSchema>) {
-    setIsLoading(true)
-    if (trueStepIndex > stepIndex) {
-      let success = false
-      if (retry) {
-        success = await revertStepTo(stepIndex + 1)
-      } else {
-        success = await revertStepTo(stepIndex)
-      }
-      console.log('success', success)
-      if (!success) {
-        return
-      }
-    }
-    const params = {
-      user_input: (
-        data.feedback !== undefined && data.feedback !== null
-      ) ?
-        data.feedback : '',
-      streaming: true,
-      force_restart: false,
-      ignore_running_workflows: true,
-      retry_step: retry,
-      ...userParams,
-    } as StepParams
-    await step(params, async (reader) => {
+  async function handleStepStream(reader) {
       activePromptDispatch({ type: 'restart', value: '' });
       const lastValue = await decodeStreamAsJSON(reader, (value) => {
         let valueToAppend = value;
@@ -254,7 +238,34 @@ export default function MainStepper({ userData }) {
         setFinalResult(lastValue)
       }
       setIsLoading(false)
-    })
+  }
+
+  async function onSubmit(stepIndex: number, retry: boolean, data: z.infer<typeof FormSchema>) {
+    setIsLoading(true)
+    if (trueStepIndex > stepIndex) {
+      let success = false
+      if (retry) {
+        success = await revertStepTo(stepIndex + 1)
+      } else {
+        success = await revertStepTo(stepIndex)
+      }
+      console.log('success', success)
+      if (!success) {
+        return
+      }
+    }
+    const params = {
+      user_input: (
+        data.feedback !== undefined && data.feedback !== null
+      ) ?
+        data.feedback : '',
+      streaming: true,
+      force_restart: false,
+      ignore_running_workflows: true,
+      retry_step: retry,
+      ...userParams,
+    } as StepParams
+    await step(params, handleStepStream)
   }
 
 

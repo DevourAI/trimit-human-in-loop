@@ -1,3 +1,4 @@
+import time
 from trimit.app import app, VOLUME_DIR
 from trimit.backend.conf import (
     LINEAR_WORKFLOW_OUTPUT_FOLDER,
@@ -66,12 +67,8 @@ async def step_workflow_until_feedback_request(
 
 @app.function(**app_kwargs)
 async def step(
-    user_email: str,
-    timeline_name: str,
-    video_hash: str,
-    length_seconds: int,
+    workflow: "trimit.backend.cut_transcript.CutTranscriptLinearWorkflow",
     user_input: str | None = None,
-    force_restart: bool = False,
     ignore_running_workflows: bool = False,
     timeout: float = 120,
     async_export: bool = True,
@@ -79,22 +76,10 @@ async def step(
     step_name: str | None = None,
     substep_name: str | None = None,
 ):
-    from trimit.backend.cut_transcript import (
-        CutTranscriptLinearWorkflow,
-        CutTranscriptLinearWorkflowStepOutput,
-    )
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
-    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
-        video_hash=video_hash,
-        timeline_name=timeline_name,
-        user_email=user_email,
-        length_seconds=length_seconds,
-        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        volume_dir=VOLUME_DIR,
-        new_state=force_restart,
-    )
     if step_name is not None:
         if substep_name is None:
             raise ValueError("substep_name must be provided if step_name is provided")
@@ -104,7 +89,7 @@ async def step(
     id = workflow.id
 
     if not ignore_running_workflows:
-        if workflow.id in workflows and not force_restart:
+        if id in workflows:
             if running_workflows.get(id, False):
                 yield CutTranscriptLinearWorkflowStepOutput(
                     step_name="",
@@ -144,7 +129,20 @@ async def cut_transcript_cli(
     ignore_running_workflows: bool = False,
     timeout: float = 120,
 ):
-    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
+    from trimit.backend.cut_transcript import (
+        CutTranscriptLinearWorkflow,
+        CutTranscriptLinearWorkflowStepOutput,
+    )
+
+    workflow = await CutTranscriptLinearWorkflow.from_video_hash(
+        user_email=user_email,
+        timeline_name=timeline_name,
+        video_hash=video_hash,
+        length_seconds=length_seconds,
+        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
+        volume_dir=VOLUME_DIR,
+        new_state=force_restart,
+    )
 
     done = False
     i = 0
@@ -153,12 +151,8 @@ async def cut_transcript_cli(
 
         started_printing_feedback_request = False
         async for partial_output, is_last in step.remote_gen.aio(
-            user_email=user_email,
-            timeline_name=timeline_name,
-            video_hash=video_hash,
-            length_seconds=length_seconds,
+            workflow=workflow,
             user_input=user_input,
-            force_restart=False if i > 0 else force_restart,
             ignore_running_workflows=ignore_running_workflows,
             timeout=timeout,
         ):

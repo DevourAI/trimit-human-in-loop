@@ -5,11 +5,12 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-from pydantic import BaseModel
+from pydantic import BaseModel, EmailStr
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter
 from beanie.operators import In
+from sqlalchemy import over
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import (
@@ -99,10 +100,27 @@ app_kwargs = dict(
 )
 
 
+async def find_or_create_user(user_email: EmailStr):
+    await maybe_init_mongo()
+    user = await User.find_one(User.email == user_email)
+    if user is None:
+        user = User(email=user_email, name="")
+        await user.save()
+    return user
+
+
+async def get_user_email(user_email: EmailStr = Form(...)):
+    return user_email
+
+
+async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
+    return await find_or_create_user(user_email)
+
+
 async def get_current_workflow(
     timeline_name: str | None = None,
     length_seconds: int | None = None,
-    user_email: str | None = None,
+    user: User = Depends(find_or_create_user),
     video_hash: str | None = None,
     user_id: str | None = None,
     video_id: str | None = None,
@@ -110,6 +128,7 @@ async def get_current_workflow(
     block_until: bool = False,
     timeout: float = 5,
     wait_interval: float = 0.1,
+    force_restart: bool = False,
 ):
     if timeline_name is None or length_seconds is None:
         return None
@@ -117,7 +136,7 @@ async def get_current_workflow(
         return await load_or_create_workflow(
             timeline_name=timeline_name,
             length_seconds=length_seconds,
-            user_email=user_email,
+            user_email=user.email,
             video_hash=video_hash,
             user_id=user_id,
             video_id=video_id,
@@ -126,6 +145,7 @@ async def get_current_workflow(
             block_until=block_until,
             timeout=timeout,
             wait_interval=wait_interval,
+            force_restart=force_restart,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -184,20 +204,22 @@ def check_call_status(modal_call_id, timeout: float = 0):
 # sometime in the future we can use kafka or pubsub to push to frontend
 @web_app.get("/get_video_processing_status")
 async def get_video_processing_status(
-    user_email: str, video_hashes: list[str] | None = None, timeout: float = 0
+    user: User = Depends(find_or_create_user),
+    video_hashes: list[str] | None = None,
+    timeout: float = 0,
 ):
     if video_hashes is None:
         await maybe_init_mongo()
         video_hashes = [
             video.md5_hash
-            for video in await Video.find(Video.user.email == user_email)
+            for video in await Video.find(Video.user.email == user.email)
             .project(VideoHighResPathProjection)
             .to_list()
         ]
     call_ids = [
         (
-            video_processing_call_ids[(user_email, h)]
-            if (user_email, h) in video_processing_call_ids
+            video_processing_call_ids[(user.email, h)]
+            if (user.email, h) in video_processing_call_ids
             else None
         )
         for h in video_hashes
@@ -211,8 +233,8 @@ async def get_video_processing_status(
         if status is None:
             status = {"status": "done"}
         elif status["status"] == "done":
-            if (user_email, video_hash) in video_processing_call_ids:
-                del video_processing_call_ids[(user_email, video_hash)]
+            if (user.email, video_hash) in video_processing_call_ids:
+                del video_processing_call_ids[(user.email, video_hash)]
         status["video_hash"] = video_hash
         expanded_statuses.append(status)
     return {"result": expanded_statuses}
@@ -223,30 +245,25 @@ async def get_video_processing_status(
 @web_app.get("/check_function_call_results")
 async def check_function_call_results(modal_call_ids: list[str], timeout: float = 0):
     statuses = await asyncio.gather(
-        *[check_call_status(call_id, timeout) for call_id in modal_call_ids]
+        *[
+            async_passthrough(check_call_status(call_id, timeout))
+            for call_id in modal_call_ids
+        ]
     )
     return {"result": statuses}
 
 
 @web_app.get("/step")
 def step_endpoint(
-    user_email: str,
-    timeline_name: str,
-    video_hash: str,
-    length_seconds: int,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     user_input: str | None = None,
     streaming: bool = False,
-    force_restart: bool = False,
     ignore_running_workflows: bool = False,
     retry_step: bool = False,
 ):
     step_params = {
-        "user_email": user_email,
-        "timeline_name": timeline_name,
-        "video_hash": video_hash,
-        "length_seconds": length_seconds,
+        "workflow": workflow,
         "user_input": user_input,
-        "force_restart": force_restart,
         "ignore_running_workflows": ignore_running_workflows,
         "async_export": os.environ.get("ASYNC_EXPORT", False),
         "retry_step": retry_step,
@@ -378,6 +395,7 @@ async def download_transcript_text(
 
     if file_path is None:
         raise HTTPException(status_code=500, detail="No transcript found")
+    assert isinstance(file_path, str)
     if not os.path.exists(file_path):
         raise HTTPException(
             status_code=500, detail=f"Transcript not found at {file_path}"
@@ -416,6 +434,7 @@ async def download_soundbites_text(
 
     if file_path is None:
         raise HTTPException(status_code=500, detail="No soundbites found")
+    assert isinstance(file_path, str)
     if not os.path.exists(file_path):
         raise HTTPException(
             status_code=500, detail=f"Soundbites not found at {file_path}"
@@ -457,6 +476,7 @@ async def download_timeline(
     if timeline_path is None:
         print("download_timeline: timeline_path is none")
         raise HTTPException(status_code=500, detail="No timeline found")
+    assert isinstance(timeline_path, str)
     if not os.path.exists(timeline_path):
         print("download_timeline: timeline_path not found")
         raise HTTPException(
@@ -505,6 +525,7 @@ async def stream_video(
         video_path = export_result.get("video")
     if video_path is None:
         raise HTTPException(status_code=400, detail="No video found")
+    assert isinstance(video_path, str)
     if not os.path.exists(video_path):
         print(f"Video not found at {video_path}")
         raise HTTPException(status_code=400, detail=f"Video not found at {video_path}")
@@ -546,10 +567,10 @@ async def stream_video(
 
 @web_app.get("/uploaded_high_res_video_paths")
 async def uploaded_high_res_video_paths(
-    user_email: str = Query(...), md5_hashes: list[str] = Query(None)
+    user: User = Depends(find_or_create_user), md5_hashes: list[str] = Query(None)
 ):
     await maybe_init_mongo()
-    video_filters = [Video.user.email == user_email]
+    video_filters = [Video.user.email == user.email]
     if md5_hashes:
         video_filters.append(In(Video.md5_hash, md5_hashes))
 
@@ -563,10 +584,11 @@ async def uploaded_high_res_video_paths(
 
 @web_app.get("/uploaded_video_hashes")
 async def uploaded_video_hashes(
-    user_email: str = Query(...), high_res_user_file_paths: list[str] = Query(None)
+    user: User = Depends(find_or_create_user),
+    high_res_user_file_paths: list[str] = Query(None),
 ):
     await maybe_init_mongo()
-    video_filters = [Video.user.email == user_email]
+    video_filters = [Video.user.email == user.email]
     if high_res_user_file_paths:
         video_filters.append(
             In(Video.high_res_user_file_path, high_res_user_file_paths)
@@ -580,7 +602,7 @@ async def uploaded_video_hashes(
 
 
 @web_app.get("/uploaded_videos")
-async def uploaded_videos(user_email: str = Query(...)):
+async def uploaded_videos(user: User = Depends(find_or_create_user)):
     await maybe_init_mongo()
     return [
         {
@@ -588,7 +610,7 @@ async def uploaded_videos(user_email: str = Query(...)):
             "video_hash": video.md5_hash,
             "path": video.path(get_volume_dir()),
         }
-        for video in await Video.find(Video.user.email == user_email)
+        for video in await Video.find(Video.user.email == user.email)
         .project(VideoFileProjection)
         .to_list()
     ]
@@ -597,7 +619,7 @@ async def uploaded_videos(user_email: str = Query(...)):
 @web_app.post("/upload")
 async def upload_multiple_files(
     files: list[UploadFile] = File(...),
-    user_email: str = Form(...),
+    user: User = Depends(form_user_dependency),
     high_res_user_file_paths: list[str] = Form(...),
     timeline_name: str = Form(...),
     overwrite: bool = Form(False),
@@ -606,13 +628,29 @@ async def upload_multiple_files(
 ):
     assert background_processor is not None
 
+    print("in upload")
+    print(
+        "files",
+        files,
+        "user",
+        user,
+        "high_res_user_file_paths",
+        high_res_user_file_paths,
+        "timeline_name",
+        timeline_name,
+        "overwrite",
+        overwrite,
+        "use_existing_output",
+        use_existing_output,
+        "reprocess",
+        reprocess,
+    )
     await maybe_init_mongo()
     if not files:
         raise HTTPException(status_code=400, detail="No files uploaded")
     print(f"Received upload request for {len(files)} files")
     print(f"high_res_user_file_paths: {high_res_user_file_paths}")
 
-    current_user = await get_current_user_or_raise(user_email)
     upload_datetime = datetime.now()
 
     video_details = []
@@ -623,9 +661,7 @@ async def upload_multiple_files(
     resp_msgs = []
     for file, high_res_user_file_path in zip(files, high_res_user_file_paths):
         volume_file_dir = Path(
-            get_volume_file_path(
-                current_user, upload_datetime, "temp", volume_dir=volume_dir
-            )
+            get_volume_file_path(user, upload_datetime, "temp", volume_dir=volume_dir)
         ).parent
         volume_file_path = await save_file_to_volume_as_crc_hash(file, volume_file_dir)
         print(f"Saved file to {volume_file_path}")
@@ -655,13 +691,11 @@ async def upload_multiple_files(
             audio_file_path = video.audio_path(volume_dir)
         else:
             if not is_local():
-                s3_key = get_s3_key(
-                    current_user, upload_datetime, Path(volume_file_path).name
-                )
+                s3_key = get_s3_key(user, upload_datetime, Path(volume_file_path).name)
                 print(f"Saving file to {S3_BUCKET}/{s3_key}")
                 await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
             audio_file_path = get_audio_file_path(
-                current_user, upload_datetime, filename, volume_dir=volume_dir
+                user, upload_datetime, filename, volume_dir=volume_dir
             )
             convert_video_to_audio(str(volume_file_path), str(audio_file_path))
 
@@ -688,7 +722,7 @@ async def upload_multiple_files(
                     continue
             to_process.append(video_detail["video_hash"])
             await save_video_with_details(
-                user_email=current_user.email,
+                user_email=user.email,
                 timeline_name=timeline_name,
                 md5_hash=video_detail["video_hash"],
                 ext=video_detail["ext"],
@@ -702,10 +736,10 @@ async def upload_multiple_files(
         await bulk_writer.commit()
 
     call = background_processor.process_videos_generic_from_video_hashes.spawn(
-        current_user.email, to_process, use_existing_output=use_existing_output
+        user.email, to_process, use_existing_output=use_existing_output
     )
     for video_detail in video_details:
-        video_processing_call_ids[(current_user.email, video_detail["video_hash"])] = (
+        video_processing_call_ids[(user.email, video_detail["video_hash"])] = (
             call.object_id
         )
 
@@ -714,10 +748,3 @@ async def upload_multiple_files(
         "processing_call_id": call.object_id,
         "video_hashes": [video_detail["video_hash"] for video_detail in video_details],
     }
-
-
-async def get_current_user_or_raise(user_email: str) -> User:
-    current_user = await User.find_one(User.email == user_email)
-    if current_user is None:
-        raise HTTPException(status_code=400, detail="User not found")
-    return current_user
