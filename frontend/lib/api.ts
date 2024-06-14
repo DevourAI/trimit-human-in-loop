@@ -162,7 +162,7 @@ export async function uploadVideo(params: UploadVideoParams) {
     timeline_name: params.timelineName,
     high_res_user_file_paths: [params.videoFile.name],
     reprocess: true,
-    use_existing_output: true,
+    use_existing_output: false,
     overwrite: true
   }
 

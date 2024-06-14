@@ -50,6 +50,64 @@ def estimate_time(words_from_segments, i, transcript_start, transcript_end):
     word["score"] = word.get("score", 0.5)
 
 
+def find_nearest_speaker(segments, i):
+    if i > len(segments):
+        raise ValueError(f"i={i} > len(segments)={len(segments)}")
+    if i == 0:
+        speaker, _, _ = find_earliest_speaker(segments[1:])
+        return speaker
+    if i == len(segments) - 1:
+        speaker, _, _ = find_earliest_speaker(segments[i - 1 :: -1])
+        return speaker
+    else:
+        prev_speaker, _, prev_speaker_end = find_earliest_speaker(segments[i - 1 :: -1])
+        next_speaker, next_speaker_start, _ = find_earliest_speaker(segments[i + 1 :])
+        cur_speaker_start, cur_speaker_end = (
+            segments[i]["words"][0]["start"],
+            segments[i]["words"][-1]["end"],
+        )
+        if prev_speaker is None:
+            return next_speaker
+        if next_speaker is None:
+            return prev_speaker
+        if cur_speaker_start - prev_speaker_end < next_speaker_start - cur_speaker_end:
+            return prev_speaker
+        return next_speaker
+
+
+def find_earliest_speaker(segments):
+    start, end = segments[0]["words"][0]["start"], segments[0]["words"][-1]["end"]
+    for s in segments:
+        if s.get("speaker"):
+            return s["speaker"], start, end
+    return None, None, None
+
+
+def add_missing_speakers(align_result, default_speaker="SPEAKER_00"):
+    for i, segment in enumerate(align_result["segments"]):
+        if "speaker" not in segment or not segment.get("speaker"):
+            segment["speaker"] = (
+                find_nearest_speaker(align_result["segments"], i) or default_speaker
+            )
+
+        for word in segment["words"]:
+            if "speaker" not in word or not word.get("speaker"):
+                word["speaker"] = segment["speaker"]
+
+    for i, word_segment in enumerate(align_result["word_segments"]):
+        if "speaker" not in word_segment or not word_segment.get("speaker"):
+            word_segment["speaker"] = (
+                find_nearest_speaker(align_result["word_segments"], i)
+                or default_speaker
+            )
+
+
+def find_first_time(segments, key="start"):
+    for seg in segments:
+        if seg.get(key):
+            return seg[key]
+
+
 def add_missing_times(align_result):
     for segment in align_result["segments"]:
         for i, word in enumerate(segment["words"]):
@@ -58,9 +116,11 @@ def add_missing_times(align_result):
             word["score"] = word.get("score", 0.5)
 
     if "start" not in align_result:
-        align_result["start"] = align_result["segments"][0]["start"]
+        align_result["start"] = find_first_time(align_result["segments"]) or 0
     if "end" not in align_result:
-        align_result["end"] = align_result["segments"][-1]["end"]
+        align_result["end"] = (
+            find_first_time(align_result["segments"][::-1], "end") or 0
+        )
 
     for i, word_segment in enumerate(align_result["word_segments"]):
         if "start" not in word_segment or "end" not in word_segment:
@@ -151,6 +211,7 @@ class Transcription(CacheMixin):
         diarize_segments = self.diarize_model(waveform)
         align_result = self.assign_word_speakers(diarize_segments, align_result)
         add_missing_times(align_result)
+        add_missing_speakers(align_result)
 
         return align_result
 

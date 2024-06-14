@@ -150,12 +150,13 @@ export default function MainStepper({ userData }) {
       if (data.result && data.result !== "error") {
         let changed = false
         const newVideoProcessingStatuses = {...videoProcessingStatuses}
+        const existingKeys = Object.keys(videoProcessingStatuses)
         data.result.forEach((result) => {
           const videoHash = result.video_hash
-          if (result.status === "done") {
+          if (result.status === "done" && existingKeys.includes(videoHash)) {
             delete newVideoProcessingStatuses[videoHash]
             changed = true
-          } else if (result.status === "error") {
+          } else if (result.status === "error" && existingKeys.includes(videoHash) && newVideoProcessingStatuses[videoHash].status !== "error") {
             console.error(`Error processing video ${videoHash}: ${result.error}`)
             newVideoProcessingStatuses[videoHash].status = "error"
             changed = true
