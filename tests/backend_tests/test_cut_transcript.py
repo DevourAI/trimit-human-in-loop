@@ -407,6 +407,18 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
     assert result.step_name == "stage_1_generate_transcript"
     assert result.substep_name == "modify_transcript_holistically"
 
+    speaker_tagging_output = (
+        await workflow.get_output_for_keys(
+            ["preprocess_video.remove_off_screen_speakers"], with_load_state=False
+        )
+    )[0]
+    speaker_tagging_clips = speaker_tagging_output.export_result[
+        "speaker_tagging_clips"
+    ]
+    assert len(speaker_tagging_clips) == 2
+    assert "SPEAKER_00" in speaker_tagging_clips
+    assert "SPEAKER_01" in speaker_tagging_clips
+
     soundbites_output = (
         await workflow.get_output_for_keys(
             ["identify_key_soundbites.identify_key_soundbites"], with_load_state=False

@@ -3,8 +3,11 @@ from typing import Union
 import opentimelineio as otio
 from tqdm import tqdm
 from trimit.models import Scene, Video
-from trimit.utils.model_utils import get_scene_folder, get_generated_video_folder
-from trimit.export.utils import get_new_integer_file_name_in_dir
+from trimit.utils.model_utils import get_generated_video_folder
+from trimit.export.utils import (
+    get_new_integer_file_name_in_dir,
+    get_existing_integer_file_name_in_dir,
+)
 from tqdm.asyncio import tqdm as tqdm_async
 
 
@@ -20,9 +23,23 @@ async def create_cut_video_from_transcript(
     clip_duration_safety_buffer: float = 0.01,
     clip_min_duration: float = 0.1,
     clip_gap_min_duration: float = 0.1,
+    create_new_if_existing: bool = True,
 ):
+    filename = get_video_filename(
+        output_dir=output_dir,
+        volume_dir=volume_dir,
+        user_email=video.user.email,
+        timeline_name=timeline_name,
+        video_filename_suffix=video_filename_suffix,
+        prefix=prefix,
+        create_new_if_existing=create_new_if_existing,
+    )
+    if os.path.exists(filename) and not create_new_if_existing:
+        return filename
+
     if video.duration is None:
         raise ValueError("Video duration must be provided")
+
     assert video.duration is not None
     timeline = []
     for cut in tqdm(transcript.iter_kept_cuts(), desc="Creating scenes"):
@@ -50,10 +67,32 @@ async def create_cut_video_from_transcript(
         timeline,
         volume_dir,
         timeline_name,
-        output_dir=output_dir,
-        video_filename_suffix=video_filename_suffix,
-        prefix=prefix,
+        filename=filename,
         frame_rate=video.frame_rate or 30,
+    )
+
+
+def get_video_filename(
+    volume_dir: str,
+    user_email: str,
+    timeline_name: str,
+    output_dir: str | None = None,
+    video_filename_suffix: str = "",
+    prefix: str = "video_",
+    create_new_if_existing: bool = True,
+):
+    if output_dir is None:
+        output_dir = str(
+            get_generated_video_folder(volume_dir, user_email, timeline_name)
+        )
+
+    local_output_file = get_existing_integer_file_name_in_dir(
+        output_dir, ".mp4", prefix=prefix, suffix=video_filename_suffix
+    )
+    if local_output_file and not create_new_if_existing:
+        return local_output_file
+    return get_new_integer_file_name_in_dir(
+        output_dir, ".mp4", prefix=prefix, suffix=video_filename_suffix
     )
 
 
@@ -63,9 +102,11 @@ async def generate_video_from_timeline(
     volume_dir: str,
     timeline_name: str,
     output_dir: str | None = None,
+    filename: str | None = None,
     video_filename_suffix: str = "",
     prefix: str = "video_",
     frame_rate: float = 30,
+    create_new_if_existing: bool = True,
 ):
     from moviepy.editor import VideoFileClip, concatenate_videoclips
 
@@ -79,22 +120,24 @@ async def generate_video_from_timeline(
         scene_clips.append(video_clip.subclip(scene.start, scene.end))
 
     final_clip = concatenate_videoclips(scene_clips, method="compose")
-    if output_dir is None:
-        output_dir = str(
-            get_generated_video_folder(volume_dir, user_email, timeline_name)
+    if filename is None:
+        filename = get_video_filename(
+            output_dir=output_dir,
+            volume_dir=volume_dir,
+            user_email=user_email,
+            timeline_name=timeline_name,
+            video_filename_suffix=video_filename_suffix,
+            prefix=prefix,
+            create_new_if_existing=create_new_if_existing,
         )
-
-    local_output_file = get_new_integer_file_name_in_dir(
-        output_dir, ".mp4", prefix=prefix, suffix=video_filename_suffix
-    )
     final_clip.write_videofile(
-        local_output_file,
+        filename,
         fps=frame_rate,
         codec="libx264",
         audio_codec="aac",
         threads=os.cpu_count(),
     )
-    return local_output_file
+    return filename
 
 
 def create_fcp_7_xml_from_single_video_transcript(
