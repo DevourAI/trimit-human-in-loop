@@ -4,19 +4,21 @@ These should reflect important aspects of the narrative story provided, as well 
 They should be short, memorable, and meaningful. Even better if they include specific numbers.
 Each soundbite you choose MUST match a contiguous portion of the provided <partial_transcript> EXACTLY.
 You can write our reasons for your decisions, and then finally respond with each soundbite surrounded by <keep></keep> tags, and the entire output surrounded by <transcript></transcript> tags.
+<example>
 For instance, if the original transcript was:
-```hypothetical_partial_transcript
+```
 <partial_transcript>
 Well Bob, this is the start of our video. This is in the original transcript. What do you think? We made 10 million dollars last year. I think that's a lot of money.
 </partial_transcript>
 ```
 Your output could be:
-```hypothetical_output
+```
 <transcript>
 <keep>This is in the original transcript.</keep>
 <keep>We made 10 million dollars last year.</keep>
 </transcript>
 ```
+</example>
 
 {% if user_feedback %}
 In a previous iteration, you already provided some soundbites as output.
