@@ -346,10 +346,13 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
     ]
 
     step_outputs = []
-    str_outputs = []
+    str_outputs_by_step = {}
+    step_info_outputs_by_step = {}
     i = 0
     while True:
         assert i < len(user_inputs)
+        str_outputs = []
+        step_info_outputs = []
         async for output, is_last in step_workflow_until_feedback_request(
             workflow,
             user_inputs[i],
@@ -360,8 +363,16 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
             if is_last:
                 assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
                 step_outputs.append(output)
+                step_key = f"{output.step_name}.{output.substep_name}"
+                str_outputs_by_step[step_key] = str_outputs
+                step_info_outputs_by_step[step_key] = step_info_outputs
+                str_outputs = []
+                step_info_outputs = []
             else:
-                str_outputs.append(output)
+                if not isinstance(output, str):
+                    step_info_outputs.append(output)
+                else:
+                    str_outputs.append(output)
         assert len(step_outputs)
 
         if len(step_outputs) < len(expected_step_names):
@@ -401,6 +412,9 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
             ["identify_key_soundbites.identify_key_soundbites"], with_load_state=False
         )
     )[0]
+    assert "hypothetical" not in " ".join(
+        str_outputs_by_step["identify_key_soundbites.identify_key_soundbites"]
+    )
     output_files = soundbites_output.export_result
     for file_key in [
         "soundbites_transcript",
