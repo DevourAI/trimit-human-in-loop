@@ -1552,7 +1552,7 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     partial_user_feedback_request: str | None = None
     step_inputs: CutTranscriptLinearWorkflowStepInput | None = None
     step_outputs: dict | None = None
-    export_result: dict[str, str | list[str]] | None = None
+    export_result: dict[str, str | list[str] | dict[str, list[str]]] | None = None
     export_call_id: str | None = None
     error: str | None = None
     retry: bool = False
@@ -1605,6 +1605,7 @@ class CurrentStepInfo(BaseModel):
     export_video: Optional[bool] = True
     export_soundbites: Optional[bool] = True
     export_timeline: Optional[bool] = True
+    export_speaker_tagging: Optional[bool] = False
 
     def model_dump_json(self, *args, **kwargs):
         return super().model_dump_json(*args, exclude={"method", "step"}, **kwargs)

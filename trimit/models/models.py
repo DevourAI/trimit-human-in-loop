@@ -664,12 +664,14 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     max_iterations: int = 3
     ask_user_for_feedback_every_iteration: bool = False
     max_total_soundbites: int = 15
+    num_speaker_tagging_samples: int = 3
     export_transcript_text: bool = True
     export_transcript: bool = True
     export_soundbites: bool = True
     export_soundbites_text: bool = True
     export_timeline: bool = True
     export_video: bool = True
+    export_speaker_tagging: bool = True
 
     def create_object_id(self):
         dumped = self.model_dump(exclude=set(["user", "video"]))
@@ -805,6 +807,14 @@ class StepOrderMixin(BaseModel):
     @property
     def export_video(self):
         return self.static_state.export_video
+
+    @property
+    def export_speaker_tagging(self):
+        return self.static_state.export_speaker_tagging
+
+    @property
+    def num_speaker_tagging_samples(self):
+        return self.static_state.num_speaker_tagging_samples
 
     @property
     def clip_extra_trim_seconds(self):

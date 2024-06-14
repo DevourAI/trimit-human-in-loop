@@ -13,7 +13,7 @@ def strip_prefix_suffix(filename, prefix, suffix, ext):
         return filename[len(prefix) :]
 
 
-def get_new_integer_file_name_in_dir(output_dir, ext, prefix="", suffix=""):
+def get_max_existing_version_in_dir(output_dir, ext, prefix="", suffix=""):
     Path(output_dir).mkdir(parents=True, exist_ok=True)
     existing_basenames = os.listdir(output_dir)
     max_version = -1
@@ -25,5 +25,24 @@ def get_new_integer_file_name_in_dir(output_dir, ext, prefix="", suffix=""):
                 continue
             else:
                 max_version = max(max_version, version)
+    return max_version
 
-    return os.path.join(output_dir, f"{prefix}{max_version + 1}{suffix}{ext}")
+
+def filename_from_parts(dirname, ext, prefix, suffix, version):
+    return os.path.join(dirname, f"{prefix}{version}{suffix}{ext}")
+
+
+def get_new_integer_file_name_in_dir(output_dir, ext, prefix="", suffix=""):
+    max_version = get_max_existing_version_in_dir(
+        output_dir, ext, prefix=prefix, suffix=suffix
+    )
+    return filename_from_parts(output_dir, ext, prefix, suffix, max_version + 1)
+
+
+def get_existing_integer_file_name_in_dir(output_dir, ext, prefix="", suffix=""):
+    max_version = get_max_existing_version_in_dir(
+        output_dir, ext, prefix=prefix, suffix=suffix
+    )
+    if max_version == -1:
+        return None
+    return filename_from_parts(output_dir, ext, prefix, suffix, max_version)

@@ -4,7 +4,10 @@ import json
 from pathlib import Path
 import datetime
 import os
+from collections import defaultdict
+import random
 
+from tqdm.asyncio import tqdm as tqdm_async
 from beanie import Link, PydanticObjectId
 from schema import Schema
 from griptape.utils import PromptStack
@@ -386,6 +389,14 @@ class CutTranscriptLinearWorkflow:
         return self.step_order.export_video
 
     @property
+    def export_speaker_tagging(self):
+        return self.step_order.export_speaker_tagging
+
+    @property
+    def num_speaker_tagging_samples(self):
+        return self.step_order.num_speaker_tagging_samples
+
+    @property
     def clip_extra_trim_seconds(self):
         return self.step_order.clip_extra_trim_seconds
 
@@ -492,6 +503,7 @@ class CutTranscriptLinearWorkflow:
                         export_soundbites=False,
                         export_video=False,
                         export_timeline=False,
+                        export_speaker_tagging=False,
                     ),
                     CurrentStepInfo(
                         name="remove_off_screen_speakers",
@@ -501,6 +513,7 @@ class CutTranscriptLinearWorkflow:
                         export_soundbites=False,
                         export_video=True,
                         export_timeline=True,
+                        export_speaker_tagging=True,
                     ),
                 ],
             ),
@@ -515,6 +528,7 @@ class CutTranscriptLinearWorkflow:
                         export_soundbites=False,
                         export_video=False,
                         export_timeline=False,
+                        export_speaker_tagging=False,
                     )
                 ],
             ),
@@ -530,6 +544,7 @@ class CutTranscriptLinearWorkflow:
                         export_soundbites=True,
                         export_video=False,
                         export_timeline=False,
+                        export_speaker_tagging=False,
                     )
                 ],
             ),
@@ -547,6 +562,7 @@ class CutTranscriptLinearWorkflow:
                         export_soundbites=False,
                         export_video=False,
                         export_timeline=False,
+                        export_speaker_tagging=False,
                     ),
                     CurrentStepInfo(
                         name="modify_transcript_holistically",
@@ -557,6 +573,7 @@ class CutTranscriptLinearWorkflow:
                         export_soundbites=False,
                         export_video=True,
                         export_timeline=True,
+                        export_speaker_tagging=False,
                     ),
                 ],
             )
@@ -1277,6 +1294,11 @@ class CutTranscriptLinearWorkflow:
             and substep.export_video
             and self.current_transcript is not None
         )
+        export_speaker_tagging = (
+            self.export_speaker_tagging
+            and substep.export_speaker_tagging
+            and self.raw_transcript is not None
+        )
 
         output_dir = self.step_output_dir(step_input.step_name, step_input.substep_name)
         output_files = {}
@@ -1356,9 +1378,46 @@ class CutTranscriptLinearWorkflow:
                 prefix=f"{prefix}video_",
             )
             output_files["video"] = cut_video_path
+
+        if export_speaker_tagging:
+            output_files["speaker_tagging_clips"] = (
+                await self._export_speaker_tagging_samples(output_dir, prefix)
+            )
         yield output_files, True
 
     #### HELPER FUNCTIONS ####
+
+    async def _export_speaker_tagging_samples(self, output_dir, prefix):
+        speaker_tagging_clips = defaultdict(list)
+        speakers_to_segments = defaultdict(list)
+        for i, segment in enumerate(self.raw_transcript.segments):
+            speakers_to_segments[segment.speaker].append((i, segment))
+        clip_creation_tasks = []
+        flat_speakers = []
+        for speaker, segments in speakers_to_segments.items():
+            random_segments = segments[:]
+            random.shuffle(random_segments)
+            sampled_segments = random_segments[: self.num_speaker_tagging_samples]
+            for segment_index, segment in sampled_segments:
+                segment_transcript = self.raw_transcript.copy()
+                segment_transcript.kept_segments = set([segment_index])
+                clip_creation_tasks.append(
+                    create_cut_video_from_transcript(
+                        video=self.video,
+                        transcript=segment_transcript,
+                        timeline_name=self.timeline_name,
+                        volume_dir=self.volume_dir,
+                        output_dir=output_dir,
+                        clip_extra_trim_seconds=self.clip_extra_trim_seconds,
+                        prefix=f"{prefix}_segment_{segment_index}_",
+                        create_new_if_existing=False,
+                    )
+                )
+                flat_speakers.append(speaker)
+        clip_paths = await tqdm_async.gather(*clip_creation_tasks)
+        for speaker, path in zip(flat_speakers, clip_paths):
+            speaker_tagging_clips[speaker].append(path)
+        return speaker_tagging_clips
 
     def _step_output_val_for_stage(self, stage_num, step_output_key):
         assert self.state is not None
