@@ -74,6 +74,7 @@ from trimit.backend.models import (
     CurrentStepInfo,
     CutTranscriptLinearWorkflowStepResults,
     Steps,
+    SpeakerTaggingInput,
 )
 
 
@@ -896,6 +897,7 @@ class CutTranscriptLinearWorkflow:
     async def step(
         self,
         user_feedback: str = "",
+        structured_user_input: dict | None = None,
         load_state=True,
         save_state_to_db=True,
         async_export=True,
@@ -905,7 +907,11 @@ class CutTranscriptLinearWorkflow:
             await self.load_state()
         assert self.state is not None
         current_step, current_substep_index = (
-            await self._get_next_step_with_user_feedback(user_feedback, retry_step)
+            await self._get_next_step_with_user_feedback(
+                user_feedback=user_feedback,
+                structured_user_input=structured_user_input,
+                retry_step=retry_step,
+            )
         )
         if not current_step:
             step_result = CutTranscriptLinearWorkflowStepOutput(
@@ -986,6 +992,31 @@ class CutTranscriptLinearWorkflow:
         self, step_input: CutTranscriptLinearWorkflowStepInput
     ):
         user_prompt = step_input.user_prompt if step_input else ""
+        structured_user_input = None
+        if step_input and step_input.structured_user_input:
+            try:
+                structured_user_input = SpeakerTaggingInput(
+                    **step_input.structured_user_input
+                )
+            except Exception as e:
+                print("Could not parse structured user input, ignoring")
+        if structured_user_input and self.on_screen_transcript:
+            on_screen_speakers, on_screen_transcript = (
+                await self._modify_on_screen_transcript_with_user_input(
+                    structured_user_input
+                )
+            )
+            breakpoint()
+            self.video.speakers_in_frame = on_screen_speakers
+            await self.video.save()
+            yield CutTranscriptLinearWorkflowStepResults(
+                outputs={
+                    "current_transcript": on_screen_transcript,
+                    "on_screen_speakers": on_screen_speakers,
+                    "on_screen_transcript": on_screen_transcript,
+                },
+                user_feedback_request=None,
+            ), True
 
         on_screen_transcript = self.raw_transcript
         if self.video.speakers_in_frame:
@@ -1440,6 +1471,43 @@ class CutTranscriptLinearWorkflow:
 
     #### HELPER FUNCTIONS ####
 
+    async def _modify_on_screen_transcript_with_user_input(
+        self, structured_user_input: SpeakerTaggingInput
+    ):
+        assert self.on_screen_transcript is not None
+        new_transcript = self.raw_transcript.copy()
+        new_on_screen_speakers = set(
+            [s.speaker for s in structured_user_input.segments if s.on_screen]
+        )
+
+        new_speaker_map = {}
+        one_off_map = {}
+        for seg_mod in structured_user_input.segments:
+            prev_speaker = new_transcript.segments[seg_mod.index].speaker
+            if prev_speaker not in new_speaker_map:
+                new_speaker_map[prev_speaker] = seg_mod.speaker
+            else:
+                # if the user told us that two segments that previously has the same speaker
+                # now have two different ones, label all matching segments to the former,
+                # and treat the latter as a one-off modification.
+                # eventually we can get fancier with some kind of model
+                one_off_map[seg_mod.index] = seg_mod.speaker
+        for i, segment in enumerate(new_transcript.segments):
+            if i in one_off_map:
+                segment.speaker = one_off_map[i]
+            elif segment.speaker in new_speaker_map:
+                segment.speaker = new_speaker_map[segment.speaker]
+
+        new_transcript.kept_segments = set(
+            [s.index for s in structured_user_input.segments if s.on_screen]
+        )
+        for i in self.on_screen_transcript.kept_segments:
+            speaker = self.on_screen_transcript.segments[i].speaker
+            if speaker not in new_speaker_map:
+                new_transcript.kept_segments.add(i)
+                new_on_screen_speakers.add(speaker)
+        return new_on_screen_speakers, new_transcript
+
     async def _export_speaker_tagging_samples(self, output_dir, prefix):
         speaker_tagging_clips = defaultdict(list)
         speakers_to_segments = defaultdict(list)
@@ -1513,7 +1581,10 @@ class CutTranscriptLinearWorkflow:
         return next_step_index, next_step, next_substep_index
 
     async def _get_next_step_with_user_feedback(
-        self, user_feedback: str | None = None, retry_step: bool = False
+        self,
+        user_feedback: str | None = None,
+        structured_user_input: dict | None = None,
+        retry_step: bool = False,
     ):
 
         # TODO use get_step_by_name
@@ -1544,7 +1615,11 @@ class CutTranscriptLinearWorkflow:
         last_substep = last_step.substeps[last_substep_index]
 
         retry, retry_input = await self._decide_retry(
-            last_step.name, last_substep.name, user_feedback, force_retry=force_retry
+            step_name=last_step.name,
+            substep_name=last_substep.name,
+            user_prompt=user_feedback,
+            structured_user_input=structured_user_input,
+            force_retry=force_retry,
         )
         if retry:
             print("retrying", retry_input)
@@ -1692,10 +1767,19 @@ class CutTranscriptLinearWorkflow:
         step_name: str,
         substep_name: str,
         user_prompt: str | None,
+        structured_user_input: dict | None = None,
         force_retry=False,
     ):
-        if not user_prompt or substep_name == "init_state":
+        if (
+            not user_prompt and not structured_user_input
+        ) or substep_name == "init_state":
             return force_retry, None
+        if not user_prompt and structured_user_input and force_retry:
+            return True, CutTranscriptLinearWorkflowStepInput(
+                user_prompt="",
+                structured_user_input=structured_user_input,
+                is_retry=True,
+            )
 
         assert self.state is not None
         _, substep = self.get_step_by_name(step_name, substep_name)
@@ -1703,7 +1787,9 @@ class CutTranscriptLinearWorkflow:
         if self.state.dynamic_state_retries.get(dynamic_key):
             print("Latest state was retry")
             return True, CutTranscriptLinearWorkflowStepInput(
-                user_prompt=user_prompt, is_retry=True
+                user_prompt=user_prompt,
+                structured_user_input=structured_user_input,
+                is_retry=True,
             )
 
         if substep.chunked_feedback:
@@ -1745,6 +1831,7 @@ class CutTranscriptLinearWorkflow:
                 partials_to_redo
             ), CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt,
+                structured_user_input=structured_user_input,
                 llm_modified_partial_feedback=PartialFeedback(
                     partials_to_redo=partials_to_redo,
                     relevant_user_feedback_list=relevant_user_feedback_list,
@@ -1776,7 +1863,9 @@ class CutTranscriptLinearWorkflow:
             )
 
             return force_retry or output, CutTranscriptLinearWorkflowStepInput(
-                user_prompt=user_prompt, is_retry=True
+                user_prompt=user_prompt,
+                is_retry=True,
+                structured_user_input=structured_user_input,
             )
 
     def _create_user_feedback_prompt_from_modify_final_transcript(

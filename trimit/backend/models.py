@@ -1551,6 +1551,16 @@ class Soundbites(Transcript):
         return cls(transcript=transcript, soundbites=state["soundbites"])
 
 
+class SpeakerTaggingSegmentModification(BaseModel):
+    index: int
+    speaker: str
+    on_screen: bool
+
+
+class SpeakerTaggingInput(BaseModel):
+    segments: list[SpeakerTaggingSegmentModification]
+
+
 class PartialFeedback(BaseModel):
     partials_to_redo: list[bool] = Field(
         ...,
@@ -1570,6 +1580,10 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
         description="feedback provided by LLM after processing the raw user_prompt",
     )
     is_retry: bool = Field(False, description="whether the current run is a retry")
+    structured_user_input: dict | None = Field(
+        None,
+        description="structured dict that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step"
+    )
     step_name: str | None = None
     substep_name: str | None = None
     prior_conversation: list[Message] = Field(

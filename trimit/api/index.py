@@ -399,10 +399,15 @@ def step_endpoint(
         False,
         description="If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output",
     ),
+    structured_user_input: dict | None = Query(
+        None,
+        description="structured dict that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step"
+    )
 ):
     step_params = {
         "workflow": workflow,
         "user_input": user_input,
+        "structured_user_input": structured_user_input,
         "ignore_running_workflows": ignore_running_workflows,
         "async_export": os.environ.get("ASYNC_EXPORT", False),
         "retry_step": retry_step,
