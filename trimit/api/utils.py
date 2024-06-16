@@ -33,6 +33,7 @@ async def load_or_create_workflow(
     wait_interval: float = 0.1,
     force_restart: bool = False,
 ):
+    print("in load or create workflow")
     if not video_hash and not video_id:
         raise ValueError("video_hash or video_id must be provided")
     if not user_id and not user_email:
@@ -47,10 +48,12 @@ async def load_or_create_workflow(
         "output_folder": LINEAR_WORKFLOW_OUTPUT_FOLDER,
         "volume_dir": VOLUME_DIR,
     }
+    print("workflow params:", workflow_params)
 
     workflow_id = await CutTranscriptLinearWorkflow.id_from_params(
         video_id=video_id or None, user_id=user_id or None, **workflow_params
     )
+    print("got workflow id:", workflow_id)
     running = running_workflows.get(workflow_id, False)
     if running and not block_until and wait_until_done_running:
         raise ValueError("Cannot wait until done running without blocking")
@@ -62,6 +65,7 @@ async def load_or_create_workflow(
             if time.time() - start_time > timeout:
                 raise TimeoutError("Timeout (workflow still running)")
     workflow = workflows.get(workflow_id, None)
+    print("got workflow")
     if not workflow:
         if with_output:
             if video_id:
@@ -72,20 +76,25 @@ async def load_or_create_workflow(
                 workflow = await CutTranscriptLinearWorkflow.from_video_id(
                     video_id=video_id, new_state=force_restart, **workflow_params
                 )
+                print("created workflow from video_id")
             else:
                 workflow = await CutTranscriptLinearWorkflow.from_video_hash(
                     new_state=force_restart, **workflow_params
                 )
+                print("created workflow from video_hash")
         else:
             workflow = await CutTranscriptLinearWorkflow.with_only_step_order(
                 video_id=video_id or None, user_id=user_id or None, **workflow_params
             )
+            print("created workflow with only step order")
         assert workflow_id == workflow.id
         workflows[workflow_id] = workflow
     else:
         if with_output:
             await workflow.load_state()
+            print("loaded workflow state")
         else:
             await workflow.load_step_order()
+            print("loaded workflow step order")
 
     return workflow

@@ -67,7 +67,11 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
         origin = request.headers.get("origin")
         # Regex to match allowed origins, e.g., any subdomain of trimit.vercel.app
         local_origins = ["http://127.0.0.1:3000", "http://localhost:3000"]
-        allow_local = origin and origin in local_origins and os.environ["ENV"] == "dev"
+        allow_local = (
+            origin
+            and origin in local_origins
+            and os.environ["ENV"] in ["dev", "staging"]
+        )
         allow_remote = origin and re.match(r"https?://.*-trimit\.vercel\.app", origin)
         origin = origin or ""
         if allow_local or allow_remote:
@@ -100,6 +104,12 @@ app_kwargs = dict(
 )
 
 
+async def maybe_user_wrapper(user_email: EmailStr | None = None):
+    if user_email is None:
+        return None
+    return await find_or_create_user(user_email)
+
+
 async def find_or_create_user(user_email: EmailStr):
     await maybe_init_mongo()
     user = await User.find_one(User.email == user_email)
@@ -120,7 +130,7 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
 async def get_current_workflow(
     timeline_name: str | None = None,
     length_seconds: int | None = None,
-    user: User = Depends(find_or_create_user),
+    user: User | None = Depends(maybe_user_wrapper),
     video_hash: str | None = None,
     user_id: str | None = None,
     video_id: str | None = None,
@@ -130,7 +140,7 @@ async def get_current_workflow(
     wait_interval: float = 0.1,
     force_restart: bool = False,
 ):
-    if timeline_name is None or length_seconds is None:
+    if timeline_name is None or length_seconds is None or user is None:
         return None
     try:
         return await load_or_create_workflow(
@@ -344,17 +354,22 @@ async def get_latest_state(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     with_output: bool = False,
 ):
+    print("got workflow in get_latest_state")
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
     last_step_obj = await workflow.get_last_substep_with_user_feedback(
         with_load_state=False
     )
+    print("got last step obj")
     last_step_dict = last_step_obj.to_dict() if last_step_obj else None
+    print("got last step dict")
     next_step_obj = await workflow.get_next_substep_with_user_feedback(
         with_load_state=False
     )
+    print("got next step obj")
     next_step_dict = next_step_obj.to_dict() if next_step_obj else None
+    print("got next step dict")
 
     return_dict = {
         "last_step": last_step_dict,
@@ -365,8 +380,10 @@ async def get_latest_state(
         "user_messages": workflow.user_messages,
         "step_history_state": workflow.serializable_state_step_order,
     }
+    print("got return dict")
     if with_output:
         return_dict["output"] = await workflow.get_last_output(with_load_state=False)
+        print("got return dict output")
     return return_dict
 
 

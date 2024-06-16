@@ -1639,7 +1639,7 @@ class CutTranscriptLinearWorkflow:
 
         assert self.state is not None
         _, substep = self.get_step_by_name(step_name, substep_name)
-        dynamic_key = self.state.get_latest_dynamic_key_with_retry(
+        dynamic_key = self.state.get_latest_dynamic_key_with_retry_from(
             step_name, substep_name
         )
         if self.state.dynamic_state_retries.get(dynamic_key):
