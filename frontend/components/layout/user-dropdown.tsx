@@ -1,15 +1,16 @@
 // Shown when the user is logged in
+import { ExitIcon } from '@radix-ui/react-icons';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuSeparator,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
-import { useUser } from "@/contexts/user-context";
-import { ExitIcon } from "@radix-ui/react-icons";
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { useUser } from '@/contexts/user-context';
 
 export default function UserDropdown() {
   const { userData, logout } = useUser();
@@ -18,9 +19,9 @@ export default function UserDropdown() {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Avatar className="h-8 w-8 cursor-pointer border border-border shadow-lg">
-          <AvatarImage src={userData.picture || "/placeholder-user.jpg"} />
+          <AvatarImage src={userData.picture || '/placeholder-user.jpg'} />
           <AvatarFallback>
-            {userData.name ? userData.name[0] : "JD"}
+            {userData.name ? userData.name[0] : 'JD'}
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
@@ -28,17 +29,17 @@ export default function UserDropdown() {
         <div className="flex items-center justify-between py-2 px-3">
           <div className="flex items-center gap-2">
             <Avatar className="h-8 w-8 cursor-pointer">
-              <AvatarImage src={userData.picture || "/placeholder-user.jpg"} />
+              <AvatarImage src={userData.picture || '/placeholder-user.jpg'} />
               <AvatarFallback>
-                {userData.name ? userData.name[0] : "JD"}
+                {userData.name ? userData.name[0] : 'JD'}
               </AvatarFallback>
             </Avatar>
             <div className="leading-none overflow-hidden">
               <p className="font-medium truncate">
-                {userData.name || "John Doe"}
+                {userData.name || 'John Doe'}
               </p>
               <p className="text-sm text-muted-foreground truncate">
-                {userData.email || "john@example.com"}
+                {userData.email || 'john@example.com'}
               </p>
             </div>
           </div>

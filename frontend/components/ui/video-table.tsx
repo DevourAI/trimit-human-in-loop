@@ -1,4 +1,12 @@
-import React from "react";
+import {
+  CheckIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+} from '@radix-ui/react-icons';
+import React from 'react';
+
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Table,
   TableBody,
@@ -6,22 +14,46 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import type { Video } from "@/lib/types";
+} from '@/components/ui/table';
+import type { Video } from '@/lib/types';
 
 interface VideoTableProps {
   uploadedVideos: Video[];
-  selectedVideo: Video | null;
   videoProcessingStatuses: { [key: string]: { status: string } };
-  setSelectedVideo: (video: Video) => void;
+  selectVideo: (video: Video) => void;
 }
+
+const getStatusBadge = (status: string) => {
+  switch (status) {
+    case 'error':
+      return (
+        <Badge variant="destructive">
+          <ExclamationTriangleIcon className="mr-1" />
+          Error
+        </Badge>
+      );
+    case 'pending':
+      return (
+        <Badge variant="secondary">
+          <ClockIcon className="mr-1" />
+          Processing
+        </Badge>
+      );
+    case 'done':
+    default:
+      return (
+        <Badge variant="secondary">
+          <CheckIcon className="mr-1" />
+          Ready
+        </Badge>
+      );
+  }
+};
 
 const VideoTable: React.FC<VideoTableProps> = ({
   uploadedVideos,
-  selectedVideo,
   videoProcessingStatuses,
-  setSelectedVideo,
+  selectVideo,
 }) => {
   return (
     <div className="rounded-md border">
@@ -29,41 +61,30 @@ const VideoTable: React.FC<VideoTableProps> = ({
         <TableHeader>
           <TableRow>
             <TableHead>Filename</TableHead>
-            <TableHead>Thumbnail</TableHead>
-            <TableHead>Processing Status</TableHead>
+            <TableHead className="hidden md:table-cell">Thumbnail</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {uploadedVideos.length ? (
             uploadedVideos.map((video: Video) => (
-              <TableRow
-                key={video.filename}
-                data-state={
-                  video.filename == selectedVideo?.filename && "selected"
-                }
-              >
+              <TableRow key={video.filename}>
                 <TableCell className="font-medium">{video.filename}</TableCell>
-                <TableCell>
+                <TableCell className="hidden md:table-cell">
                   <video width="320" height="240" controls>
                     <source src={video.remoteUrl} type="video/mp4" />
+                    <track kind="captions" />
                     Your browser does not support the video tag.
                   </video>
                 </TableCell>
                 <TableCell className="font-medium">
                   {videoProcessingStatuses[video.hash]
-                    ? videoProcessingStatuses[video.hash].status === "error"
-                      ? "Error"
-                      : videoProcessingStatuses[video.hash].status === "pending"
-                      ? "Processing"
-                      : "Ready to use"
-                    : "Ready to use"}
+                    ? getStatusBadge(videoProcessingStatuses[video.hash].status)
+                    : getStatusBadge('done')}
                 </TableCell>
                 <TableCell>
-                  <Button
-                    variant="outline"
-                    onClick={() => setSelectedVideo(video)}
-                  >
+                  <Button variant="outline" onClick={() => selectVideo(video)}>
                     Select
                   </Button>
                 </TableCell>

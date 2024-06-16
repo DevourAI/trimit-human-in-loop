@@ -1,7 +1,8 @@
-"use client";
-import React from "react";
-import { useParams } from "next/navigation";
-import AppShell from "@/components/layout/app-shell";
+'use client';
+import { useParams } from 'next/navigation';
+import React from 'react';
+
+import AppShell from '@/components/layout/app-shell';
 
 export default function Project() {
   const { id } = useParams();

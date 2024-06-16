@@ -1,15 +1,16 @@
-"use client";
-import React from "react";
-import AppShell from "@/components/layout/app-shell";
+'use client';
+import React from 'react';
+
+import AppShell from '@/components/layout/app-shell';
+import { Button } from '@/components/ui/button';
 import {
   Table,
-  TableHeader,
   TableBody,
-  TableRow,
-  TableHead,
   TableCell,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 
 export default function Projects() {
   return (

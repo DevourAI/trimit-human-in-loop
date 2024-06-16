@@ -34,7 +34,6 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
-
 .yarn/*
 !.yarn/patches
 !.yarn/plugins
@@ -43,3 +42,5 @@ next-env.d.ts
 !.yarn/versions
 
 __pycache__
+
+.vscode/

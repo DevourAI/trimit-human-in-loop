@@ -1,10 +1,12 @@
-import React, { useEffect, useState, useRef } from "react";
-import type { GetUploadedVideoParams, Video } from "@/lib/types";
-import { getUploadedVideos, getVideoProcessingStatuses } from "@/lib/api";
-import UploadVideo from "@/components/ui/upload-video";
-import VideoTable from "@/components/ui/video-table";
-import { useUser } from "@/contexts/user-context";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import React, { useEffect, useRef, useState } from 'react';
+
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import UploadVideo from '@/components/ui/upload-video';
+import VideoTable from '@/components/ui/video-table';
+import { useUser } from '@/contexts/user-context';
+import { getUploadedVideos, getVideoProcessingStatuses } from '@/lib/api';
+import type { GetUploadedVideoParams, Video } from '@/lib/types';
+
 const POLL_INTERVAL = 5000;
 
 interface VideoSelectorProps {
@@ -22,98 +24,61 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    async function fetchUploadedVideos() {
+    const fetchUploadedVideos = async () => {
       setIsLoading(true);
       try {
-        const _uploadedVideos = await getUploadedVideos({
+        const videos = await getUploadedVideos({
           user_email: userData.email,
         } as GetUploadedVideoParams);
-        setUploadedVideos(_uploadedVideos);
+
+        setUploadedVideos(videos as Video[]);
       } catch (error) {
-        console.error("Error fetching uploaded videos:", error);
+        console.error('Error fetching uploaded videos:', error);
       } finally {
         setIsLoading(false);
       }
-    }
+    };
 
     fetchUploadedVideos();
   }, [userData]);
 
   useEffect(() => {
-    async function fetchVideoProcessingStatuses() {
+    const fetchVideoProcessingStatuses = async () => {
       try {
         const data = await getVideoProcessingStatuses(userData.email);
-        if (data.result && data.result !== "error") {
-          const newVideoProcessingStatuses = { ...videoProcessingStatuses };
-          data.result.forEach(
-            (result: {
-              video_hash: string;
-              status: string;
-              error?: string;
-            }) => {
-              newVideoProcessingStatuses[result.video_hash] = {
-                status: result.status,
-              };
-            }
+        if (
+          data &&
+          typeof data === 'object' &&
+          'result' in data &&
+          data.result !== 'error'
+        ) {
+          const newStatuses = (
+            data.result as { video_hash: string; status: string }[]
+          ).reduce(
+            (
+              acc: Record<string, { status: string }>,
+              result: { video_hash: string; status: string }
+            ) => {
+              acc[result.video_hash] = { status: result.status };
+              return acc;
+            },
+            {}
           );
-          setVideoProcessingStatuses(newVideoProcessingStatuses);
+          setVideoProcessingStatuses(newStatuses);
         }
       } catch (error) {
-        console.error("Error fetching video processing statuses:", error);
+        console.error('Error fetching video processing statuses:', error);
       }
-    }
+    };
 
-    async function pollForDone() {
-      try {
-        const data = await getVideoProcessingStatuses(userData.email);
-        let anyPending = false;
-        if (data.result && data.result !== "error") {
-          let changed = false;
-          const newVideoProcessingStatuses = { ...videoProcessingStatuses };
-          const existingKeys = Object.keys(videoProcessingStatuses);
-          data.result.forEach(
-            (result: {
-              video_hash: string;
-              status: string;
-              error?: string;
-            }) => {
-              const videoHash = result.video_hash;
-              if (
-                result.status === "done" &&
-                existingKeys.includes(videoHash)
-              ) {
-                delete newVideoProcessingStatuses[videoHash];
-                changed = true;
-              } else if (
-                result.status === "error" &&
-                existingKeys.includes(videoHash) &&
-                newVideoProcessingStatuses[videoHash].status !== "error"
-              ) {
-                console.error(
-                  `Error processing video ${videoHash}: ${result.error}`
-                );
-                newVideoProcessingStatuses[videoHash].status = "error";
-                changed = true;
-              } else {
-                anyPending = true;
-              }
-            }
-          );
-          if (changed) {
-            setVideoProcessingStatuses(newVideoProcessingStatuses);
-          }
-        }
-        if (anyPending) {
-          timeoutId.current = setTimeout(pollForDone, POLL_INTERVAL);
-        }
-      } catch (error) {
-        console.error("Error polling video processing statuses:", error);
-      }
-    }
+    const pollForStatuses = async () => {
+      await fetchVideoProcessingStatuses();
+      timeoutId.current = setTimeout(pollForStatuses, POLL_INTERVAL);
+    };
 
     if (userData.email) {
       fetchVideoProcessingStatuses();
-      pollForDone();
+      pollForStatuses();
     }
 
     return () => {
@@ -121,13 +86,13 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
         clearTimeout(timeoutId.current);
       }
     };
-  }, [userData.email, videoProcessingStatuses]);
+  }, [userData.email]);
 
   useEffect(() => {
-    if (selectedVideo && selectedVideo.hash) {
+    if (selectedVideo?.hash) {
       setVideoHash(selectedVideo.hash);
     }
-  }, [selectedVideo]);
+  }, [selectedVideo, setVideoHash]);
 
   return (
     <div className="grid gap-3">
@@ -146,9 +111,8 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
           />
           <VideoTable
             uploadedVideos={uploadedVideos}
-            selectedVideo={selectedVideo}
             videoProcessingStatuses={videoProcessingStatuses}
-            setSelectedVideo={setSelectedVideo}
+            selectVideo={setSelectedVideo}
           />
         </>
       )}
