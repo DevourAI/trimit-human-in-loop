@@ -9,7 +9,7 @@ from trimit.backend.cut_transcript import (
 from trimit.backend.conf import CONF
 from trimit.backend.transcription import Transcription
 from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
-from trimit.models import maybe_init_mongo, Video
+from trimit.models import maybe_init_mongo, Video, Project
 from trimit.utils.video_utils import convert_video_to_audio
 
 CONF["chunk_delay"] = 0
@@ -550,14 +550,27 @@ def test_videos_volume_dir():
 
 
 @pytest.fixture(scope="function")
+async def test_project(video_3909774043_with_speakers_in_frame):
+    return await Project.create(
+        name="test_project",
+        video_hash="3909774043",
+        user=video_3909774043_with_speakers_in_frame.user,
+        overwrite=True,
+        raise_on_existing=False,
+    )
+
+
+@pytest.fixture(scope="function")
 async def workflow_3909774043_with_transcript(
     video_3909774043_with_speakers_in_frame,
+    test_project,
     test_videos_output_dir,
     test_videos_volume_dir,
 ):
     loop = asyncio.get_running_loop()
     await maybe_init_mongo(io_loop=loop, reinitialize=True)
     return await CutTranscriptLinearWorkflow.from_video(
+        project=test_project,
         video=video_3909774043_with_speakers_in_frame,
         timeline_name="3909774043_testimonial_test",
         output_folder=test_videos_output_dir,

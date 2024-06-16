@@ -683,6 +683,11 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
         if isinstance(video_ref, DBRef):
             video_ref = video_ref.id
         dumped["video"] = str(video_ref)
+        project_ref = self.project.to_ref()
+        if isinstance(project_ref, DBRef):
+            project_ref = project_ref.id
+        dumped["project"] = str(project_ref)
+
         self_as_str = json.dumps(dumped, sort_keys=True)
         md5_hash = hashlib.md5(self_as_str.encode()).hexdigest()
         return PydanticObjectId(md5_hash[:24])
