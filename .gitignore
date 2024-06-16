@@ -43,3 +43,5 @@ tests/**/*.wav
 scripts/outputs
 tests/video_outputs
 tests/timeline_outputs
+.vscode
+.yarn/sdks

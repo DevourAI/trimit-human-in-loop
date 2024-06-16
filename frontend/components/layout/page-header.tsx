@@ -1,7 +1,7 @@
 "use client";
-import Balance from "react-wrap-balancer"
+import Balance from "react-wrap-balancer";
 
-import { cn } from "@/lib/utils"
+import { cn } from "@/lib/utils";
 
 function PageHeader({
   className,
@@ -18,7 +18,7 @@ function PageHeader({
     >
       {children}
     </section>
-  )
+  );
 }
 
 function PageHeaderHeading({
@@ -33,7 +33,7 @@ function PageHeaderHeading({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function PageHeaderDescription({
@@ -48,7 +48,7 @@ function PageHeaderDescription({
       )}
       {...props}
     />
-  )
+  );
 }
 
 function PageActions({
@@ -63,7 +63,7 @@ function PageActions({
       )}
       {...props}
     />
-  )
+  );
 }
 
-export { PageHeader, PageHeaderHeading, PageHeaderDescription, PageActions }
+export { PageHeader, PageHeaderHeading, PageHeaderDescription, PageActions };

@@ -1,44 +1,40 @@
 "use client";
-import useSWR from 'swr'
-import React, { createContext, useContext, useState } from 'react';
-import MainNav from "@/components/main-nav"
+import React, { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import {
   PageActions,
   PageHeader,
   PageHeaderDescription,
   PageHeaderHeading,
-} from "@/components/page-header"
-import { cn } from "@/lib/utils"
-import MainStepper from "@/components/main-stepper"
-import Login from '@/components/login';
-
-const fetcher = (url) => fetch(url).then((res) => res.json());
+} from "@/components/layout/page-header";
+import Login from "@/components/login";
+import AppShell from "@/components/layout/app-shell";
+import { Button } from "@/components/ui/button";
+import { useUser } from "@/contexts/user-context";
 
 export default function Home() {
-  const { data, error, isLoading } = useSWR("/userData", fetcher);
-  let initialUserData = {'email': '', 'name': '', 'picture': ''};
-  if (process.env.NEXT_PUBLIC_ENV === 'local') {
-    initialUserData = {'email': 'ben@trimit.ai', 'name': 'Ben Schreck', 'picture': ''};
-  }
-  if (data && data.userData && data.userData.value) {
-    initialUserData = data.userData.value;
-  }
-  const [userData, setUserData] = useState(initialUserData)
+  const { userData, setUserData, isLoggedIn } = useUser();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isLoggedIn) {
+      router.push("/videos");
+    }
+  }, [isLoggedIn, router]);
 
   return (
-      <div className="container relative">
-        <PageHeader>
-          <PageHeaderHeading>TrimIt Interview Builder</PageHeaderHeading>
-          <PageHeaderDescription>
-            Raw interview footage to edited video, no timeline required.
-          </PageHeaderDescription>
-          <PageActions>
-            <Login userData={userData} setUserData={setUserData}/>
-          </PageActions>
-        </PageHeader>
-        {userData.email ? (
-          <MainStepper userData={userData}/>
-        ) : null}
-      </div>
-  )
+    <AppShell>
+      <PageHeader>
+        <PageHeaderHeading>TrimIt Interview Builder</PageHeaderHeading>
+        <PageHeaderDescription>
+          Raw interview footage to edited video, no timeline required.
+        </PageHeaderDescription>
+        <PageActions>
+          {!isLoggedIn && (
+            <Login userData={userData} setUserData={setUserData} />
+          )}
+        </PageActions>
+      </PageHeader>
+    </AppShell>
+  );
 }
