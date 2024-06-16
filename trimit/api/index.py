@@ -104,6 +104,12 @@ app_kwargs = dict(
 )
 
 
+async def maybe_user_wrapper(user_email: EmailStr | None = None):
+    if user_email is None:
+        return None
+    return await find_or_create_user(user_email)
+
+
 async def find_or_create_user(user_email: EmailStr):
     await maybe_init_mongo()
     user = await User.find_one(User.email == user_email)
@@ -124,7 +130,7 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
 async def get_current_workflow(
     timeline_name: str | None = None,
     length_seconds: int | None = None,
-    user: User = Depends(find_or_create_user),
+    user: User | None = Depends(maybe_user_wrapper),
     video_hash: str | None = None,
     user_id: str | None = None,
     video_id: str | None = None,
@@ -134,7 +140,7 @@ async def get_current_workflow(
     wait_interval: float = 0.1,
     force_restart: bool = False,
 ):
-    if timeline_name is None or length_seconds is None:
+    if timeline_name is None or length_seconds is None or user is None:
         return None
     try:
         return await load_or_create_workflow(
