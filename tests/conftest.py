@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 
 os.environ["ENV"] = "test"
+import pymongo
 import diskcache as dc
 from datetime import datetime
 import pytest
@@ -85,7 +86,11 @@ async def create_user():
     user1 = User(
         name="brian armstrong", email="brian@coinbase.com", password="password"
     )
-    await user1.insert()
+    try:
+        await user1.insert()
+    except pymongo.errors.DuplicateKeyError:
+        user1 = await User.find_one(User.email == "brian@coinbase.com")
+        assert user1 is not None
     return user1
 
 

@@ -22,6 +22,8 @@ else:
 async def load_or_create_workflow(
     timeline_name: str,
     length_seconds: int,
+    project_name: str | None = None,
+    project_id: str | None = None,
     user_email: str | None = None,
     video_hash: str | None = None,
     user_id: str | None = None,
@@ -33,6 +35,8 @@ async def load_or_create_workflow(
     wait_interval: float = 0.1,
     force_restart: bool = False,
 ):
+    if not project_name and not project_id:
+        raise ValueError("project_name or project_id must be provided")
     if not video_hash and not video_id:
         raise ValueError("video_hash or video_id must be provided")
     if not user_id and not user_email:
@@ -40,6 +44,7 @@ async def load_or_create_workflow(
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
     workflow_params = {
+        "project_name": project_name,
         "video_hash": video_hash,
         "timeline_name": timeline_name,
         "user_email": user_email,
@@ -49,7 +54,10 @@ async def load_or_create_workflow(
     }
 
     workflow_id = await CutTranscriptLinearWorkflow.id_from_params(
-        video_id=video_id or None, user_id=user_id or None, **workflow_params
+        video_id=video_id or None,
+        user_id=user_id or None,
+        project_id=project_id or None,
+        **workflow_params
     )
     running = running_workflows.get(workflow_id, False)
     if running and not block_until and wait_until_done_running:
@@ -64,13 +72,18 @@ async def load_or_create_workflow(
     workflow = workflows.get(workflow_id, None)
     if not workflow:
         if with_output:
-            if video_id:
+            if video_id and project_id:
+                if "project_name" in workflow_params:
+                    del workflow_params["project_name"]
                 if "video_hash" in workflow_params:
                     del workflow_params["video_hash"]
                 if "user_email" in workflow_params:
                     del workflow_params["user_email"]
                 workflow = await CutTranscriptLinearWorkflow.from_video_id(
-                    video_id=video_id, new_state=force_restart, **workflow_params
+                    project_id=project_id,
+                    video_id=video_id,
+                    new_state=force_restart,
+                    **workflow_params
                 )
             else:
                 workflow = await CutTranscriptLinearWorkflow.from_video_hash(
@@ -78,7 +91,10 @@ async def load_or_create_workflow(
                 )
         else:
             workflow = await CutTranscriptLinearWorkflow.with_only_step_order(
-                video_id=video_id or None, user_id=user_id or None, **workflow_params
+                project_id=project_id or None,
+                video_id=video_id or None,
+                user_id=user_id or None,
+                **workflow_params
             )
         assert workflow_id == workflow.id
         workflows[workflow_id] = workflow

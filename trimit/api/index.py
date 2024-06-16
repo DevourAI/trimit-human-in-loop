@@ -4,13 +4,16 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
+from urllib.request import HTTPDefaultErrorHandler
 
+from aiohttp.http_exceptions import HttpBadRequest
 from pydantic import BaseModel, EmailStr
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter
 from beanie.operators import In
 from sqlalchemy import over
+from sqlalchemy.util import raise_
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import (
@@ -39,6 +42,7 @@ from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_or_create_workflow
 from trimit.app import app, get_volume_dir, S3_BUCKET
 from trimit.models import (
+    Project,
     maybe_init_mongo,
     Video,
     VideoHighResPathProjection,
@@ -118,10 +122,12 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
 
 
 async def get_current_workflow(
+    project_name: str | None = None,
     timeline_name: str | None = None,
     length_seconds: int | None = None,
     user: User = Depends(find_or_create_user),
     video_hash: str | None = None,
+    project_id: str | None = None,
     user_id: str | None = None,
     video_id: str | None = None,
     wait_until_done_running: bool = False,
@@ -134,10 +140,12 @@ async def get_current_workflow(
         return None
     try:
         return await load_or_create_workflow(
+            project_name=project_name,
             timeline_name=timeline_name,
             length_seconds=length_seconds,
             user_email=user.email,
             video_hash=video_hash,
+            project_id=project_id,
             user_id=user_id,
             video_id=video_id,
             with_output=True,
@@ -618,6 +626,60 @@ async def uploaded_videos(user: User = Depends(find_or_create_user)):
         .project(VideoFileProjection)
         .to_list()
     ]
+
+
+@web_app.get("/projects")
+async def projects(user: User = Depends(find_or_create_user)):
+    await maybe_init_mongo()
+    return [
+        project.model_dump()
+        for project in await Project.find(
+            Project.user.email == user.email, fetch_links=True
+        ).to_list()
+    ]
+
+
+@web_app.get("/project")
+async def project(name: str, user: User = Depends(find_or_create_user)):
+    await maybe_init_mongo()
+    project = await Project.find_one(
+        Project.user.email == user.email, Project.name == name, fetch_links=True
+    )
+    if project is None:
+        raise HTTPException(
+            status_code=400,
+            detail=f"project {name} does not exist for user {user.email}",
+        )
+    return project.model_dump()
+
+
+@web_app.post("/projects/new")
+async def new_project(
+    name: str = Form(...),
+    video_hash: str = Form(...),
+    user: User = Depends(form_user_dependency),
+    overwrite: bool = Form(False),
+    raise_on_existing: bool = Form(True),
+):
+    await maybe_init_mongo()
+    try:
+        await Project.create(
+            name=name,
+            user=user,
+            video_hash=video_hash,
+            overwrite=overwrite,
+            raise_on_existing=raise_on_existing,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@web_app.post("/projects/delete")
+async def delete_project(
+    name: str = Form(...), user: User = Depends(form_user_dependency)
+):
+    await maybe_init_mongo()
+    await Project.find_one(Project.name == name, Project.user == user).delete()
 
 
 @web_app.post("/upload")

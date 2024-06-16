@@ -10,7 +10,7 @@ from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
 from bson.dbref import DBRef
 from pymongo import IndexModel
 import pymongo
-from beanie import Document, Link, PydanticObjectId
+from beanie import Document, Link, BackLink, PydanticObjectId
 from beanie.operators import In
 from pydantic import Field, BaseModel, field_validator
 
@@ -569,7 +569,6 @@ class Frame(DocumentWithSaveRetry):
             [("video", pymongo.ASCENDING)],
             [("video.md5_hash", pymongo.ASCENDING)],
             [("user", pymongo.ASCENDING), ("video.md5_hash", pymongo.ASCENDING)],
-            [("user", pymongo.ASCENDING), ("video.md5_hash", pymongo.ASCENDING)],
         ]
 
     def __repr__(self):
@@ -651,6 +650,7 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     user: Link[User]
     timeline_name: str
     video: Link[Video]
+    project: Link["Project"]
     volume_dir: str
     output_folder: str
     length_seconds: int
@@ -1200,4 +1200,75 @@ class TimelineOutput(BaseModel):
         return TimelineOutput(timeline=self.timeline + other.timeline)
 
 
-ALL_MODELS = [User, Video, Scene, Frame, CutTranscriptLinearWorkflowState]
+class Project(DocumentWithSaveRetry):
+    name: str
+    user: Link[User]
+    video: Link[Video]
+    workflows: list[BackLink[CutTranscriptLinearWorkflowState]] = Field(
+        original_field="project"
+    )
+
+    class Settings:
+        name = "Project"
+        indexes = [
+            IndexModel(
+                [("name", pymongo.ASCENDING), ("user.email", pymongo.ASCENDING)],
+                unique=True,
+            ),
+            [("name", pymongo.ASCENDING)],
+            [("user", pymongo.ASCENDING)],
+            [("user.email", pymongo.ASCENDING)],
+            [("video", pymongo.ASCENDING)],
+            [("video.md5_hash", pymongo.ASCENDING)],
+            [("user", pymongo.ASCENDING), ("video.md5_hash", pymongo.ASCENDING)],
+        ]
+
+    def __repr__(self):
+        return (
+            f"Project(\n"
+            f"    user.email={self.user.email},\n"
+            f"    name={self.name}), \n"
+            f"    video={self.video.md5_hash}), \n"
+            ")"
+        )
+
+    @classmethod
+    async def create(
+        cls,
+        name: str,
+        video_hash: str,
+        user: User | None = None,
+        user_email: str | None = None,
+        overwrite: bool = False,
+        raise_on_existing: bool = False,
+    ) -> "Project":
+        if user is None:
+            if user_email is None:
+                raise ValueError("user or user_email must be provided")
+            user = await User.find_one(User.email == user_email)
+            if user is None:
+                raise ValueError(f"User not found: {user_email}")
+        video = await Video.find_one(
+            Video.md5_hash == video_hash, Video.user.email == user.email
+        )
+        if video is None:
+            raise ValueError(f"Video not found: {video_hash}")
+
+        project = await Project.find_one(
+            Project.user.email == user.email, Project.name == name, fetch_links=True
+        )
+        if project is not None:
+            if not overwrite:
+                if raise_on_existing:
+                    raise ValueError(
+                        f"project with name {name} already exists for user {user.email}"
+                    )
+                return project
+            else:
+                await project.delete()
+        project = Project(user=user, video=video, name=name, workflows=[])
+        await project.save_with_retry()
+        return project
+
+
+ALL_MODELS = [User, Project, Video, Scene, Frame, CutTranscriptLinearWorkflowState]

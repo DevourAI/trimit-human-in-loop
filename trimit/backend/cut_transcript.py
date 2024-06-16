@@ -48,6 +48,7 @@ from trimit.utils.model_utils import (
 from trimit.models import (
     Video,
     User,
+    Project,
     CutTranscriptLinearWorkflowState,
     StepOrderMixin,
     maybe_init_mongo,
@@ -102,7 +103,9 @@ class CutTranscriptLinearWorkflow:
         output_folder: str,
         length_seconds: int,
         user_email: str | None = None,
+        project_name: str | None = None,
         video_hash: str | None = None,
+        project_id: str | PydanticObjectId | None = None,
         user_id: str | PydanticObjectId | None = None,
         video_id: str | PydanticObjectId | None = None,
         **cut_transcript_linear_workflow_static_state_params,
@@ -112,6 +115,10 @@ class CutTranscriptLinearWorkflow:
             if user_email is None:
                 raise ValueError(
                     "user_email must be provided if video_id is not provided"
+                )
+            if project_name is None:
+                raise ValueError(
+                    "project_name must be provided if video_id is not provided"
                 )
             if video_hash is None:
                 raise ValueError(
@@ -128,21 +135,36 @@ class CutTranscriptLinearWorkflow:
                 )
             video_id = video.id
             user_id = video.user.id
+            project = await Project.find_one(
+                Project.name == project_name, Project.user.email == user_email
+            )
+            if project is None:
+                raise ValueError(
+                    f"Project with name {project_name} and user_email {user_email} not found"
+                )
+            project_id = project.id
         assert user_id is not None
         assert video_id is not None
+        assert project_id is not None
         if isinstance(user_id, str):
             user_id = PydanticObjectId(user_id)
         if isinstance(video_id, str):
             video_id = PydanticObjectId(video_id)
+        if isinstance(project_id, str):
+            project_id = PydanticObjectId(project_id)
         user_collection_name = User.get_collection_name()
         assert isinstance(user_collection_name, str)
         video_collection_name = Video.get_collection_name()
         assert isinstance(video_collection_name, str)
+        project_collection_name = Project.get_collection_name()
+        assert isinstance(project_collection_name, str)
         user_ref = DBRef(id=user_id, collection=user_collection_name)
         video_ref = DBRef(id=video_id, collection=video_collection_name)
+        project_ref = DBRef(id=project_id, collection=project_collection_name)
         state = CutTranscriptLinearWorkflowStaticState(
             user=Link(user_ref, User),
             video=Link(video_ref, Video),
+            project=Link(project_ref, Project),
             timeline_name=timeline_name,
             volume_dir=volume_dir,
             output_folder=output_folder,
@@ -155,6 +177,7 @@ class CutTranscriptLinearWorkflow:
     @classmethod
     async def from_video_id(
         cls,
+        project_id: str,
         video_id: str,
         timeline_name: str,
         length_seconds: int,
@@ -164,12 +187,16 @@ class CutTranscriptLinearWorkflow:
         new_state: bool = False,
         **init_kwargs,
     ):
+        project = await Project.get(project_id)
+        if project is None:
+            raise ValueError(f"project with id {project_id} not found")
         video = await Video.get(video_id)
         if video is None:
             raise ValueError(f"Video with id {video_id} not found")
         if video_local_upload_date:
             video.upload_datetime = video_local_upload_date
         return await cls.from_video(
+            project=project,
             video=video,
             timeline_name=timeline_name,
             length_seconds=length_seconds,
@@ -182,6 +209,7 @@ class CutTranscriptLinearWorkflow:
     @classmethod
     async def from_video_hash(
         cls,
+        project_name: str,
         video_hash: str,
         user_email: str,
         timeline_name: str,
@@ -193,6 +221,11 @@ class CutTranscriptLinearWorkflow:
         **init_kwargs,
     ):
         await maybe_init_mongo()
+        project = await Project.find_one(
+            Project.name == project_name, Video.user.email == user_email
+        )
+        if project is None:
+            raise ValueError(f"Project with name {project_name} not found")
         video = await Video.find_one(
             Video.md5_hash == video_hash, Video.user.email == user_email
         )
@@ -201,6 +234,7 @@ class CutTranscriptLinearWorkflow:
         if video_local_upload_date:
             video.upload_datetime = video_local_upload_date
         return await cls.from_video(
+            project=project,
             video=video,
             timeline_name=timeline_name,
             length_seconds=length_seconds,
@@ -217,15 +251,19 @@ class CutTranscriptLinearWorkflow:
         length_seconds: int,
         output_folder: str,
         volume_dir: str,
+        project_id: str | None = None,
         video_id: str | None = None,
         user_id: str | None = None,
+        project_name: str | None = None,
         video_hash: str | None = None,
         user_email: str | None = None,
         **init_kwargs,
     ):
         workflow_id = await CutTranscriptLinearWorkflow.id_from_params(
+            project_id=project_id or None,
             video_id=video_id or None,
             user_id=user_id or None,
+            project_name=project_name,
             video_hash=video_hash,
             timeline_name=timeline_name,
             user_email=user_email,
@@ -240,6 +278,7 @@ class CutTranscriptLinearWorkflow:
     @classmethod
     async def from_video(
         cls,
+        project: Project,
         video: Video,
         timeline_name: str,
         length_seconds: int,
@@ -251,6 +290,7 @@ class CutTranscriptLinearWorkflow:
 
         if new_state:
             state = await CutTranscriptLinearWorkflowState.recreate(
+                project=project,
                 video=video,
                 timeline_name=timeline_name,
                 length_seconds=length_seconds,
@@ -260,6 +300,7 @@ class CutTranscriptLinearWorkflow:
             )
         else:
             state = await CutTranscriptLinearWorkflowState.find_or_create(
+                project=project,
                 video=video,
                 timeline_name=timeline_name,
                 length_seconds=length_seconds,

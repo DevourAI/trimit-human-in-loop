@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import asyncio
 from .models import *
 from .models import ALL_MODELS
 from modal import is_local
@@ -71,9 +72,11 @@ def get_motor_client(cert_path: str | None = None, **motor_kwargs):
         cert_path = os.environ["MONGO_CERT_FILEPATH"] or None
 
     mongo_url = os.environ["MONGO_URL"]
-    return AsyncIOMotorClient(
+    client = AsyncIOMotorClient(
         mongo_url, tlsCertificateKeyFile=cert_path, **motor_kwargs
     )
+    client.get_io_loop = asyncio.get_running_loop
+    return client
 
 
 @asynccontextmanager
