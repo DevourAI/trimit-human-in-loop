@@ -1,15 +1,16 @@
 // Shown when the user is logged in
+import { ExitIcon } from '@radix-ui/react-icons';
+
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
-  DropdownMenuSeparator,
   DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { useUser } from '@/contexts/user-context';
-import { ExitIcon } from '@radix-ui/react-icons';
 
 export default function UserDropdown() {
   const { userData, logout } = useUser();

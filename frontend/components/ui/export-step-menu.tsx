@@ -1,17 +1,18 @@
+import { DownloadIcon } from '@radix-ui/react-icons';
 import * as React from 'react';
+
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
-  DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Button } from '@/components/ui/button';
-import { DownloadIcon } from '@radix-ui/react-icons';
 import {
-  downloadVideo,
+  downloadSoundbitesText,
   downloadTimeline,
   downloadTranscriptText,
-  downloadSoundbitesText,
+  downloadVideo,
 } from '@/lib/api';
 import { DownloadFileParams } from '@/lib/types';
 

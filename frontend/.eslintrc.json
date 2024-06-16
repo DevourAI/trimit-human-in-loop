@@ -6,8 +6,15 @@
     "plugin:jsx-a11y/recommended",
     "plugin:prettier/recommended"
   ],
-  "plugins": ["react", "react-hooks", "jsx-a11y", "prettier", "unused-imports"],
-
+  "plugins": [
+    "react",
+    "react-hooks",
+    "jsx-a11y",
+    "prettier",
+    "unused-imports",
+    "import",
+    "simple-import-sort"
+  ],
   "rules": {
     "react/react-in-jsx-scope": "off", // Next.js handles React in scope
     "react/prop-types": "off", // Disable prop-types as we use TypeScript
@@ -18,7 +25,11 @@
         "trailingComma": "es5",
         "endOfLine": "auto"
       }
-    ]
+    ],
+    "unused-imports/no-unused-imports": "error",
+    "import/order": ["error"],
+    "simple-import-sort/imports": "error",
+    "simple-import-sort/exports": "error"
   },
   "settings": {
     "react": {

@@ -1,9 +1,10 @@
 // components/Login.tsx
 'use client';
 import { GoogleLogin } from '@react-oauth/google';
-import { useUser } from '@/contexts/user-context';
 import { jwtDecode } from 'jwt-decode';
+
 import UserDropdown from '@/components/layout/user-dropdown';
+import { useUser } from '@/contexts/user-context';
 
 export default function Login() {
   const { userData, login, isLoggedIn } = useUser();

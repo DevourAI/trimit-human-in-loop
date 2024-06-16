@@ -1,9 +1,10 @@
 'use client';
-import React, { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser } from '@/contexts/user-context';
-import VideoSelector from '@/components/ui/video-selector';
+import React, { useEffect } from 'react';
+
 import AppShell from '@/components/layout/app-shell';
+import VideoSelector from '@/components/ui/video-selector';
+import { useUser } from '@/contexts/user-context';
 
 export default function Videos() {
   const { isLoggedIn, isLoading } = useUser();

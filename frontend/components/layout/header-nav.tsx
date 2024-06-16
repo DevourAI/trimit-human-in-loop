@@ -1,18 +1,15 @@
 'use client';
-import {
-  NavigationMenu,
-  NavigationMenuContent,
-  NavigationMenuIndicator,
-  NavigationMenuItem,
-  NavigationMenuLink,
-  NavigationMenuList,
-  NavigationMenuTrigger,
-  NavigationMenuViewport,
-  navigationMenuTriggerStyle,
-} from '@/components/ui/navigation-menu';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
+
+import {
+  NavigationMenu,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  navigationMenuTriggerStyle,
+} from '@/components/ui/navigation-menu';
 
 const links = [
   //   {
@@ -50,7 +47,7 @@ export default function HeaderNav() {
       <NavigationMenuList>
         {links.map((link) => (
           <NavigationMenuItem key={link.href}>
-            <Link href={link.href} passHref>
+            <Link href={link.href} legacyBehavior passHref>
               <NavigationMenuLink
                 className={`${navigationMenuTriggerStyle()} ${
                   pathname === link.href ? 'bg-muted' : ''

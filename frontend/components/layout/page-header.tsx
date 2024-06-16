@@ -68,4 +68,4 @@ function PageActions({
   );
 }
 
-export { PageHeader, PageHeaderHeading, PageHeaderDescription, PageActions };
+export { PageActions, PageHeader, PageHeaderDescription, PageHeaderHeading };

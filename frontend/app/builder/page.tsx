@@ -1,8 +1,9 @@
 'use client';
-import React, { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import MainStepper from '@/components/main-stepper/main-stepper';
+import React, { useEffect } from 'react';
+
 import AppShell from '@/components/layout/app-shell';
+import MainStepper from '@/components/main-stepper/main-stepper';
 import { useUser } from '@/contexts/user-context';
 
 export default function Builder() {

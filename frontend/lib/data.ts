@@ -1,4 +1,4 @@
-import { StepInfo, StepData } from './types';
+import { StepData, StepInfo } from './types';
 // TODO this should go in a protobuf, shared between python and js
 export const stepData: StepData = {
   stepArray: [

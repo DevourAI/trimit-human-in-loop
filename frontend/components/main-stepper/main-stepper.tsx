@@ -1,30 +1,31 @@
 'use client';
-import { Step, Stepper } from '@/components/ui/stepper';
+import { DownloadIcon, ReloadIcon } from '@radix-ui/react-icons';
+import React, { useEffect, useMemo, useReducer, useState } from 'react';
+
+import { Footer } from '@/components/main-stepper/main-stepper-footer';
 import { Button } from '@/components/ui/button';
-import React, { useState, useReducer, useEffect, useMemo } from 'react';
-import { StepperForm, FormSchema } from '@/components/ui/stepper-form';
-import { decodeStreamAsJSON } from '@/lib/streams';
-import { ReloadIcon, DownloadIcon } from '@radix-ui/react-icons';
+import { Step, Stepper } from '@/components/ui/stepper';
+import { FormSchema, StepperForm } from '@/components/ui/stepper-form';
+import { useUser } from '@/contexts/user-context';
 import {
-  step,
   getLatestState,
   getStepOutput,
   resetWorkflow,
   revertStepInBackend,
   revertStepToInBackend,
+  step,
 } from '@/lib/api';
+import { actionSteps, allSteps, stepData } from '@/lib/data';
+import { decodeStreamAsJSON } from '@/lib/streams';
 import {
   GetLatestStateParams,
+  ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
-  ResetWorkflowParams,
   StepInfo,
-  UserState,
   StepParams,
+  UserState,
 } from '@/lib/types';
-import { stepData, allSteps, actionSteps } from '@/lib/data';
-import { useUser } from '@/contexts/user-context';
-import { Footer } from '@/components/main-stepper/main-stepper-footer';
 
 const BASE_PROMPT = 'What do you want to create?';
 

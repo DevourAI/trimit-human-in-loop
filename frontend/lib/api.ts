@@ -1,16 +1,17 @@
+import axios, { AxiosResponse } from 'axios';
+
 import {
-  StepOutputParams,
+  DownloadFileParams,
   GetLatestStateParams,
+  GetUploadedVideoParams,
   ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
+  StepOutputParams,
   StepParams,
   UploadVideoParams,
-  DownloadFileParams,
-  GetUploadedVideoParams,
   UserState,
 } from './types';
-import axios, { AxiosResponse } from 'axios';
 
 let API_URL = process.env.NEXT_PUBLIC_API_BASE_URL_REMOTE;
 if (process.env.BACKEND === 'local') {
