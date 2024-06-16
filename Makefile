@@ -14,10 +14,10 @@ deploy_prod:
 	@DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
 
 deploy_staging:
-	@DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=staging ./deploy.sh
+	@MODAL_ENVIRONMENT=staging DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=staging ./deploy.sh
 
 deploy_dev:
-	@DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=dev ./deploy.sh
+	@MODAL_ENVIRONMENT=dev DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=dev ./deploy.sh
 
 test:
 	@echo "Running tests..."
