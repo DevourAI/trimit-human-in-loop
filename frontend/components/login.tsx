@@ -31,7 +31,6 @@ export default function Login() {
             console.log("Login Failed");
           }}
           useOneTap
-          auto_select
         />
       )}
     </div>
