@@ -123,7 +123,8 @@ export async function getLatestState(
     !params.user_email ||
     !params.video_hash ||
     !params.length_seconds ||
-    !params.timeline_name
+    !params.timeline_name ||
+    !params.project_name
   )
     return {};
   params.with_output = params.with_output ?? true;
@@ -186,6 +187,32 @@ export async function step(
   } catch (err: unknown) {
     console.error(err);
   }
+}
+
+export async function createProject(
+  userEmail: string, projectName: string, videoHash: string
+): Promise<void> {
+  console.log('project args', userEmail, projectName, videoHash)
+  if (!userEmail) return
+  if (!projectName) return
+  if (!videoHash) return
+  const url = new URL(`${API_URL}/projects/new`);
+  const data = {
+    user_email: userEmail,
+    name: projectName,
+    video_hash: videoHash,
+    // TODO turn these off once we have flow for user choosing project name
+    overwrite: true,
+    raise_on_existing: false
+  };
+  console.log('createProject data', data)
+
+  const respData = await postFetcherWithData("projects/new", data);
+  if (respData && respData.result && respData.result.error) {
+    console.error(respData);
+    return false
+  }
+  return true
 }
 
 export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {

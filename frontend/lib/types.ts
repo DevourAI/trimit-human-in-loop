@@ -7,6 +7,7 @@ export interface CommonAPIParams {
   timeline_name: string
   length_seconds: number
   video_hash: string
+  project_name: string
 }
 
 export interface StepParams extends CommonAPIParams {

@@ -156,6 +156,7 @@ async def get_current_workflow(
             force_restart=force_restart,
         )
     except Exception as e:
+        print("load workflow exception", e)
         raise HTTPException(status_code=500, detail=str(e))
 
 
@@ -355,14 +356,19 @@ async def get_latest_state(
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
+    print("got workflow in get_latest_state")
     last_step_obj = await workflow.get_last_substep_with_user_feedback(
         with_load_state=False
     )
+    print("got last step obj")
     last_step_dict = last_step_obj.to_dict() if last_step_obj else None
+    print("got last step dict")
     next_step_obj = await workflow.get_next_substep_with_user_feedback(
         with_load_state=False
     )
+    print("got next step obj")
     next_step_dict = next_step_obj.to_dict() if next_step_obj else None
+    print("got next step dict")
 
     return_dict = {
         "last_step": last_step_dict,
@@ -373,8 +379,10 @@ async def get_latest_state(
         "user_messages": workflow.user_messages,
         "step_history_state": workflow.serializable_state_step_order,
     }
+    print("return dict no output", return_dict)
     if with_output:
         return_dict["output"] = await workflow.get_last_output(with_load_state=False)
+        print("return dict output", return_dict)
     return return_dict
 
 

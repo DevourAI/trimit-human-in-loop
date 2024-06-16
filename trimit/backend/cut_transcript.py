@@ -136,7 +136,9 @@ class CutTranscriptLinearWorkflow:
             video_id = video.id
             user_id = video.user.id
             project = await Project.find_one(
-                Project.name == project_name, Project.user.email == user_email
+                Project.name == project_name,
+                Project.user.email == user_email,
+                fetch_links=True,
             )
             if project is None:
                 raise ValueError(
@@ -222,7 +224,9 @@ class CutTranscriptLinearWorkflow:
     ):
         await maybe_init_mongo()
         project = await Project.find_one(
-            Project.name == project_name, Video.user.email == user_email
+            Project.name == project_name,
+            Project.user.email == user_email,
+            fetch_links=True,
         )
         if project is None:
             raise ValueError(f"Project with name {project_name} not found")

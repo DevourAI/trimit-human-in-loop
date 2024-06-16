@@ -17,6 +17,7 @@ import {
   resetWorkflow,
   revertStepInBackend,
   revertStepToInBackend,
+  createProject
 } from "@/lib/api";
 import {
   CommonAPIParams,
@@ -111,15 +112,25 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     useState<boolean>(false);
 
   const timelineName = "timelineName";
+  const projectName = "projectName";
   const lengthSeconds = 60;
   const userParams: CommonAPIParams = {
     user_email: userData.email,
     timeline_name: timelineName,
     length_seconds: lengthSeconds,
     video_hash: videoHash,
+    project_name: projectName,
   };
 
   useEffect(() => {
+  }, []);
+
+  useEffect(() => {
+    // TODO flow for this with user entering project name. project names must be unique for each user
+    createProject(userParams.user_email, userParams.project_name, videoHash).then((res)=>{
+      console.log('create project res', res)
+    })
+
     async function fetchLatestState() {
       const data = await getLatestState(userParams as GetLatestStateParams);
       setLatestState(data);
@@ -132,6 +143,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     }
 
     fetchLatestState();
+
   }, [userData, videoHash]);
 
   useEffect(() => {
