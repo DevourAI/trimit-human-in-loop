@@ -22,6 +22,16 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
   >({});
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
+  const isComponentMounted = useRef<boolean>(true);
+  const isPolling = useRef<boolean>(false);
+
+  // Used to cancel the timeout when the component unmounts
+  useEffect(() => {
+    isComponentMounted.current = true;
+    return () => {
+      isComponentMounted.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const fetchUploadedVideos = async () => {
@@ -43,7 +53,11 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
   }, [userData]);
 
   useEffect(() => {
+    if (!userData.email) return;
+
     const fetchVideoProcessingStatuses = async () => {
+      if (isPolling.current) return; // Ensure only one polling request in flight
+      isPolling.current = true;
       try {
         const data = await getVideoProcessingStatuses(userData.email);
         if (
@@ -68,18 +82,19 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
         }
       } catch (error) {
         console.error('Error fetching video processing statuses:', error);
+      } finally {
+        isPolling.current = false;
       }
     };
 
     const pollForStatuses = async () => {
       await fetchVideoProcessingStatuses();
-      timeoutId.current = setTimeout(pollForStatuses, POLL_INTERVAL);
+      if (isComponentMounted.current) {
+        timeoutId.current = setTimeout(pollForStatuses, POLL_INTERVAL);
+      }
     };
 
-    if (userData.email) {
-      fetchVideoProcessingStatuses();
-      pollForStatuses();
-    }
+    pollForStatuses();
 
     return () => {
       if (timeoutId.current) {
