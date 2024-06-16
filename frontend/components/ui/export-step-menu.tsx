@@ -36,7 +36,7 @@ export default function ExportStepMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="w-fit">
+        <Button className="w-fit" variant="secondary">
           <DownloadIcon className="mr-2" />
           Export
         </Button>

@@ -28,11 +28,6 @@ build
 *.spec
 .pnp.*
 .yarn/*
-!.yarn/patches
-!.yarn/plugins
-!.yarn/releases
-!.yarn/sdks
-!.yarn/versions
 node_modules
 customer_videos
 .storybook_downsample_cache.json
@@ -43,5 +38,3 @@ tests/**/*.wav
 scripts/outputs
 tests/video_outputs
 tests/timeline_outputs
-.vscode
-.yarn/sdks

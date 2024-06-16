@@ -133,7 +133,8 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   }, [userData, userParams, videoHash]);
 
   useEffect(() => {
-    setUserFeedbackRequest(latestState?.output?.user_feedback_request || null);
+    if (!latestState) return;
+    setUserFeedbackRequest(latestState.output?.user_feedback_request || null);
     const stepIndex = stepIndexFromState(latestState);
     if (stepIndex !== -1) {
       setTrueStepIndex(stepIndex);
