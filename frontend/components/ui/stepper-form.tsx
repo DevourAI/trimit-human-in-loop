@@ -112,6 +112,7 @@ export function StepperForm({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <Button
+                size="sm"
                 disabled={isLoading}
                 type="button"
                 onClick={onRetryClick}
@@ -126,7 +127,7 @@ export function StepperForm({
                 substepName={step.name}
               />
             </div>
-            <Button disabled={isLoading} type="submit">
+            <Button size="sm" disabled={isLoading} type="submit">
               Submit
             </Button>
           </div>
