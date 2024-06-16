@@ -72,6 +72,7 @@ export function StepperForm({
   return (
     <div className="relative">
       <Form {...form}>
+        <p className="pre-wrap">{JSON.stringify(step, null, 2)}</p>
         <p>{systemPrompt}</p>
         <form
           onSubmit={form.handleSubmit((data) => innerOnSubmit(data, false))}
