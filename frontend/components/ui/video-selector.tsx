@@ -30,7 +30,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
         const videos = await getUploadedVideos({
           user_email: userData.email,
         } as GetUploadedVideoParams);
-        console.log(videos);
+
         setUploadedVideos(videos as Video[]);
       } catch (error) {
         console.error('Error fetching uploaded videos:', error);
