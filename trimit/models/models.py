@@ -71,7 +71,7 @@ class PathMixin:
 class User(DocumentWithSaveRetry):
     email: str
     password: Optional[str] = Field(default=None, min_length=8)
-    name: str
+    name: Optional[str] = None
     authorized_with_google: bool = False
 
     class Settings:
