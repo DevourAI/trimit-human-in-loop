@@ -1,8 +1,8 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ChangeEvent, useRef, useState } from 'react';
-import { SubmitHandler, useForm } from 'react-hook-form';
+import { ChangeEvent, useState } from 'react';
+import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,9 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { useStepper } from '@/components/ui/stepper';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Textarea } from '@/components/ui/textarea';
+import { StepInfo } from '@/lib/types';
 
 export const FormSchema = z.object({
   feedback: z.optional(z.string()),
@@ -27,13 +28,14 @@ interface StepperFormProps {
   isLoading: boolean;
   stepIndex: number;
   userParams: any;
-  step: { step_name: string; name: string };
+  step: StepInfo;
   prompt: string;
   onSubmit: (
     stepIndex: number,
     retry: boolean,
     data: z.infer<typeof FormSchema>
   ) => void;
+  onCancelStep?: () => void;
 }
 
 export function StepperForm({
@@ -44,18 +46,15 @@ export function StepperForm({
   step,
   prompt,
   onSubmit,
+  onCancelStep,
 }: StepperFormProps) {
-  const { activeStep } = useStepper();
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
   const [textAreaValue, setTextAreaValue] = useState<string>('');
   const [prevUserMessage, setPrevUserMessage] = useState<string>('');
 
-  const innerOnSubmit: SubmitHandler<z.infer<typeof FormSchema>> = (
-    data: z.infer<typeof FormSchema>,
-    retry = false
-  ) => {
+  const innerOnSubmit = (data: z.infer<typeof FormSchema>, retry = false) => {
     setPrevUserMessage(textAreaValue);
     setTextAreaValue('');
     onSubmit(stepIndex, retry, data);
@@ -70,59 +69,69 @@ export function StepperForm({
     setTextAreaValue(event.target.value);
   };
 
-  const textAreaRef = useRef<HTMLTextAreaElement>(null);
-
   return (
-    <Form {...form}>
-      <p>{stepIndex == activeStep ? systemPrompt || '' : ''}</p>
-      <form
-        onSubmit={form.handleSubmit((data) => innerOnSubmit(data, false))}
-        className="w-2/3 space-y-6"
-      >
-        <FormField
-          control={form.control}
-          name="feedback"
-          render={({ field }) => {
-            const originalOnChange = field.onChange;
-            field.onChange = (event) => {
-              handleTextAreaChange(event);
-              originalOnChange(event);
-            };
-            field.value = textAreaValue;
-            return (
-              <FormItem>
-                <FormLabel>{prompt || ''}</FormLabel>
-                <FormControl>
-                  <Textarea
-                    ref={textAreaRef}
-                    placeholder="You can write anything you want."
-                    className="resize-none"
-                    {...field}
-                  />
-                </FormControl>
-                <FormMessage />
-              </FormItem>
-            );
-          }}
+    <div className="relative">
+      <Form {...form}>
+        <p>{systemPrompt}</p>
+        <form
+          onSubmit={form.handleSubmit((data) => innerOnSubmit(data, false))}
+          className="w-2/3 space-y-6"
+        >
+          <FormField
+            control={form.control}
+            name="feedback"
+            render={({ field }) => {
+              const originalOnChange = field.onChange;
+              field.onChange = (event) => {
+                handleTextAreaChange(event);
+                originalOnChange(event);
+              };
+              field.value = textAreaValue;
+              return (
+                <FormItem>
+                  <FormLabel>{prompt || ''}</FormLabel>
+                  <FormControl>
+                    <Textarea
+                      placeholder="You can write anything you want."
+                      className="resize-none"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+          {prevUserMessage && (
+            <p>
+              <b>Previous message:</b>
+              {prevUserMessage}
+            </p>
+          )}
+          <Button disabled={isLoading} type="submit">
+            Submit
+          </Button>
+          <Button disabled={isLoading} type="button" onClick={onRetryClick}>
+            Retry
+          </Button>
+        </form>
+        <ExportStepMenu
+          userParams={userParams}
+          stepName={step.step_name}
+          substepName={step.name}
         />
-        {prevUserMessage && (
-          <p>
-            <b>Previous message:</b>
-            {prevUserMessage}
-          </p>
-        )}
-        <Button disabled={isLoading} type="submit">
-          Submit
-        </Button>
-        <Button disabled={isLoading} type="button" onClick={onRetryClick}>
-          Retry
-        </Button>
-      </form>
-      <ExportStepMenu
-        userParams={userParams}
-        stepName={step.step_name}
-        substepName={step.name}
-      />
-    </Form>
+      </Form>
+      {isLoading && (
+        <div className="absolute top-0 left-0 w-full h-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
+          Running step...
+          <LoadingSpinner size="large" />
+          {onCancelStep && (
+            <Button variant="secondary" onClick={onCancelStep}>
+              Cancel
+            </Button>
+          )}
+        </div>
+      )}
+    </div>
   );
 }

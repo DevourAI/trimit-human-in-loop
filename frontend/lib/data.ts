@@ -65,12 +65,13 @@ export const stepData: StepData = {
   ],
 };
 
-function separateActionSteps(): StepInfo[] {
+function separateActionSteps(): StepInfo[][] {
   const allSteps = stepData.stepArray.flatMap((step) =>
     step.substeps.map((substep) => {
       return {
         step_name: step.name,
         step_human_readable_name: step.human_readable_name,
+        substeps: [],
         ...substep,
       };
     })

@@ -41,15 +41,15 @@ export interface GetUploadedVideoParams {
 }
 
 export interface PartialFeedback {
-  partials_to_redo: Array<bool> | null;
-  relevant_user_feedback_list: Array<str | null> | null;
+  partials_to_redo: Array<boolean> | null;
+  relevant_user_feedback_list: Array<string | null> | null;
 }
 
 export interface StepInput {
   user_prompt?: string | null;
   llm_modified_partial_feedback?: PartialFeedback | null;
-  is_retry?: bool;
-  step_name?: str | null;
+  is_retry?: boolean;
+  step_name?: string | null;
 }
 export interface SubStepInfo {
   name: string;
@@ -62,7 +62,7 @@ export interface SubStepInfo {
 export interface StepInfo extends StepItem {
   name: string;
   human_readable_name?: string;
-  substates: SubStepInfo[];
+  substeps: SubStepInfo[];
 }
 
 export interface StepData {

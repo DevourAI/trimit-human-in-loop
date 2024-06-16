@@ -1,6 +1,7 @@
 'use client';
 import { DownloadIcon, ReloadIcon } from '@radix-ui/react-icons';
 import React, { useEffect, useMemo, useReducer, useState } from 'react';
+import { z } from 'zod';
 
 import { Footer } from '@/components/main-stepper/main-stepper-footer';
 import { Button } from '@/components/ui/button';
@@ -92,9 +93,7 @@ function stepNameFromIndex(stepIndex: number): [string, string] {
 export default function MainStepper({ videoHash }: { videoHash: string }) {
   const { userData } = useUser();
   const [latestState, setLatestState] = useState<UserState | null>(null);
-  const [userFeedbackRequest, setUserFeedbackRequest] = useState<string | null>(
-    null
-  );
+  const [userFeedbackRequest, setUserFeedbackRequest] = useState<string>('');
   const [trueStepIndex, setTrueStepIndex] = useState<number>(0);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
   const [latestExportResult, setLatestExportResult] = useState<
@@ -358,7 +357,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       <Stepper
         initialStep={currentStepIndex}
         steps={stepData.stepArray}
-        // orientation="vertical"
+        orientation="vertical"
       >
         {actionSteps.map(({ step_name, name, human_readable_name }, index) => {
           return (
@@ -372,6 +371,9 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
                   onSubmit={onSubmit}
                   userParams={userParams}
                   step={actionSteps[index]}
+                  onCancelStep={() => {
+                    throw new Error('Unimplemented');
+                  }}
                 />
               </div>
             </Step>
