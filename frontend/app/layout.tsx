@@ -28,12 +28,14 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head />
       <body
-        className={cn(
-          'min-h-screen bg-background font-sans antialiased',
-          fontSans.variable
-        )}
+        className={
+          cn(
+            'min-h-screen bg-background font-sans antialiased',
+            fontSans.variable
+          ) ?? ''
+        }
       >
-        <GoogleOAuthProvider clientId={clientId}>
+        <GoogleOAuthProvider clientId={clientId ?? ''}>
           <UserProvider>
             <ThemeProvider
               attribute="class"

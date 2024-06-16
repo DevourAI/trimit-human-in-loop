@@ -13,7 +13,7 @@ import Login from '@/components/login';
 import { useUser } from '@/contexts/user-context';
 
 export default function Home() {
-  const { userData, setUserData, isLoggedIn } = useUser();
+  const { isLoggedIn } = useUser();
   const router = useRouter();
 
   useEffect(() => {
@@ -29,11 +29,7 @@ export default function Home() {
         <PageHeaderDescription>
           Raw interview footage to edited video, no timeline required.
         </PageHeaderDescription>
-        <PageActions>
-          {!isLoggedIn && (
-            <Login userData={userData} setUserData={setUserData} />
-          )}
-        </PageActions>
+        <PageActions>{!isLoggedIn && <Login />}</PageActions>
       </PageHeader>
     </AppShell>
   );
