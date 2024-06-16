@@ -1,9 +1,9 @@
 // components/Login.tsx
-"use client";
-import { GoogleLogin } from "@react-oauth/google";
-import { useUser } from "@/contexts/user-context";
-import { jwtDecode } from "jwt-decode";
-import UserDropdown from "@/components/layout/user-dropdown";
+'use client';
+import { GoogleLogin } from '@react-oauth/google';
+import { useUser } from '@/contexts/user-context';
+import { jwtDecode } from 'jwt-decode';
+import UserDropdown from '@/components/layout/user-dropdown';
 
 export default function Login() {
   const { userData, login, isLoggedIn } = useUser();
@@ -21,14 +21,14 @@ export default function Login() {
               body: JSON.stringify({
                 userData: jwtDecode(credentialResponse.credential),
               }),
-              method: "POST",
+              method: 'POST',
               headers: {
-                "Content-Type": "application/json",
+                'Content-Type': 'application/json',
               },
             }).then((res) => {});
           }}
           onError={() => {
-            console.log("Login Failed");
+            console.log('Login Failed');
           }}
           useOneTap
         />

@@ -1,10 +1,10 @@
-import Header from "@/components/layout/header";
-import React from "react";
+import Header from '@/components/layout/header';
+import React from 'react';
 
 export default function AppShell({
   children,
-  title = "",
-  subtitle = "",
+  title = '',
+  subtitle = '',
 }: {
   children: React.ReactNode;
   title?: string;

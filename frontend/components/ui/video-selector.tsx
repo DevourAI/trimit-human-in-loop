@@ -1,10 +1,10 @@
-import React, { useEffect, useState, useRef } from "react";
-import type { GetUploadedVideoParams, Video } from "@/lib/types";
-import { getUploadedVideos, getVideoProcessingStatuses } from "@/lib/api";
-import UploadVideo from "@/components/ui/upload-video";
-import VideoTable from "@/components/ui/video-table";
-import { useUser } from "@/contexts/user-context";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+import React, { useEffect, useState, useRef } from 'react';
+import type { GetUploadedVideoParams, Video } from '@/lib/types';
+import { getUploadedVideos, getVideoProcessingStatuses } from '@/lib/api';
+import UploadVideo from '@/components/ui/upload-video';
+import VideoTable from '@/components/ui/video-table';
+import { useUser } from '@/contexts/user-context';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 const POLL_INTERVAL = 5000;
 
 interface VideoSelectorProps {
@@ -30,7 +30,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
         } as GetUploadedVideoParams);
         setUploadedVideos(_uploadedVideos);
       } catch (error) {
-        console.error("Error fetching uploaded videos:", error);
+        console.error('Error fetching uploaded videos:', error);
       } finally {
         setIsLoading(false);
       }
@@ -43,7 +43,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
     async function fetchVideoProcessingStatuses() {
       try {
         const data = await getVideoProcessingStatuses(userData.email);
-        if (data.result && data.result !== "error") {
+        if (data.result && data.result !== 'error') {
           const newVideoProcessingStatuses = { ...videoProcessingStatuses };
           data.result.forEach(
             (result: {
@@ -59,7 +59,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
           setVideoProcessingStatuses(newVideoProcessingStatuses);
         }
       } catch (error) {
-        console.error("Error fetching video processing statuses:", error);
+        console.error('Error fetching video processing statuses:', error);
       }
     }
 
@@ -67,7 +67,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
       try {
         const data = await getVideoProcessingStatuses(userData.email);
         let anyPending = false;
-        if (data.result && data.result !== "error") {
+        if (data.result && data.result !== 'error') {
           let changed = false;
           const newVideoProcessingStatuses = { ...videoProcessingStatuses };
           const existingKeys = Object.keys(videoProcessingStatuses);
@@ -79,20 +79,20 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
             }) => {
               const videoHash = result.video_hash;
               if (
-                result.status === "done" &&
+                result.status === 'done' &&
                 existingKeys.includes(videoHash)
               ) {
                 delete newVideoProcessingStatuses[videoHash];
                 changed = true;
               } else if (
-                result.status === "error" &&
+                result.status === 'error' &&
                 existingKeys.includes(videoHash) &&
-                newVideoProcessingStatuses[videoHash].status !== "error"
+                newVideoProcessingStatuses[videoHash].status !== 'error'
               ) {
                 console.error(
                   `Error processing video ${videoHash}: ${result.error}`
                 );
-                newVideoProcessingStatuses[videoHash].status = "error";
+                newVideoProcessingStatuses[videoHash].status = 'error';
                 changed = true;
               } else {
                 anyPending = true;
@@ -107,7 +107,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
           timeoutId.current = setTimeout(pollForDone, POLL_INTERVAL);
         }
       } catch (error) {
-        console.error("Error polling video processing statuses:", error);
+        console.error('Error polling video processing statuses:', error);
       }
     }
 
@@ -127,7 +127,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
     if (selectedVideo && selectedVideo.hash) {
       setVideoHash(selectedVideo.hash);
     }
-  }, [selectedVideo]);
+  }, [selectedVideo, setVideoHash]);
 
   return (
     <div className="grid gap-3">

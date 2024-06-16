@@ -1,15 +1,10 @@
-"use client";
-import { Step, Stepper } from "@/components/ui/stepper";
-import { Button } from "@/components/ui/button";
-import React, { useState, useReducer, useEffect } from "react";
-import { StepperForm, FormSchema } from "@/components/ui/stepper-form";
-import { decodeStreamAsJSON } from "@/lib/streams";
-import {
-  ArrowLeftIcon,
-  ArrowRightIcon,
-  ReloadIcon,
-  DownloadIcon,
-} from "@radix-ui/react-icons";
+'use client';
+import { Step, Stepper } from '@/components/ui/stepper';
+import { Button } from '@/components/ui/button';
+import React, { useState, useReducer, useEffect, useMemo } from 'react';
+import { StepperForm, FormSchema } from '@/components/ui/stepper-form';
+import { decodeStreamAsJSON } from '@/lib/streams';
+import { ReloadIcon, DownloadIcon } from '@radix-ui/react-icons';
 import {
   step,
   getLatestState,
@@ -17,9 +12,8 @@ import {
   resetWorkflow,
   revertStepInBackend,
   revertStepToInBackend,
-} from "@/lib/api";
+} from '@/lib/api';
 import {
-  CommonAPIParams,
   GetLatestStateParams,
   RevertStepParams,
   RevertStepToParams,
@@ -27,15 +21,15 @@ import {
   StepInfo,
   UserState,
   StepParams,
-} from "@/lib/types";
-import { stepData, allSteps, actionSteps } from "@/lib/data";
-import { useUser } from "@/contexts/user-context";
-import { Footer } from "@/components/main-stepper/main-stepper-footer";
+} from '@/lib/types';
+import { stepData, allSteps, actionSteps } from '@/lib/data';
+import { useUser } from '@/contexts/user-context';
+import { Footer } from '@/components/main-stepper/main-stepper-footer';
 
-const BASE_PROMPT = "What do you want to create?";
+const BASE_PROMPT = 'What do you want to create?';
 
 function remove_retry_suffix(stepName: string): string {
-  return stepName.split("_retry_", 1)[0];
+  return stepName.split('_retry_', 1)[0];
 }
 
 function findNextActionStepIndex(
@@ -78,7 +72,7 @@ function stepIndexFromName(
       actionSteps
     );
     if (nextActionStepIndex >= actionSteps.length) {
-      console.log("All action steps completed");
+      console.log('All action steps completed');
     }
     return nextActionStepIndex;
   } else {
@@ -110,20 +104,24 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   const [hasCompletedAllSteps, setHasCompletedAllSteps] =
     useState<boolean>(false);
 
-  const timelineName = "timelineName";
+  const timelineName = 'timelineName';
   const lengthSeconds = 60;
-  const userParams: CommonAPIParams = {
-    user_email: userData.email,
-    timeline_name: timelineName,
-    length_seconds: lengthSeconds,
-    video_hash: videoHash,
-  };
+
+  const userParams = useMemo(
+    () => ({
+      user_email: userData.email,
+      timeline_name: timelineName,
+      length_seconds: lengthSeconds,
+      video_hash: videoHash,
+    }),
+    [userData.email, timelineName, lengthSeconds, videoHash]
+  );
 
   useEffect(() => {
     async function fetchLatestState() {
       const data = await getLatestState(userParams as GetLatestStateParams);
       setLatestState(data);
-      console.log("data", data);
+      console.log('data', data);
       let stepIndex = stepIndexFromState(data);
       if (stepIndex === -1) {
         stepIndex = actionSteps.length - 1;
@@ -132,7 +130,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     }
 
     fetchLatestState();
-  }, [userData, videoHash]);
+  }, [userData, userParams, videoHash]);
 
   useEffect(() => {
     setUserFeedbackRequest(latestState?.output?.user_feedback_request || null);
@@ -150,28 +148,28 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   }, [finalResult]);
 
   type ActivePromptAction =
-    | { type: "append"; value: string }
-    | { type: "restart"; value: string };
+    | { type: 'append'; value: string }
+    | { type: 'restart'; value: string };
 
   const [activePrompt, activePromptDispatch] = useReducer(
     (state: string, action: ActivePromptAction) => {
       switch (action.type) {
-        case "append":
+        case 'append':
           return state + action.value;
-        case "restart":
+        case 'restart':
           return action.value;
         default:
-          throw new Error("Unhandled action type");
+          throw new Error('Unhandled action type');
       }
     },
-    ""
+    ''
   );
 
   async function handleStepStream(reader: ReadableStreamDefaultReader) {
-    activePromptDispatch({ type: "restart", value: "" });
+    activePromptDispatch({ type: 'restart', value: '' });
     const lastValue = await decodeStreamAsJSON(reader, (value: any) => {
       let valueToAppend = value;
-      if (typeof value !== "string") {
+      if (typeof value !== 'string') {
         if (value.substep_name !== undefined) {
           const stepIndex = stepIndexFromName(
             value.step_name,
@@ -182,41 +180,41 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
           setTrueStepIndex(stepIndex);
           setCurrentStepIndex(stepIndex);
           setLatestExportResult(value.export_result);
-          valueToAppend = "";
+          valueToAppend = '';
         } else if (value.chunk !== undefined && value.chunk === 0) {
-          if (typeof value.output === "string") {
+          if (typeof value.output === 'string') {
             valueToAppend = value.output;
           } else {
-            console.log("value.output is not a string", value.output);
-            valueToAppend = "";
+            console.log('value.output is not a string', value.output);
+            valueToAppend = '';
           }
         } else if (value.message !== undefined) {
-          if (typeof value.message === "string") {
+          if (typeof value.message === 'string') {
             valueToAppend = value.message;
           } else if (
             value.message.output &&
-            typeof value.message.output === "string"
+            typeof value.message.output === 'string'
           ) {
             if (value.message.chunk === 0) {
               valueToAppend = value.message.output;
             } else {
-              valueToAppend = "";
+              valueToAppend = '';
             }
           } else {
             console.log(
-              "value.message.output is not a string",
+              'value.message.output is not a string',
               value.message.output
             );
-            valueToAppend = "";
+            valueToAppend = '';
           }
         } else {
-          valueToAppend = "";
+          valueToAppend = '';
         }
       }
-      activePromptDispatch({ type: "append", value: valueToAppend });
+      activePromptDispatch({ type: 'append', value: valueToAppend });
     });
-    if (typeof lastValue !== "string") {
-      console.log("lastValue is not a string", lastValue);
+    if (typeof lastValue !== 'string') {
+      console.log('lastValue is not a string', lastValue);
     } else {
       setFinalResult(lastValue);
     }
@@ -236,7 +234,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       } else {
         success = await revertStepTo(stepIndex);
       }
-      console.log("success", success);
+      console.log('success', success);
       if (!success) {
         setIsLoading(false);
         return;
@@ -246,7 +244,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       user_input:
         data.feedback !== undefined && data.feedback !== null
           ? data.feedback
-          : "",
+          : '',
       streaming: true,
       force_restart: false,
       ignore_running_workflows: true,
@@ -258,7 +256,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
 
   async function restart() {
     setIsLoading(true);
-    activePromptDispatch({ type: "restart", value: "" });
+    activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult({});
     await resetWorkflow(userParams as ResetWorkflowParams);
     const newState = await getLatestState(userParams as GetLatestStateParams);
@@ -269,7 +267,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
 
   async function revertStep(toBeforeRetries: boolean) {
     setIsLoading(true);
-    activePromptDispatch({ type: "restart", value: "" });
+    activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult({});
     await revertStepInBackend({
       to_before_retries: toBeforeRetries,
@@ -286,15 +284,15 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   async function revertStepTo(stepIndex: number) {
     setIsLoading(true);
     const [stepName, substepName] = stepNameFromIndex(stepIndex);
-    console.log("stepName", stepName, "substepName", substepName);
+    console.log('stepName', stepName, 'substepName', substepName);
     const success = await revertStepToInBackend({
       step_name: stepName,
       substep_name: substepName,
       ...userParams,
     } as RevertStepToParams);
-    console.log("in revertStepTo success", success);
+    console.log('in revertStepTo success', success);
     if (success) {
-      activePromptDispatch({ type: "restart", value: "" });
+      activePromptDispatch({ type: 'restart', value: '' });
       setFinalResult({});
       const latestState = await getLatestState(
         userParams as GetLatestStateParams
@@ -322,7 +320,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     const currentSubstepName = actionSteps[currentStepIndex - 1].name;
     const currentStepName = actionSteps[currentStepIndex - 1].step_name;
     const currentStepKey = `${currentStepName}.${currentSubstepName}`;
-    activePromptDispatch({ type: "restart", value: "" });
+    activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult(
       await getStepOutput({ step_key: currentStepKey, ...userParams })
     );
@@ -335,7 +333,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     const currentSubstepName = actionSteps[currentStepIndex + 1].name;
     const currentStepName = actionSteps[currentStepIndex + 1].step_name;
     const currentStepKey = `${currentStepName}.${currentSubstepName}`;
-    activePromptDispatch({ type: "restart", value: "" });
+    activePromptDispatch({ type: 'restart', value: '' });
     setFinalResult(
       await getStepOutput({ step_key: currentStepKey, ...userParams })
     );

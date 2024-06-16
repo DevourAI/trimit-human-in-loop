@@ -1,9 +1,9 @@
-"use client";
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { useUser } from "@/contexts/user-context";
-import VideoSelector from "@/components/ui/video-selector";
-import AppShell from "@/components/layout/app-shell";
+'use client';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { useUser } from '@/contexts/user-context';
+import VideoSelector from '@/components/ui/video-selector';
+import AppShell from '@/components/layout/app-shell';
 
 export default function Videos() {
   const { isLoggedIn, isLoading } = useUser();
@@ -11,7 +11,7 @@ export default function Videos() {
 
   useEffect(() => {
     if (!isLoggedIn && !isLoading) {
-      router.push("/");
+      router.push('/');
     }
   }, [isLoggedIn, isLoading, router]);
 

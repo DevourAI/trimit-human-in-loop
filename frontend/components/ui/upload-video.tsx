@@ -1,11 +1,11 @@
-"use client";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { ReloadIcon } from "@radix-ui/react-icons";
-import React, { useState, ChangeEvent } from "react";
-import { uploadVideo as uploadVideoAPI } from "@/lib/api";
-import { LoadingSpinner } from "@/components/ui/loading-spinner";
+'use client';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
+import { ReloadIcon } from '@radix-ui/react-icons';
+import React, { useState, ChangeEvent } from 'react';
+import { uploadVideo as uploadVideoAPI } from '@/lib/api';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 interface UploadVideoProps {
   userEmail: string;
@@ -36,13 +36,13 @@ export default function UploadVideo({
         const respData = await uploadVideoAPI({
           videoFile: file,
           userEmail,
-          timelineName: "timelineName", // Replace with actual timeline name if needed
+          timelineName: 'timelineName', // Replace with actual timeline name if needed
         });
         if (respData && respData.processing_call_id) {
           const newEntries = {
             [respData.video_hashes[0]]: {
               callId: respData.processing_call_id,
-              status: "pending",
+              status: 'pending',
             },
           };
           setVideoProcessingStatuses({
@@ -52,8 +52,8 @@ export default function UploadVideo({
           setVideoHash(respData.video_hashes[0]);
         }
       } catch (error) {
-        console.error("Error uploading video", error);
-        setUploadError("Failed to upload video. Please try again.");
+        console.error('Error uploading video', error);
+        setUploadError('Failed to upload video. Please try again.');
       }
       setIsUploading(false);
     }

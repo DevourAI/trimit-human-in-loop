@@ -1,4 +1,4 @@
-"use client";
+'use client';
 import {
   NavigationMenu,
   NavigationMenuContent,
@@ -9,10 +9,10 @@ import {
   NavigationMenuTrigger,
   NavigationMenuViewport,
   navigationMenuTriggerStyle,
-} from "@/components/ui/navigation-menu";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+} from '@/components/ui/navigation-menu';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 const links = [
   //   {
@@ -20,16 +20,16 @@ const links = [
   //     href: "/",
   //   },
   {
-    label: "Builder",
-    href: "/builder",
+    label: 'Builder',
+    href: '/builder',
   },
   {
-    label: "Videos",
-    href: "/videos",
+    label: 'Videos',
+    href: '/videos',
   },
   {
-    label: "Projects",
-    href: "/projects",
+    label: 'Projects',
+    href: '/projects',
   },
 ];
 
@@ -53,7 +53,7 @@ export default function HeaderNav() {
             <Link href={link.href} passHref>
               <NavigationMenuLink
                 className={`${navigationMenuTriggerStyle()} ${
-                  pathname === link.href ? "bg-muted" : ""
+                  pathname === link.href ? 'bg-muted' : ''
                 }`}
               >
                 {link.label}

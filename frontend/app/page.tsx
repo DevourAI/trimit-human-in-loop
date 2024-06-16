@@ -1,16 +1,16 @@
-"use client";
-import React, { useEffect } from "react";
-import { useRouter } from "next/navigation";
+'use client';
+import React, { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   PageActions,
   PageHeader,
   PageHeaderDescription,
   PageHeaderHeading,
-} from "@/components/layout/page-header";
-import Login from "@/components/login";
-import AppShell from "@/components/layout/app-shell";
-import { Button } from "@/components/ui/button";
-import { useUser } from "@/contexts/user-context";
+} from '@/components/layout/page-header';
+import Login from '@/components/login';
+import AppShell from '@/components/layout/app-shell';
+import { Button } from '@/components/ui/button';
+import { useUser } from '@/contexts/user-context';
 
 export default function Home() {
   const { userData, setUserData, isLoggedIn } = useUser();
@@ -18,7 +18,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      router.push("/videos");
+      router.push('/videos');
     }
   }, [isLoggedIn, router]);
 

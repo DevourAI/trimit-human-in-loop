@@ -1,8 +1,8 @@
-import HeaderNav from "@/components/layout/header-nav";
-import Login from "@/components/login";
-import React from "react";
-import Link from "next/link";
-import { ThemeToggle } from "@/components/layout/theme-toggle";
+import HeaderNav from '@/components/layout/header-nav';
+import Login from '@/components/login';
+import React from 'react';
+import Link from 'next/link';
+import { ThemeToggle } from '@/components/layout/theme-toggle';
 
 interface HeaderProps {
   children?: React.ReactNode;

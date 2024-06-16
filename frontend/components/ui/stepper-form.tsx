@@ -1,13 +1,13 @@
-"use client";
+'use client';
 
-import { useState, useRef, ChangeEvent } from "react";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, SubmitHandler } from "react-hook-form";
-import { z } from "zod";
-import { useStepper } from "@/components/ui/stepper";
+import { useState, useRef, ChangeEvent } from 'react';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { useForm, SubmitHandler } from 'react-hook-form';
+import { z } from 'zod';
+import { useStepper } from '@/components/ui/stepper';
 
-import { Button } from "@/components/ui/button";
-import ExportStepMenu from "@/components/ui/export-step-menu";
+import { Button } from '@/components/ui/button';
+import ExportStepMenu from '@/components/ui/export-step-menu';
 import {
   Form,
   FormControl,
@@ -16,10 +16,10 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
-} from "@/components/ui/form";
+} from '@/components/ui/form';
 
-import { Textarea } from "@/components/ui/textarea";
-import { toast } from "@/components/ui/use-toast";
+import { Textarea } from '@/components/ui/textarea';
+import { toast } from '@/components/ui/use-toast';
 
 export const FormSchema = z.object({
   feedback: z.optional(z.string()),
@@ -52,15 +52,15 @@ export function StepperForm({
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
-  const [textAreaValue, setTextAreaValue] = useState<string>("");
-  const [prevUserMessage, setPrevUserMessage] = useState<string>("");
+  const [textAreaValue, setTextAreaValue] = useState<string>('');
+  const [prevUserMessage, setPrevUserMessage] = useState<string>('');
 
   const innerOnSubmit: SubmitHandler<z.infer<typeof FormSchema>> = (
     data: z.infer<typeof FormSchema>,
     retry = false
   ) => {
     setPrevUserMessage(textAreaValue);
-    setTextAreaValue("");
+    setTextAreaValue('');
     onSubmit(stepIndex, retry, data);
   };
 
@@ -77,7 +77,7 @@ export function StepperForm({
 
   return (
     <Form {...form}>
-      <p>{stepIndex == activeStep ? systemPrompt || "" : ""}</p>
+      <p>{stepIndex == activeStep ? systemPrompt || '' : ''}</p>
       <form
         onSubmit={form.handleSubmit((data) => innerOnSubmit(data, false))}
         className="w-2/3 space-y-6"
@@ -94,7 +94,7 @@ export function StepperForm({
             field.value = textAreaValue;
             return (
               <FormItem>
-                <FormLabel>{prompt || ""}</FormLabel>
+                <FormLabel>{prompt || ''}</FormLabel>
                 <FormControl>
                   <Textarea
                     ref={textAreaRef}

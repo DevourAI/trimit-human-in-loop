@@ -1,4 +1,4 @@
-import React from "react";
+import React from 'react';
 import {
   Table,
   TableBody,
@@ -6,9 +6,9 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { Button } from "@/components/ui/button";
-import type { Video } from "@/lib/types";
+} from '@/components/ui/table';
+import { Button } from '@/components/ui/button';
+import type { Video } from '@/lib/types';
 
 interface VideoTableProps {
   uploadedVideos: Video[];
@@ -40,24 +40,25 @@ const VideoTable: React.FC<VideoTableProps> = ({
               <TableRow
                 key={video.filename}
                 data-state={
-                  video.filename == selectedVideo?.filename && "selected"
+                  video.filename == selectedVideo?.filename && 'selected'
                 }
               >
                 <TableCell className="font-medium">{video.filename}</TableCell>
                 <TableCell>
                   <video width="320" height="240" controls>
                     <source src={video.remoteUrl} type="video/mp4" />
+                    <track kind="captions" />
                     Your browser does not support the video tag.
                   </video>
                 </TableCell>
                 <TableCell className="font-medium">
                   {videoProcessingStatuses[video.hash]
-                    ? videoProcessingStatuses[video.hash].status === "error"
-                      ? "Error"
-                      : videoProcessingStatuses[video.hash].status === "pending"
-                      ? "Processing"
-                      : "Ready to use"
-                    : "Ready to use"}
+                    ? videoProcessingStatuses[video.hash].status === 'error'
+                      ? 'Error'
+                      : videoProcessingStatuses[video.hash].status === 'pending'
+                        ? 'Processing'
+                        : 'Ready to use'
+                    : 'Ready to use'}
                 </TableCell>
                 <TableCell>
                   <Button

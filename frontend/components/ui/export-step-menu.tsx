@@ -1,19 +1,19 @@
-import * as React from "react";
+import * as React from 'react';
 import {
   DropdownMenu,
   DropdownMenuTrigger,
   DropdownMenuContent,
   DropdownMenuItem,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { DownloadIcon } from "@radix-ui/react-icons";
+} from '@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { DownloadIcon } from '@radix-ui/react-icons';
 import {
   downloadVideo,
   downloadTimeline,
   downloadTranscriptText,
   downloadSoundbitesText,
-} from "@/lib/api";
-import { DownloadFileParams } from "@/lib/types";
+} from '@/lib/api';
+import { DownloadFileParams } from '@/lib/types';
 
 interface DownloadButtonsProps {
   userParams: DownloadFileParams;
