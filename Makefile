@@ -1,14 +1,19 @@
 .PHONY: deploy_prod \
 	deploy_dev \
 	deploy_staging \
+	deploy_prod \
 	test \
 	upload_test_fixtures \
 	format \
-	local_webapp \
+	local_api \
+	local_ui \
+	local_ui_remote_backend \
 	setup-hooks \
+	step_ephemeral \
 	integration_test \
 	integration_test_with_deploy \
-	step_ephemeral
+	step_ephemeral \
+	openapi
 
 deploy_prod:
 	@MODAL_ENVIRONMENT=prod DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
@@ -44,7 +49,8 @@ format:
 
 local_api:
 	@echo "Starting local api..."
-	@ENV=local VERCEL_FRONTEND_URL="http://127.0.0.1:3000" poetry run python -m uvicorn trimit.api.index:web_app --reload
+	@ENV=local VERCEL_FRONTEND_URL="http://127.0.0.1:3000" poetry run python -m uvicorn trimit.api.index:web_app --reload & \
+		echo $$! > server.pid
 
 local_ui:
 	@echo "Starting local ui assuming local backend..."
@@ -57,3 +63,13 @@ local_ui_remote_backend:
 step_ephemeral:
 	@echo "Running step function locally..."
 	@poetry run modal run trimit.backend.serve $(STEP_ARGS)
+
+openapi:
+	@mkdir -p frontend/docs
+	@make local_api &
+	while ! curl -s http://localhost:8000 > /dev/null; do \
+		sleep 1; \
+	done; \
+	curl http://localhost:8000/openapi.yaml -o frontend/docs/openapi.yaml; \
+	kill $$(cat server.pid) && rm server.pid
+	@cd frontend && yarn openapi

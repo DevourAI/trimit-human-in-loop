@@ -1,0 +1,1671 @@
+openapi: 3.0.0
+info:
+  title: TrimIt API
+  description: API documentation
+  version: 0.0.1
+paths:
+  /get_step_outputs:
+    get:
+      tags:
+      - Steps
+      summary: Get outputs for a given list of steps
+      description: TODO
+      operationId: get_step_outputs_get_step_outputs_get
+      parameters:
+      - name: step_keys
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Step Keys
+      - name: latest_retry
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Latest Retry
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetStepOutputs'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /get_all_outputs:
+    get:
+      summary: Get All Outputs
+      operationId: get_all_outputs_get_all_outputs_get
+      parameters:
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /get_video_processing_status:
+    get:
+      summary: Get Video Processing Status
+      operationId: get_video_processing_status_get_video_processing_status_get
+      parameters:
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0
+          title: Timeout
+      - name: user_email
+        in: query
+        required: true
+        schema:
+          type: string
+          format: email
+          title: User Email
+      requestBody:
+        content:
+          application/json:
+            schema:
+              anyOf:
+              - type: array
+                items:
+                  type: string
+              - type: 'null'
+              title: Video Hashes
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /check_function_call_results:
+    get:
+      summary: Check Function Call Results
+      operationId: check_function_call_results_check_function_call_results_get
+      parameters:
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0
+          title: Timeout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                type: string
+              title: Modal Call Ids
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /step:
+    get:
+      summary: Step Endpoint
+      operationId: step_endpoint_step_get
+      parameters:
+      - name: user_input
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Input
+      - name: streaming
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Streaming
+      - name: ignore_running_workflows
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Ignore Running Workflows
+      - name: retry_step
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Retry Step
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /reset_workflow:
+    get:
+      summary: Reset Workflow
+      operationId: reset_workflow_reset_workflow_get
+      parameters:
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /revert_workflow_step:
+    get:
+      summary: Revert Workflow Step
+      operationId: revert_workflow_step_revert_workflow_step_get
+      parameters:
+      - name: to_before_retries
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: To Before Retries
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /revert_workflow_step_to:
+    get:
+      summary: Revert Workflow Step To
+      operationId: revert_workflow_step_to_revert_workflow_step_to_get
+      parameters:
+      - name: step_name
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Step Name
+      - name: substep_name
+        in: query
+        required: true
+        schema:
+          type: string
+          title: Substep Name
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /get_latest_state:
+    get:
+      summary: Get Latest State
+      operationId: get_latest_state_get_latest_state_get
+      parameters:
+      - name: with_output
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: With Output
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /download_transcript_text:
+    get:
+      summary: Download Transcript Text
+      operationId: download_transcript_text_download_transcript_text_get
+      parameters:
+      - name: step_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Step Name
+      - name: substep_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Substep Name
+      - name: stream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Stream
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /download_soundbites_text:
+    get:
+      summary: Download Soundbites Text
+      operationId: download_soundbites_text_download_soundbites_text_get
+      parameters:
+      - name: step_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Step Name
+      - name: substep_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Substep Name
+      - name: stream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Stream
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /download_timeline:
+    get:
+      summary: Download Timeline
+      operationId: download_timeline_download_timeline_get
+      parameters:
+      - name: step_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Step Name
+      - name: substep_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Substep Name
+      - name: stream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Stream
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /video:
+    get:
+      summary: Stream Video
+      operationId: stream_video_video_get
+      parameters:
+      - name: video_path
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Path
+      - name: step_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Step Name
+      - name: substep_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Substep Name
+      - name: stream
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Stream
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /uploaded_high_res_video_paths:
+    get:
+      summary: Uploaded High Res Video Paths
+      operationId: uploaded_high_res_video_paths_uploaded_high_res_video_paths_get
+      parameters:
+      - name: md5_hashes
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: Md5 Hashes
+      - name: user_email
+        in: query
+        required: true
+        schema:
+          type: string
+          format: email
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /uploaded_video_hashes:
+    get:
+      summary: Uploaded Video Hashes
+      operationId: uploaded_video_hashes_uploaded_video_hashes_get
+      parameters:
+      - name: high_res_user_file_paths
+        in: query
+        required: false
+        schema:
+          type: array
+          items:
+            type: string
+          title: High Res User File Paths
+      - name: user_email
+        in: query
+        required: true
+        schema:
+          type: string
+          format: email
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /uploaded_videos:
+    get:
+      summary: Uploaded Videos
+      operationId: uploaded_videos_uploaded_videos_get
+      parameters:
+      - name: user_email
+        in: query
+        required: true
+        schema:
+          type: string
+          format: email
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /upload:
+    post:
+      summary: Upload Multiple Files
+      operationId: upload_multiple_files_upload_post
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/Body_upload_multiple_files_upload_post'
+        required: true
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema: {}
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+components:
+  schemas:
+    Body_upload_multiple_files_upload_post:
+      properties:
+        files:
+          items:
+            type: string
+            format: binary
+          type: array
+          title: Files
+        high_res_user_file_paths:
+          items:
+            type: string
+          type: array
+          title: High Res User File Paths
+        timeline_name:
+          type: string
+          title: Timeline Name
+        overwrite:
+          type: boolean
+          title: Overwrite
+          default: false
+        use_existing_output:
+          type: boolean
+          title: Use Existing Output
+          default: true
+        reprocess:
+          type: boolean
+          title: Reprocess
+          default: false
+        user_email:
+          type: string
+          format: email
+          title: User Email
+      type: object
+      required:
+      - files
+      - high_res_user_file_paths
+      - timeline_name
+      - user_email
+      title: Body_upload_multiple_files_upload_post
+    CutTranscriptLinearWorkflowStepInput:
+      properties:
+        user_prompt:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Prompt
+        llm_modified_partial_feedback:
+          anyOf:
+          - $ref: '#/components/schemas/PartialFeedback'
+          - type: 'null'
+        is_retry:
+          type: boolean
+          title: Is Retry
+          default: false
+        step_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Step Name
+        substep_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Substep Name
+      type: object
+      title: CutTranscriptLinearWorkflowStepInput
+    CutTranscriptLinearWorkflowStepOutput:
+      properties:
+        step_name:
+          type: string
+          title: Step Name
+        substep_name:
+          type: string
+          title: Substep Name
+        done:
+          type: boolean
+          title: Done
+          default: false
+        user_feedback_request:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Feedback Request
+        partial_user_feedback_request:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Partial User Feedback Request
+        step_inputs:
+          anyOf:
+          - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepInput'
+          - type: 'null'
+        step_outputs:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Step Outputs
+        export_result:
+          anyOf:
+          - additionalProperties:
+              anyOf:
+              - type: string
+              - items:
+                  type: string
+                type: array
+              - additionalProperties:
+                  items:
+                    type: string
+                  type: array
+                type: object
+            type: object
+          - type: 'null'
+          title: Export Result
+        export_call_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Export Call Id
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        retry:
+          type: boolean
+          title: Retry
+          default: false
+      type: object
+      required:
+      - step_name
+      - substep_name
+      title: CutTranscriptLinearWorkflowStepOutput
+    GetStepOutputs:
+      properties:
+        outputs:
+          items:
+            $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepOutput'
+          type: array
+          title: Outputs
+      type: object
+      required:
+      - outputs
+      title: GetStepOutputs
+    HTTPValidationError:
+      properties:
+        detail:
+          items:
+            $ref: '#/components/schemas/ValidationError'
+          type: array
+          title: Detail
+      type: object
+      title: HTTPValidationError
+    PartialFeedback:
+      properties:
+        partials_to_redo:
+          items:
+            type: boolean
+          type: array
+          title: Partials To Redo
+        relevant_user_feedback_list:
+          anyOf:
+          - items:
+              anyOf:
+              - type: string
+              - type: 'null'
+            type: array
+          - items:
+              type: string
+            type: array
+          title: Relevant User Feedback List
+      type: object
+      required:
+      - partials_to_redo
+      - relevant_user_feedback_list
+      title: PartialFeedback
+    ValidationError:
+      properties:
+        loc:
+          items:
+            anyOf:
+            - type: string
+            - type: integer
+          type: array
+          title: Location
+        msg:
+          type: string
+          title: Message
+        type:
+          type: string
+          title: Error Type
+      type: object
+      required:
+      - loc
+      - msg
+      - type
+      title: ValidationError

@@ -17,6 +17,8 @@
 1. `poetry install`
 1. `poetry run pip install -e .`
 1. `cd trimit/frontend && yarn install`
+1. Start docker for mac (required for openapi types/docs generator)
+1. Compile openapi types: `make openapi`
 
 
 ## Local frontend dev

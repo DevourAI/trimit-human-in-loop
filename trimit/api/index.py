@@ -4,6 +4,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
+import yaml
 
 from pydantic import BaseModel, EmailStr
 from modal.functions import FunctionCall
@@ -19,12 +20,15 @@ from fastapi import (
     UploadFile,
     File,
     Request,
+    Response,
     Query,
     HTTPException,
     Depends,
 )
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
+from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
@@ -167,7 +171,30 @@ def frontend_server():
     return web_app
 
 
-@web_app.get("/get_step_outputs")
+@web_app.get("/openapi.yaml", include_in_schema=False)
+async def get_openapi_yaml():
+    openapi_schema = get_openapi(
+        openapi_version="3.0.0",
+        title="TrimIt API",
+        version="0.0.1",
+        description="API documentation",
+        routes=web_app.routes,
+    )
+    yaml_schema = yaml.safe_dump(openapi_schema, sort_keys=False)
+    return Response(content=yaml_schema, media_type="application/x-yaml")
+
+
+class GetStepOutputs(BaseModel):
+    outputs: list[CutTranscriptLinearWorkflowStepOutput]
+
+
+@web_app.get(
+    "/get_step_outputs",
+    response_model=GetStepOutputs,
+    tags=["Steps"],
+    summary="Get outputs for a given list of steps",
+    description="TODO",
+)
 async def get_step_outputs(
     step_keys: str,
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
@@ -178,11 +205,9 @@ async def get_step_outputs(
 
     if not workflow:
         raise HTTPException(status_code=400, detail="Workflow not found")
-    return {
-        "outputs": await workflow.get_output_for_keys(
-            step_keys, latest_retry=latest_retry
-        )
-    }
+    return GetStepOutputs(
+        outputs=await workflow.get_output_for_keys(step_keys, latest_retry=latest_retry)
+    )
 
 
 @web_app.get("/get_all_outputs")

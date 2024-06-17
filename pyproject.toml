@@ -71,6 +71,7 @@ jupyter = "^1.0.0"
 ipython = "^8.22.2"
 black = "^24.4.2"
 flake8 = ">=6.0.0,<7.0.0"
+datamodel-code-generator = "^0.25.7"
 
 [build-system]
 requires = ["poetry-core"]
