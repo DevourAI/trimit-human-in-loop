@@ -6,9 +6,17 @@ from trimit.backend.cut_transcript import (
     CutTranscriptLinearWorkflowStepInput,
     CutTranscriptLinearWorkflowStepOutput,
 )
-from trimit.backend.models import Soundbite, CurrentStepInfo, Soundbites
+from trimit.backend.models import (
+    PartialBackendOutput,
+    Soundbite,
+    CurrentStepInfo,
+    Soundbites,
+    Transcript,
+    FinalLLMOutput,
+    PartialLLMOutput,
+)
+
 from trimit.backend.serve import step_workflow_until_feedback_request
-from trimit.backend.models import Transcript
 
 import os
 import pytest
@@ -353,6 +361,7 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         assert i < len(user_inputs)
         str_outputs = []
         step_info_outputs = []
+        final_llm_outputs = []
         async for output, is_last in step_workflow_until_feedback_request(
             workflow,
             user_inputs[i],
@@ -369,10 +378,18 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
                 str_outputs = []
                 step_info_outputs = []
             else:
-                if not isinstance(output, str):
-                    step_info_outputs.append(output)
-                else:
+                assert isinstance(
+                    output, (PartialLLMOutput, FinalLLMOutput, PartialBackendOutput)
+                )
+                if (
+                    isinstance(output, PartialBackendOutput)
+                    and output.current_substep is not None
+                ):
+                    step_info_outputs.append(output.current_substep)
+                elif isinstance(output, PartialLLMOutput):
                     str_outputs.append(output)
+                elif isinstance(output, FinalLLMOutput):
+                    final_llm_outputs.append(output)
         assert len(step_outputs)
 
         if len(step_outputs) < len(expected_step_names):
@@ -394,6 +411,9 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         if step_outputs[-1].done:
             break
         i += 1
+    assert all(isinstance(o.value, str) for o in str_outputs)
+    assert all(f"{o.name}" == e for o, e in zip(step_info_outputs, expected_step_names))
+    assert len(final_llm_outputs) == 0
     assert len(step_outputs) == len(expected_step_names)
     assert [s.substep_name == e for s, e in zip(step_outputs, expected_step_names)]
 
@@ -425,7 +445,12 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         )
     )[0]
     assert "hypothetical" not in " ".join(
-        str_outputs_by_step["identify_key_soundbites.identify_key_soundbites"]
+        [
+            s.value
+            for s in str_outputs_by_step[
+                "identify_key_soundbites.identify_key_soundbites"
+            ]
+        ]
     )
     output_files = soundbites_output.export_result
     for file_key in [

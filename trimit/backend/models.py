@@ -1620,6 +1620,37 @@ class CurrentStepInfo(BaseModel):
         }
 
 
+class PartialLLMOutput(BaseModel):
+    value: str
+    chunk: int | None = None
+    calling_method_name: str | None = None
+
+
+class FinalLLMOutput(BaseModel):
+    str_value: str | None = None
+    json_value: dict | None = None
+    chunk: int | None = None
+    calling_method_name: str | None = None
+
+
+class PartialBackendOutput(BaseModel):
+    value: str | None = None
+    current_substep: CurrentStepInfo | None = None
+    chunk: int | None = None
+
+
+class CutTranscriptLinearWorkflowStreamingOutput(BaseModel):
+    partial_llm_output: PartialLLMOutput | None = None
+    final_llm_output: FinalLLMOutput | None = None
+    partial_backend_output: PartialBackendOutput | None = None
+    partial_step_output: CutTranscriptLinearWorkflowStepOutput | None = None
+    final_step_output: CutTranscriptLinearWorkflowStepOutput | None = None
+
+
+class GetStepOutputs(BaseModel):
+    outputs: list[CutTranscriptLinearWorkflowStepOutput]
+
+
 class StepWrapper(BaseModel):
     name: str
     substeps: list[CurrentStepInfo]

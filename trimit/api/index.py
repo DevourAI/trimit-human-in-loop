@@ -28,7 +28,13 @@ from fastapi import (
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
-from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput
+from trimit.backend.models import (
+    GetStepOutputs,
+    CutTranscriptLinearWorkflowStepOutput,
+    PartialBackendOutput,
+    PartialLLMOutput,
+    CutTranscriptLinearWorkflowStreamingOutput,
+)
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
@@ -184,10 +190,6 @@ async def get_openapi_yaml():
     return Response(content=yaml_schema, media_type="application/x-yaml")
 
 
-class GetStepOutputs(BaseModel):
-    outputs: list[CutTranscriptLinearWorkflowStepOutput]
-
-
 @web_app.get(
     "/get_step_outputs",
     response_model=GetStepOutputs,
@@ -292,7 +294,13 @@ async def check_function_call_results(modal_call_ids: list[str], timeout: float 
     return {"result": statuses}
 
 
-@web_app.get("/step")
+@web_app.get(
+    "/step",
+    response_model=CutTranscriptLinearWorkflowStreamingOutput,
+    tags=["Steps"],
+    summary="Run next step",
+    description="TODO",
+)
 def step_endpoint(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     user_input: str | None = None,
@@ -310,32 +318,55 @@ def step_endpoint(
     from trimit.backend.serve import step as step_function
 
     print(f"Starting step with params: {step_params}")
-    if streaming:
+    if not streaming:
+        step_function.spawn(**step_params)
+    else:
 
         async def streamer():
-            yield json.dumps({"message": "Running step...\n", "is_last": False}) + "\n"
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                partial_backend_output=PartialBackendOutput(value="Running step...")
+            ).model_dump_json()
             if is_local():
                 method = step_function.local
             else:
                 method = step_function.remote_gen.aio
             async for partial_result, is_last in method(**step_params):
-                if isinstance(partial_result, BaseModel):
-                    yield json.dumps(
-                        {
-                            "result": json.loads(partial_result.model_dump_json()),
-                            "is_last": is_last,
-                        }
-                    ) + "\n"
+                if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
+                    if is_last:
+                        yield CutTranscriptLinearWorkflowStreamingOutput(
+                            final_step_output=partial_result
+                        ).model_dump_json()
+                    else:
+                        yield CutTranscriptLinearWorkflowStreamingOutput(
+                            partial_step_output=partial_result
+                        ).model_dump_json()
+                elif isinstance(partial_result, PartialLLMOutput):
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_llm_output=partial_result
+                    ).model_dump_json()
+                elif isinstance(partial_result, PartialBackendOutput):
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_backend_output=partial_result
+                    ).model_dump_json()
                 else:
-                    yield json.dumps(
-                        {"message": partial_result, "is_last": is_last}
-                    ) + "\n"
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Unparseable response from internal step function: {partial_result}",
+                    )
+                #  elif isinstance(partial_result, BaseModel):
+                #  yield json.dumps(
+                #  {
+                #  "result": json.loads(partial_result.model_dump_json()),
+                #  "is_last": is_last,
+                #  }
+                #  ) + "\n"
+                #  else:
+                #  yield json.dumps(
+                #  {"message": partial_result, "is_last": is_last}
+                #  ) + "\n"
                 await asyncio.sleep(0)
 
-        return StreamingResponse(streamer(), media_type="text/event-stream")
-
-    else:
-        step_function.spawn(**step_params)
+        return StreamingResponse(streamer(), media_type="application/json")
 
 
 @web_app.get("/reset_workflow")

@@ -60,6 +60,9 @@ from trimit.export import (
     save_soundbites_videos_to_disk,
 )
 from trimit.backend.models import (
+    PartialBackendOutput,
+    PartialLLMOutput,
+    FinalLLMOutput,
     Transcript,
     TranscriptChunk,
     SoundbitesChunk,
@@ -878,7 +881,9 @@ class CutTranscriptLinearWorkflow:
             current_substep, CurrentStepInfo
         ), f"current_substep: {current_substep}"
 
-        yield current_substep, False
+        yield PartialBackendOutput(
+            value="Retrieved current substep", current_substep=current_substep
+        ), False
 
         assert current_substep.input is not None
 
@@ -1001,7 +1006,8 @@ class CutTranscriptLinearWorkflow:
         ):
             if not is_last:
                 yield output, is_last
-        story = output
+        assert isinstance(output, FinalLLMOutput) and output.str_value is not None
+        story = output.str_value
         story = remove_boundary_tags("story", story)
         yield CutTranscriptLinearWorkflowStepResults(
             user_feedback_request=render_jinja_string(
@@ -1150,7 +1156,9 @@ class CutTranscriptLinearWorkflow:
         else:
             partial_transcripts = partial_transcript_fresh.chunks
 
-        yield f"Cutting and critiquing partial transcripts for stage {stage_num}\n", False
+        yield PartialBackendOutput(
+            value=f"Cutting and critiquing partial transcripts for stage {stage_num}\n"
+        ), False
         cut_partial_transcript_with_critiques_jobs = []
 
         passthroughs = []
@@ -1215,7 +1223,9 @@ class CutTranscriptLinearWorkflow:
             new_cut_transcript_chunks, key=lambda x: x.chunk_index
         )
 
-        yield "Merging cut transcripts and soundbites\n", False
+        yield PartialBackendOutput(
+            value="Merging cut transcripts and soundbites\n"
+        ), False
         if new_cut_transcript_chunks:
             final_transcript = Transcript.merge(*new_cut_transcript_chunks)
         if new_kept_soundbites_chunks:
@@ -1777,13 +1787,12 @@ class CutTranscriptLinearWorkflow:
                 yield output, is_last
             else:
                 break
-        if not output:
-            raise ValueError("No output from speaker identification")
-        if not isinstance(output, dict):
-            raise ValueError("Expected speaker id output to be dict")
+        assert (
+            isinstance(output, FinalLLMOutput) and output.json_value is not None
+        ), f"Bad output from speaker identification: {output}"
 
         matched_possible_speakers = set()
-        for speaker in output.get("on_screen_speakers", []):
+        for speaker in output.json_value.get("on_screen_speakers", []):
             if speaker not in possible_speakers:
                 print(f"Speaker {speaker} not found in possible speakers")
                 continue
@@ -1935,9 +1944,9 @@ class CutTranscriptLinearWorkflow:
         ):
             if not is_last:
                 yield output, is_last
-        assert isinstance(output, str)
+        assert isinstance(output, FinalLLMOutput) and isinstance(output.str_value, str)
         new_cut_transcript = match_output_to_actual_transcript_fast(
-            partial_on_screen_transcript, output
+            partial_on_screen_transcript, output.str_value
         )
         kept_soundbites = (
             key_soundbites.keep_only_in_transcript(new_cut_transcript)
@@ -1973,15 +1982,18 @@ class CutTranscriptLinearWorkflow:
         ):
             if not is_last:
                 yield output, is_last
-        if not isinstance(output, dict):
-            raise ValueError(f"Expected output to be dict, but got {type(output)}")
+        assert isinstance(output, FinalLLMOutput) and output.json_value is not None
 
-        partials_to_redo = parse_partials_to_redo_from_agent_output(output, n=nchunks)
+        partials_to_redo = parse_partials_to_redo_from_agent_output(
+            output.json_value, n=nchunks
+        )
         relevant_user_feedback_list = []
         if len(partials_to_redo):
             relevant_user_feedback_list = (
                 parse_relevant_user_feedback_list_from_agent_output(
-                    output, n=len(partials_to_redo), user_feedback=user_feedback
+                    output.json_value,
+                    n=len(partials_to_redo),
+                    user_feedback=user_feedback,
                 )
             )
         yield (partials_to_redo, relevant_user_feedback_list), True
@@ -2010,19 +2022,22 @@ class CutTranscriptLinearWorkflow:
         ):
             if not is_last:
                 yield output, is_last
-        if not isinstance(output, dict):
-            raise ValueError(f"Expected output to be dict, but got {type(output)}")
+        assert isinstance(output, FinalLLMOutput) and output.json_value is not None
 
         print(
             "user feedback in _identify_partial_transcript_chunks_to_redo_from_user_feedback",
             user_feedback,
         )
-        partials_to_redo = parse_partials_to_redo_from_agent_output(output, n=nchunks)
+        partials_to_redo = parse_partials_to_redo_from_agent_output(
+            output.json_value, n=nchunks
+        )
         relevant_user_feedback_list = []
         if len(partials_to_redo):
             relevant_user_feedback_list = (
                 parse_relevant_user_feedback_list_from_agent_output(
-                    output, n=len(partials_to_redo), user_feedback=user_feedback
+                    output.json_value,
+                    n=len(partials_to_redo),
+                    user_feedback=user_feedback,
                 )
             )
             print(
@@ -2051,10 +2066,9 @@ class CutTranscriptLinearWorkflow:
         ):
             if not is_last:
                 yield output, is_last
-        if not isinstance(output, dict):
-            raise ValueError(f"Expected output to be dict, but got {type(output)}")
+        assert isinstance(output, FinalLLMOutput) and output.json_value is not None
 
-        yield list(output.values())[0], True
+        yield list(output.json_value.values())[0], True
 
     async def _ask_llm_to_parse_user_prompt_for_speaker_id_retry(self, user_feedback):
         assert self.state is not None
@@ -2090,10 +2104,9 @@ class CutTranscriptLinearWorkflow:
         ):
             if not is_last:
                 yield output, is_last
-        if not isinstance(output, dict):
-            raise ValueError(f"Expected output to be dict, but got {type(output)}")
+        assert isinstance(output, FinalLLMOutput) and output.json_value is not None
 
-        yield list(output.values())[0], True
+        yield list(output.json_value.values())[0], True
 
     async def _ask_llm_to_parse_user_prompt_for_transcript_retry(self, user_feedback):
         assert self.current_transcript is not None, "Transcript must be provided"
@@ -2114,10 +2127,8 @@ class CutTranscriptLinearWorkflow:
         ):
             if not is_last:
                 yield output, is_last
-        if not isinstance(output, dict):
-            raise ValueError(f"Expected output to be dict, but got {type(output)}")
-
-        yield list(output.values())[0], True
+        assert isinstance(output, FinalLLMOutput) and output.json_value is not None
+        yield list(output.json_value.values())[0], True
 
     async def _identify_key_soundbites_partial(
         self,
@@ -2145,11 +2156,12 @@ class CutTranscriptLinearWorkflow:
             from_cache=use_agent_output_cache,
         ):
             if not is_last:
-                yield {
-                    "output": output,
-                    "chunk": partial_transcript.chunk_index,
-                }, is_last
-        soundbites = await SoundbitesChunk.from_keep_tags(partial_transcript, output)
+                output.chunk = partial_transcript.chunk_index
+                yield output, is_last
+        assert isinstance(output, FinalLLMOutput) and output.str_value is not None
+        soundbites = await SoundbitesChunk.from_keep_tags(
+            partial_transcript, output.str_value
+        )
         assert isinstance(
             soundbites, SoundbitesChunk
         ), "Expected result to be SoundbitesChunk"
@@ -2159,12 +2171,11 @@ class CutTranscriptLinearWorkflow:
             )
             async for output, is_last in remove_soundbites(soundbites, max_soundbites):
                 if not is_last:
-                    yield {
-                        "output": output,
-                        "chunk": partial_transcript.chunk_index,
-                    }, is_last
+                    output.chunk = partial_transcript.chunk_index
+                    yield output, is_last
+            assert isinstance(output, FinalLLMOutput) and output.str_value is not None
             soundbites = await SoundbitesChunk.from_keep_tags(
-                partial_transcript, output
+                partial_transcript, output.str_value
             )
         yield soundbites, True
 
@@ -2197,11 +2208,10 @@ class CutTranscriptLinearWorkflow:
             **common_kwargs,
         ):
             if not is_last:
-                yield {
-                    "output": output,
-                    "chunk": partial_transcript.chunk_index,
-                    "submethod": "cut_partial_transcript",
-                }, False
+                assert isinstance(output, PartialLLMOutput)
+                output.chunk = partial_transcript.chunk_index
+                output.calling_method_name = "cut_partial_transcript"
+                yield output, False
             else:
                 assert isinstance(output, tuple) and len(output) == 2
                 assert isinstance(output[0], TranscriptChunk)
@@ -2217,11 +2227,10 @@ class CutTranscriptLinearWorkflow:
             **common_kwargs,
         ):
             if not is_last:
-                yield {
-                    "output": output,
-                    "chunk": partial_transcript.chunk_index,
-                    "submethod": "critique_cut_transcript",
-                }, False
+                assert isinstance(output, PartialLLMOutput)
+                output.chunk = partial_transcript.chunk_index
+                output.calling_method_name = "critique_cut_transcript"
+                yield output, False
             else:
                 assert isinstance(output[0], TranscriptChunk)
                 assert isinstance(output[1], SoundbitesChunk)
@@ -2392,9 +2401,11 @@ class CutTranscriptLinearWorkflow:
             if not is_last:
                 yield output, False
 
-        assert isinstance(output, str)
+        assert isinstance(output, FinalLLMOutput) and isinstance(output.str_value, str)
 
-        transcript = match_output_to_actual_transcript_fast(transcript, output)
+        transcript = match_output_to_actual_transcript_fast(
+            transcript, output.str_value
+        )
 
         kept_soundbites = (
             key_soundbites.keep_only_in_transcript(transcript)
