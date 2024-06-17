@@ -1,4 +1,6 @@
-from pydantic import BaseModel
+import json
+from trimit.models.models import StepKey
+from pydantic import BaseModel, Field, model_serializer
 from typing import Callable, Optional, Union
 import pickle
 from trimit.utils.misc import union_list_of_intervals
@@ -1596,11 +1598,12 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
 
 class CurrentStepInfo(BaseModel):
     name: str
-    method: Callable
     user_feedback: bool
+    method: Callable | None = None
     input: CutTranscriptLinearWorkflowStepInput | None = None
     chunked_feedback: bool = False
     step: Union["StepWrapper", None] = None
+    step_name: str | None = None
     export_transcript: Optional[bool] = True
     export_video: Optional[bool] = True
     export_soundbites: Optional[bool] = True
@@ -1608,7 +1611,12 @@ class CurrentStepInfo(BaseModel):
     export_speaker_tagging: Optional[bool] = False
 
     def model_dump_json(self, *args, **kwargs):
-        return super().model_dump_json(*args, exclude={"method", "step"}, **kwargs)
+        return json.dumps(self.model_dump(*args, **kwargs))
+
+    def model_dump(self, *args, **kwargs):
+        res = super().model_dump(*args, exclude={"method", "step"}, **kwargs)
+        res["step_name"] = self.step.name if self.step else None
+        return res
 
     def to_dict(self):
         return {
@@ -1651,6 +1659,14 @@ class GetStepOutputs(BaseModel):
     outputs: list[CutTranscriptLinearWorkflowStepOutput]
 
 
+class GetVideoProcessingStatus(BaseModel):
+    statuses: list[dict[str, str]]
+
+
+class CheckFunctionCallResults(BaseModel):
+    statuses: list[dict[str, str]]
+
+
 class StepWrapper(BaseModel):
     name: str
     substeps: list[CurrentStepInfo]
@@ -1660,9 +1676,16 @@ class StepWrapper(BaseModel):
         for substep in self.substeps:
             substep.step = self
 
+    def model_dump(self, *args, **kwargs):
+        return {"name": self.name, "substeps": [s.model_dump() for s in self.substeps]}
+
 
 class Steps(BaseModel):
     steps: list[StepWrapper]
+
+    @model_serializer()
+    def model_dump(self, *args, **kwargs):
+        return {"steps": [s.model_dump() for s in self.steps]}
 
     def __iter__(self):
         return iter(self.steps)
@@ -1706,3 +1729,36 @@ class Steps(BaseModel):
             if step_index < 0:
                 return None, None
         return step_index, substep_index
+
+
+class GetLatestState(BaseModel):
+    user_messages: list[str] = Field(
+        [], description="list of all messages user has provided"
+    )
+    step_history_state: list[StepKey] = Field(
+        [],
+        description="list of every step and substeps run so far, including retry_{i} prefixes on substeps when a step was retried",
+    )
+    video_id: str | None = Field(
+        None,
+        description="id of the video's db model. Provide to future workflow calls for faster retrieval over video_hash",
+    )
+    user_id: str | None = Field(
+        None,
+        description="id of the user's db model. Provide to future workflow calls for faster retrieval over user_email",
+    )
+    last_step: CurrentStepInfo | None = Field(
+        None,
+        description="information about the most recently run (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
+    )
+    next_step: CurrentStepInfo | None = Field(
+        None,
+        description="information about the next scheduled (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
+    )
+    all_steps: Steps | None = Field(
+        None,
+        description="detailed, ordered, information about each step/substep in this workflow",
+    )
+    output: CutTranscriptLinearWorkflowStepOutput | None = Field(
+        None, description="most recent substep output"
+    )

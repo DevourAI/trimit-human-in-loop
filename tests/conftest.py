@@ -14,6 +14,7 @@ from trimit.models.models import User, Video
 from trimit.models import get_upload_folder, maybe_init_mongo
 from trimit.utils.model_utils import save_video_with_details
 from trimit.backend.models import Transcript
+from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 from dotenv import load_dotenv
 import shutil
 
@@ -337,3 +338,43 @@ def soundbites_3909774043():
 @pytest.fixture(scope="function")
 def soundbites_15557970():
     return load_soundbites("15557970")
+
+
+@pytest.fixture(scope="module")
+def test_videos_output_dir():
+    path = Path("tests/video_outputs/linear")
+    path.mkdir(exist_ok=True, parents=True)
+    return str(path)
+
+
+@pytest.fixture(scope="module")
+def test_videos_volume_dir():
+    path = Path("tests/fixtures/volume")
+    path.mkdir(exist_ok=True, parents=True)
+    return str(path)
+
+
+@pytest.fixture(scope="function")
+async def workflow_15557970_with_transcript(
+    video_15557970_with_speakers_in_frame,
+    test_videos_output_dir,
+    test_videos_volume_dir,
+):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await CutTranscriptLinearWorkflow.from_video(
+        video=video_15557970_with_speakers_in_frame,
+        timeline_name="15557970_testimonial_test",
+        output_folder=test_videos_output_dir,
+        volume_dir=test_videos_volume_dir,
+        new_state=True,
+        length_seconds=120,
+        nstages=2,
+        first_pass_length=6 * 60,
+        max_partial_transcript_words=800,
+        max_word_extra_threshold=50,
+        max_iterations=3,
+        api_call_delay=0.5,
+        with_provided_user_feedback=[],
+        export_video=False,
+    )

@@ -428,7 +428,7 @@ class CutTranscriptLinearWorkflow:
     @property
     def serializable_state_step_order(self):
         assert self.state is not None
-        return [s.model_dump() for s in self.state.dynamic_state_step_order]
+        return self.state.dynamic_state_step_order
 
     @property
     def story(self):

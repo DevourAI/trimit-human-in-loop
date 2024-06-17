@@ -6,6 +6,7 @@ from datetime import datetime
 from pathlib import Path
 import yaml
 
+from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, EmailStr
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
@@ -29,11 +30,15 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.backend.models import (
+    GetLatestState,
     GetStepOutputs,
+    GetVideoProcessingStatus,
+    CheckFunctionCallResults,
     CutTranscriptLinearWorkflowStepOutput,
     PartialBackendOutput,
     PartialLLMOutput,
     CutTranscriptLinearWorkflowStreamingOutput,
+    Steps,
 )
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
@@ -194,7 +199,7 @@ async def get_openapi_yaml():
     "/get_step_outputs",
     response_model=GetStepOutputs,
     tags=["Steps"],
-    summary="Get outputs for a given list of steps",
+    summary="Get specific outputs for a given workflow and list of steps",
     description="TODO",
 )
 async def get_step_outputs(
@@ -212,14 +217,20 @@ async def get_step_outputs(
     )
 
 
-@web_app.get("/get_all_outputs")
+@web_app.get(
+    "/get_all_outputs",
+    response_model=GetStepOutputs,
+    tags=["Steps"],
+    summary="Get all outputs, ordered earliest to latest in time, for a given workflow",
+    description="TODO",
+)
 async def get_all_outputs(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
     if not workflow:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
-    return await workflow.get_all_outputs()
+    return GetStepOutputs(outputs=await workflow.get_all_outputs())
 
 
 def check_call_status(modal_call_id, timeout: float = 0):
@@ -239,7 +250,13 @@ def check_call_status(modal_call_id, timeout: float = 0):
 
 # frontend should poll for this
 # sometime in the future we can use kafka or pubsub to push to frontend
-@web_app.get("/get_video_processing_status")
+@web_app.get(
+    "/get_video_processing_status",
+    response_model=GetVideoProcessingStatus,
+    tags=["FunctionCalls"],
+    summary="Get status of video processing jobs",
+    description="TODO",
+)
 async def get_video_processing_status(
     user: User = Depends(find_or_create_user),
     video_hashes: list[str] | None = None,
@@ -265,7 +282,7 @@ async def get_video_processing_status(
         check_call_status(call_id, timeout=timeout) if call_id else None
         for call_id in call_ids
     ]
-    expanded_statuses = []
+    statuses = []
     for video_hash, status in zip(video_hashes, statuses):
         if status is None:
             status = {"status": "done"}
@@ -277,13 +294,19 @@ async def get_video_processing_status(
                     # TODO not sure why this happens since we check the key on the previous line
                     video_processing_call_ids[(user.email, video_hash)] = None
         status["video_hash"] = video_hash
-        expanded_statuses.append(status)
-    return {"result": expanded_statuses}
+        statuses.append(status)
+    return GetVideoProcessingStatus(statuses=statuses)
 
 
 # frontend should poll for this
 # sometime in the future we can use kafka or pubsub to push to frontend
-@web_app.get("/check_function_call_results")
+@web_app.get(
+    "/check_function_call_results",
+    response_model=CheckFunctionCallResults,
+    tags=["FunctionCalls"],
+    summary="Check the status of modal function calls",
+    description="TODO",
+)
 async def check_function_call_results(modal_call_ids: list[str], timeout: float = 0):
     statuses = await asyncio.gather(
         *[
@@ -291,7 +314,7 @@ async def check_function_call_results(modal_call_ids: list[str], timeout: float 
             for call_id in modal_call_ids
         ]
     )
-    return {"result": statuses}
+    return CheckFunctionCallResults(statuses=statuses)
 
 
 @web_app.get(
@@ -369,7 +392,12 @@ def step_endpoint(
         return StreamingResponse(streamer(), media_type="application/json")
 
 
-@web_app.get("/reset_workflow")
+@web_app.get(
+    "/reset_workflow",
+    tags=["Workflows"],
+    summary="Reset a workflow to initial state",
+    description="TODO",
+)
 async def reset_workflow(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
@@ -380,10 +408,18 @@ async def reset_workflow(
     print(f"Workflow {workflow.id} reset")
 
 
-@web_app.get("/revert_workflow_step")
+@web_app.get(
+    "/revert_workflow_step",
+    tags=["Workflows"],
+    summary="Revert a workflow one step",
+    description="TODO",
+)
 async def revert_workflow_step(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    to_before_retries: bool = False,
+    to_before_retries: bool = Query(
+        False,
+        description="If True, revert to before any retries. Otherwise, revert to the most recent retry",
+    ),
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
@@ -392,7 +428,12 @@ async def revert_workflow_step(
     print(f"Workflow {workflow.id} reverted")
 
 
-@web_app.get("/revert_workflow_step_to")
+@web_app.get(
+    "/revert_workflow_step_to",
+    tags=["Workflows"],
+    summary="Revert a workflow to a particular step/substep",
+    description="TODO",
+)
 async def revert_workflow_step_to(
     step_name: str,
     substep_name: str,
@@ -405,42 +446,60 @@ async def revert_workflow_step_to(
     print(f"Workflow {workflow.id} reverted to {step_name}.{substep_name}")
 
 
-@web_app.get("/get_latest_state")
-async def get_latest_state(
-    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    with_output: bool = False,
+@web_app.get(
+    "/all_steps",
+    tags=["Workflows"],
+    response_model=Steps,
+    summary="Get ordered, detailed description of each step for a workflow",
+    description="These will be very similar for each workflow. The only current difference is in the number of stages.",
+)
+async def get_all_steps(
+    workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
 ):
-    print("got workflow in get_latest_state")
+    return workflow.steps
+
+
+@web_app.get(
+    "/get_latest_state",
+    tags=["Workflows"],
+    response_model=GetLatestState,
+    summary="Get the latest state of a workflow",
+    description="TODO",
+)
+async def get_latest_state(
+    workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
+    with_output: bool = Query(
+        False, description="if True, return the most recent step output"
+    ),
+    with_all_steps: bool = Query(
+        True, description="if True, return the Steps object of all the workflow's steps"
+    ),
+):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
     last_step_obj = await workflow.get_last_substep_with_user_feedback(
         with_load_state=False
     )
-    print("got last step obj")
-    last_step_dict = last_step_obj.to_dict() if last_step_obj else None
-    print("got last step dict")
     next_step_obj = await workflow.get_next_substep_with_user_feedback(
         with_load_state=False
     )
-    print("got next step obj")
-    next_step_dict = next_step_obj.to_dict() if next_step_obj else None
-    print("got next step dict")
 
-    return_dict = {
-        "last_step": last_step_dict,
-        "next_step": next_step_dict,
-        "all_steps": workflow.serializable_steps,
-        "video_id": str(workflow.video.id),
-        "user_id": str(workflow.user.id),
-        "user_messages": workflow.user_messages,
-        "step_history_state": workflow.serializable_state_step_order,
-    }
-    print("got return dict")
+    output = GetLatestState(
+        last_step=last_step_obj,
+        next_step=next_step_obj,
+        video_id=str(workflow.video.id),
+        user_id=str(workflow.user.id),
+        user_messages=workflow.user_messages,
+        step_history_state=workflow.serializable_state_step_order,
+        all_steps=None,
+        output=None,
+    )
+    if with_all_steps:
+        output.all_steps = workflow.steps
     if with_output:
-        return_dict["output"] = await workflow.get_last_output(with_load_state=False)
-        print("got return dict output")
-    return return_dict
+        output.output = await workflow.get_last_output(with_load_state=False)
+    return output
 
 
 @web_app.get("/download_transcript_text")
