@@ -11,7 +11,7 @@
 	step_ephemeral
 
 deploy_prod:
-	@DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
+	@MODAL_ENVIRONMENT=prod DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
 
 deploy_staging:
 	@MODAL_ENVIRONMENT=staging DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=staging ./deploy.sh
