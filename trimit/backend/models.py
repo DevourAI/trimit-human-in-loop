@@ -1,4 +1,5 @@
 import json
+from fastapi.encoders import jsonable_encoder
 from trimit.models.models import StepKey
 from pydantic import BaseModel, Field, model_serializer
 from typing import Callable, Optional, Union
@@ -1762,3 +1763,22 @@ class GetLatestState(BaseModel):
     output: CutTranscriptLinearWorkflowStepOutput | None = Field(
         None, description="most recent substep output"
     )
+
+    @model_serializer()
+    def model_dump(self, *args, **kwargs):
+        return {
+            "user_messages": jsonable_encoder(self.user_messages),
+            "step_history_state": (
+                [s.model_dump() for s in self.step_history_state]
+                if self.step_history_state
+                else None
+            ),
+            "video_id": jsonable_encoder(self.video_id),
+            "user_id": jsonable_encoder(self.user_id),
+            "last_step": self.last_step.model_dump() if self.last_step else None,
+            "next_step": self.next_step.model_dump() if self.next_step else None,
+            "all_steps": (
+                [s.model_dump() for s in self.all_steps] if self.all_steps else None
+            ),
+            "output": self.output.model_dump() if self.output else None,
+        }
