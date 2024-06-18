@@ -324,14 +324,40 @@ async def check_function_call_results(modal_call_ids: list[str], timeout: float 
     response_model=CutTranscriptLinearWorkflowStreamingOutput,
     tags=["Steps"],
     summary="Run next step",
-    description="TODO",
+    description="""
+This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON.
+The chunk JSONs are each "instances" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class.
+The wrapper class includes several type variants, only one of which will be non-null at a time.
+
+The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed.
+Along the way, partial output will be streamed to the client.
+These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`).
+While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing.
+The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`,
+which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`.
+However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client,
+and the backend will continue on without waiting for feedback.
+The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
+""",
 )
 def step_endpoint(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    user_input: str | None = None,
-    streaming: bool = False,
-    ignore_running_workflows: bool = False,
-    retry_step: bool = False,
+    user_input: str | None = Query(
+        None,
+        description="string conversational input from the user that will be provided to the underlying LLM",
+    ),
+    streaming: bool = Query(
+        True,
+        description="If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran",
+    ),
+    ignore_running_workflows: bool = Query(
+        False,
+        description="If True, run this workflow's step even if it is already running. May lead to race conditions in underlying database",
+    ),
+    retry_step: bool = Query(
+        False,
+        description="If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output",
+    ),
 ):
     step_params = {
         "workflow": workflow,
@@ -355,16 +381,25 @@ def step_endpoint(
                 method = step_function.local
             else:
                 method = step_function.remote_gen.aio
+
+            last_result = None
             async for partial_result, is_last in method(**step_params):
+                if last_result is not None:
+                    if last_result.user_feedback_request:
+                        raise ValueError(
+                            "Step loop should not continue after a feedback request"
+                        )
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_step_output=last_result
+                    ).model_dump_json()
+                    last_result = None
                 if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
-                    if is_last:
-                        yield CutTranscriptLinearWorkflowStreamingOutput(
-                            final_step_output=partial_result
-                        ).model_dump_json()
-                    else:
-                        yield CutTranscriptLinearWorkflowStreamingOutput(
-                            partial_step_output=partial_result
-                        ).model_dump_json()
+                    if not is_last:
+                        raise ValueError(
+                            "step result should be CutTranscriptLinearWorkflowStepOutput if is_last is True"
+                        )
+                    if partial_result.user_feedback_request:
+                        last_result = partial_result
                 elif isinstance(partial_result, PartialLLMOutput):
                     yield CutTranscriptLinearWorkflowStreamingOutput(
                         partial_llm_output=partial_result
@@ -378,18 +413,11 @@ def step_endpoint(
                         status_code=500,
                         detail=f"Unparseable response from internal step function: {partial_result}",
                     )
-                #  elif isinstance(partial_result, BaseModel):
-                #  yield json.dumps(
-                #  {
-                #  "result": json.loads(partial_result.model_dump_json()),
-                #  "is_last": is_last,
-                #  }
-                #  ) + "\n"
-                #  else:
-                #  yield json.dumps(
-                #  {"message": partial_result, "is_last": is_last}
-                #  ) + "\n"
                 await asyncio.sleep(0)
+            if last_result is not None:
+                yield CutTranscriptLinearWorkflowStreamingOutput(
+                    final_step_output=last_result
+                ).model_dump_json()
 
         return StreamingResponse(streamer(), media_type="application/json")
 

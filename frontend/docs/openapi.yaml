@@ -314,7 +314,40 @@ paths:
       tags:
       - Steps
       summary: Run next step
-      description: TODO
+      description: 'This method returns a strongly typed `StreamingResponse`, where
+        each chunk will be proper JSON.
+
+        The chunk JSONs are each "instances" of the `CutTranscriptLinearWorkflowStreamingOutput`
+        wrapper class.
+
+        The wrapper class includes several type variants, only one of which will be
+        non-null at a time.
+
+
+        The method will call the underlying `step()` method of the workflow until
+        a step is run that needs user feedback to proceed.
+
+        Along the way, partial output will be streamed to the client.
+
+        These partial outputs include responses from the backend (`partial_backend_output:
+        PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`).
+
+        While present in the wrapper class, the client should not expect to receive
+        `FinalLLMOutput` on the frontend, as that is parsed by the backend for further
+        processing.
+
+        The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`,
+
+        which is also the type that is returned by the API in methods like `/get_step_outputs`
+        and `/get_all_outputs`.
+
+        However, since some substeps do not request user feedback, some of these outputs
+        will be streamed as `partial_step_output` to the client,
+
+        and the backend will continue on without waiting for feedback.
+
+        The last output this method produces is always `final_step_output`, which
+        includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)'
       operationId: step_endpoint_step_get
       parameters:
       - name: user_input
@@ -324,28 +357,46 @@ paths:
           anyOf:
           - type: string
           - type: 'null'
+          description: string conversational input from the user that will be provided
+            to the underlying LLM
           title: User Input
+        description: string conversational input from the user that will be provided
+          to the underlying LLM
       - name: streaming
         in: query
         required: false
         schema:
           type: boolean
-          default: false
+          description: If False, do not stream intermediate output and just provide
+            the final workflow output after all substeps have ran
+          default: true
           title: Streaming
+        description: If False, do not stream intermediate output and just provide
+          the final workflow output after all substeps have ran
       - name: ignore_running_workflows
         in: query
         required: false
         schema:
           type: boolean
+          description: If True, run this workflow's step even if it is already running.
+            May lead to race conditions in underlying database
           default: false
           title: Ignore Running Workflows
+        description: If True, run this workflow's step even if it is already running.
+          May lead to race conditions in underlying database
       - name: retry_step
         in: query
         required: false
         schema:
           type: boolean
+          description: If True, indicates that the client desires to run the last
+            step again, optionally with user feedback in user_input instructing the
+            LLM how to modify its previous output
           default: false
           title: Retry Step
+        description: If True, indicates that the client desires to run the last step
+          again, optionally with user feedback in user_input instructing the LLM how
+          to modify its previous output
       - name: timeline_name
         in: query
         required: false
@@ -1805,56 +1856,74 @@ components:
       title: CutTranscriptLinearWorkflowStreamingOutput
     ExportableStepInfo:
       properties:
-        name:
+        substep_name:
           type: string
-          title: Name
+          title: Substep Name
+          description: name of the substep
         user_feedback:
           type: boolean
           title: User Feedback
+          description: If True, this step will stop the workflow when finished in
+            order to gather feedback from the user
         step_name:
           type: string
           title: Step Name
+          description: name of the higher-level step
         input:
           anyOf:
           - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepInput'
           - type: 'null'
+          description: Input that was (or will be) provided to the step's method
         chunked_feedback:
           type: boolean
           title: Chunked Feedback
+          description: If True, this step desires feedback from the user about several
+            independent 'chunks' of its output. For instance, feedback about each
+            soundbite produced.
           default: false
         export_transcript:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Export Transcript
+          description: 'If True, this step will export a transcript pickle (TODO:
+            modify to export JSON) and a plaintext file'
           default: true
         export_video:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Export Video
+          description: If True, this step will export an mp4 video file
           default: true
         export_soundbites:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Export Soundbites
+          description: If True, this step will export a transcript (pickle- eventually
+            JSON, and plaintext) of the workflow's soundbites, along with timeline
+            XMLs and video mp4s for each
           default: true
         export_timeline:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Export Timeline
+          description: If True, this step will export a timeline XML file
           default: true
         export_speaker_tagging:
           anyOf:
           - type: boolean
           - type: 'null'
           title: Export Speaker Tagging
+          description: If True, this step will export several sample mp4s for each
+            speaker (annotated with the current speaker tags in the export_result
+            dict mapping to filenames)
           default: false
       type: object
       required:
-      - name
+      - substep_name
       - user_feedback
       - step_name
       title: ExportableStepInfo
@@ -2007,15 +2076,20 @@ components:
           - type: string
           - type: 'null'
           title: Value
+          description: Information provided by the backend about what it is currently
+            doing
         current_substep:
           anyOf:
           - $ref: '#/components/schemas/ExportableStepInfo'
           - type: 'null'
+          description: Current substep that produced this output, provided if there
+            are more than one that will be called before a feedback request
         chunk:
           anyOf:
           - type: integer
           - type: 'null'
           title: Chunk
+          description: chunk index if this output was produced concurrently
       type: object
       title: PartialBackendOutput
     PartialFeedback:
@@ -2046,16 +2120,21 @@ components:
         value:
           type: string
           title: Value
+          description: string value of a partial output response from the LLM
         chunk:
           anyOf:
           - type: integer
           - type: 'null'
           title: Chunk
+          description: chunk index if this output was produced concurrently with several
+            independent calls to the LLM
         calling_method_name:
           anyOf:
           - type: string
           - type: 'null'
           title: Calling Method Name
+          description: backend method called to produce this output. Only provided
+            if there are multiple methods called in sequence by the step
       type: object
       required:
       - value

@@ -197,19 +197,19 @@ export interface CutTranscriptLinearWorkflowStreamingOutput {
  */
 export interface ExportableStepInfo {
     /**
-     * 
+     * name of the substep
      * @type {string}
      * @memberof ExportableStepInfo
      */
-    'name': string;
+    'substep_name': string;
     /**
-     * 
+     * If True, this step will stop the workflow when finished in order to gather feedback from the user
      * @type {boolean}
      * @memberof ExportableStepInfo
      */
     'user_feedback': boolean;
     /**
-     * 
+     * name of the higher-level step
      * @type {string}
      * @memberof ExportableStepInfo
      */
@@ -221,7 +221,7 @@ export interface ExportableStepInfo {
      */
     'input'?: CutTranscriptLinearWorkflowStepInput | null;
     /**
-     * 
+     * If True, this step desires feedback from the user about several independent \'chunks\' of its output. For instance, feedback about each soundbite produced.
      * @type {boolean}
      * @memberof ExportableStepInfo
      */
@@ -472,7 +472,7 @@ export interface PartialFeedback {
  */
 export interface PartialLLMOutput {
     /**
-     * 
+     * string value of a partial output response from the LLM
      * @type {string}
      * @memberof PartialLLMOutput
      */
@@ -2056,12 +2056,12 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
             };
         },
         /**
-         * TODO
+         * This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON. The chunk JSONs are each \"instances\" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class. The wrapper class includes several type variants, only one of which will be non-null at a time.  The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed. Along the way, partial output will be streamed to the client. These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`). While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing. The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`, which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`. However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client, and the backend will continue on without waiting for feedback. The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
          * @summary Run next step
-         * @param {string | null} [userInput] 
-         * @param {boolean} [streaming] 
-         * @param {boolean} [ignoreRunningWorkflows] 
-         * @param {boolean} [retryStep] 
+         * @param {string | null} [userInput] string conversational input from the user that will be provided to the underlying LLM
+         * @param {boolean} [streaming] If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran
+         * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
+         * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
          * @param {string | null} [timelineName] 
          * @param {number | null} [lengthSeconds] 
          * @param {string | null} [videoHash] 
@@ -2219,12 +2219,12 @@ export const StepsApiFp = function(configuration?: Configuration) {
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
-         * TODO
+         * This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON. The chunk JSONs are each \"instances\" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class. The wrapper class includes several type variants, only one of which will be non-null at a time.  The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed. Along the way, partial output will be streamed to the client. These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`). While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing. The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`, which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`. However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client, and the backend will continue on without waiting for feedback. The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
          * @summary Run next step
-         * @param {string | null} [userInput] 
-         * @param {boolean} [streaming] 
-         * @param {boolean} [ignoreRunningWorkflows] 
-         * @param {boolean} [retryStep] 
+         * @param {string | null} [userInput] string conversational input from the user that will be provided to the underlying LLM
+         * @param {boolean} [streaming] If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran
+         * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
+         * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
          * @param {string | null} [timelineName] 
          * @param {number | null} [lengthSeconds] 
          * @param {string | null} [videoHash] 
@@ -2298,12 +2298,12 @@ export const StepsApiFactory = function (configuration?: Configuration, basePath
             return localVarFp.getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
-         * TODO
+         * This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON. The chunk JSONs are each \"instances\" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class. The wrapper class includes several type variants, only one of which will be non-null at a time.  The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed. Along the way, partial output will be streamed to the client. These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`). While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing. The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`, which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`. However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client, and the backend will continue on without waiting for feedback. The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
          * @summary Run next step
-         * @param {string | null} [userInput] 
-         * @param {boolean} [streaming] 
-         * @param {boolean} [ignoreRunningWorkflows] 
-         * @param {boolean} [retryStep] 
+         * @param {string | null} [userInput] string conversational input from the user that will be provided to the underlying LLM
+         * @param {boolean} [streaming] If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran
+         * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
+         * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
          * @param {string | null} [timelineName] 
          * @param {number | null} [lengthSeconds] 
          * @param {string | null} [videoHash] 
@@ -2373,12 +2373,12 @@ export interface StepsApiInterface {
     getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetStepOutputs>;
 
     /**
-     * TODO
+     * This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON. The chunk JSONs are each \"instances\" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class. The wrapper class includes several type variants, only one of which will be non-null at a time.  The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed. Along the way, partial output will be streamed to the client. These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`). While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing. The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`, which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`. However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client, and the backend will continue on without waiting for feedback. The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
      * @summary Run next step
-     * @param {string | null} [userInput] 
-     * @param {boolean} [streaming] 
-     * @param {boolean} [ignoreRunningWorkflows] 
-     * @param {boolean} [retryStep] 
+     * @param {string | null} [userInput] string conversational input from the user that will be provided to the underlying LLM
+     * @param {boolean} [streaming] If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran
+     * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
+     * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
      * @param {string | null} [timelineName] 
      * @param {number | null} [lengthSeconds] 
      * @param {string | null} [videoHash] 
@@ -2452,12 +2452,12 @@ export class StepsApi extends BaseAPI implements StepsApiInterface {
     }
 
     /**
-     * TODO
+     * This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON. The chunk JSONs are each \"instances\" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class. The wrapper class includes several type variants, only one of which will be non-null at a time.  The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed. Along the way, partial output will be streamed to the client. These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`). While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing. The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`, which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`. However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client, and the backend will continue on without waiting for feedback. The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
      * @summary Run next step
-     * @param {string | null} [userInput] 
-     * @param {boolean} [streaming] 
-     * @param {boolean} [ignoreRunningWorkflows] 
-     * @param {boolean} [retryStep] 
+     * @param {string | null} [userInput] string conversational input from the user that will be provided to the underlying LLM
+     * @param {boolean} [streaming] If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran
+     * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
+     * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
      * @param {string | null} [timelineName] 
      * @param {number | null} [lengthSeconds] 
      * @param {string | null} [videoHash] 

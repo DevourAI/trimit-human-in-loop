@@ -1630,28 +1630,58 @@ class CurrentStepInfo(BaseModel):
 
     def to_exportable(self):
         return ExportableStepInfo(
+            substep_name=self.name,
             step_name=self.step.name if self.step else "",
-            **self.model_dump(exclude={"method", "step"}),
+            **self.model_dump(exclude={"method", "step", "name"}),
         )
 
 
 class ExportableStepInfo(BaseModel):
-    name: str
-    user_feedback: bool
-    step_name: str
-    input: CutTranscriptLinearWorkflowStepInput | None = None
-    chunked_feedback: bool = False
-    export_transcript: Optional[bool] = True
-    export_video: Optional[bool] = True
-    export_soundbites: Optional[bool] = True
-    export_timeline: Optional[bool] = True
-    export_speaker_tagging: Optional[bool] = False
+    substep_name: str = Field(..., description="name of the substep")
+    user_feedback: bool = Field(
+        ...,
+        description="If True, this step will stop the workflow when finished in order to gather feedback from the user",
+    )
+    step_name: str = Field(..., description="name of the higher-level step")
+    input: CutTranscriptLinearWorkflowStepInput | None = Field(
+        None, description="Input that was (or will be) provided to the step's method"
+    )
+    chunked_feedback: bool = Field(
+        False,
+        description="If True, this step desires feedback from the user about several independent 'chunks' of its output. For instance, feedback about each soundbite produced.",
+    )
+    export_transcript: Optional[bool] = Field(
+        True,
+        description="If True, this step will export a transcript pickle (TODO: modify to export JSON) and a plaintext file",
+    )
+    export_video: Optional[bool] = Field(
+        True, description="If True, this step will export an mp4 video file"
+    )
+    export_soundbites: Optional[bool] = Field(
+        True,
+        description="If True, this step will export a transcript (pickle- eventually JSON, and plaintext) of the workflow's soundbites, along with timeline XMLs and video mp4s for each",
+    )
+    export_timeline: Optional[bool] = Field(
+        True, description="If True, this step will export a timeline XML file"
+    )
+    export_speaker_tagging: Optional[bool] = Field(
+        False,
+        description="If True, this step will export several sample mp4s for each speaker (annotated with the current speaker tags in the export_result dict mapping to filenames)",
+    )
 
 
 class PartialLLMOutput(BaseModel):
-    value: str
-    chunk: int | None = None
-    calling_method_name: str | None = None
+    value: str = Field(
+        ..., description="string value of a partial output response from the LLM"
+    )
+    chunk: int | None = Field(
+        None,
+        description="chunk index if this output was produced concurrently with several independent calls to the LLM",
+    )
+    calling_method_name: str | None = Field(
+        None,
+        description="backend method called to produce this output. Only provided if there are multiple methods called in sequence by the step",
+    )
 
 
 class FinalLLMOutput(BaseModel):
@@ -1662,12 +1692,22 @@ class FinalLLMOutput(BaseModel):
 
 
 class PartialBackendOutput(BaseModel):
-    value: str | None = None
-    current_substep: ExportableStepInfo | None = None
-    chunk: int | None = None
+    value: str | None = Field(
+        None,
+        description="Information provided by the backend about what it is currently doing",
+    )
+
+    current_substep: ExportableStepInfo | None = Field(
+        None,
+        description="Current substep that produced this output, provided if there are more than one that will be called before a feedback request",
+    )
+    chunk: int | None = Field(
+        None, description="chunk index if this output was produced concurrently"
+    )
 
 
 class CutTranscriptLinearWorkflowStreamingOutput(BaseModel):
+    # TODO annotate these
     partial_llm_output: PartialLLMOutput | None = None
     final_llm_output: FinalLLMOutput | None = None
     partial_backend_output: PartialBackendOutput | None = None
