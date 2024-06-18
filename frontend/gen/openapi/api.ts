@@ -26,15 +26,40 @@ import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerM
 /**
  * 
  * @export
+ * @interface CallStatus
+ */
+export interface CallStatus {
+    /**
+     * \'done\', \'pending\', or \'error\'
+     * @type {string}
+     * @memberof CallStatus
+     */
+    'status': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof CallStatus
+     */
+    'call_id': string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof CallStatus
+     */
+    'error'?: string | null;
+}
+/**
+ * 
+ * @export
  * @interface CheckFunctionCallResults
  */
 export interface CheckFunctionCallResults {
     /**
      * 
-     * @type {Array<{ [key: string]: string; }>}
+     * @type {Array<CallStatus>}
      * @memberof CheckFunctionCallResults
      */
-    'statuses': Array<{ [key: string]: string; }>;
+    'statuses': Array<CallStatus>;
 }
 /**
  * 
@@ -55,7 +80,7 @@ export interface CutTranscriptLinearWorkflowStepInput {
      */
     'llm_modified_partial_feedback'?: PartialFeedback | null;
     /**
-     * 
+     * whether the current run is a retry
      * @type {boolean}
      * @memberof CutTranscriptLinearWorkflowStepInput
      */
@@ -140,7 +165,7 @@ export interface CutTranscriptLinearWorkflowStepOutput {
      */
     'error'?: string | null;
     /**
-     * 
+     * frontend should ignore this. backend may choose to retry the current step before asking the user for feedback, in which case this will be true
      * @type {boolean}
      * @memberof CutTranscriptLinearWorkflowStepOutput
      */
@@ -396,10 +421,10 @@ export interface GetStepOutputs {
 export interface GetVideoProcessingStatus {
     /**
      * 
-     * @type {Array<{ [key: string]: string; }>}
+     * @type {Array<VideoProcessingStatus>}
      * @memberof GetVideoProcessingStatus
      */
-    'statuses': Array<{ [key: string]: string; }>;
+    'statuses': Array<VideoProcessingStatus>;
 }
 /**
  * 
@@ -453,7 +478,7 @@ export interface PartialBackendOutput {
  */
 export interface PartialFeedback {
     /**
-     * 
+     * list of bools, length of number of partial chunks of transcript, indicate which chunks to redo
      * @type {Array<boolean>}
      * @memberof PartialFeedback
      */
@@ -491,7 +516,7 @@ export interface PartialLLMOutput {
     'calling_method_name'?: string | null;
 }
 /**
- * 
+ * specific feedback provided by LLM to each individual chunk
  * @export
  * @interface RelevantUserFeedbackList
  */
@@ -542,13 +567,13 @@ export interface UploadVideo {
      */
     'video_hashes'?: Array<string> | null;
     /**
-     * 
+     * \'success\', or \'error\'
      * @type {string}
      * @memberof UploadVideo
      */
     'result'?: string;
     /**
-     * 
+     * error messages
      * @type {Array<string>}
      * @memberof UploadVideo
      */
@@ -603,6 +628,37 @@ export interface ValidationError {
      * @memberof ValidationError
      */
     'type': string;
+}
+/**
+ * 
+ * @export
+ * @interface VideoProcessingStatus
+ */
+export interface VideoProcessingStatus {
+    /**
+     * \'done\', \'pending\', or \'error\'
+     * @type {string}
+     * @memberof VideoProcessingStatus
+     */
+    'status': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof VideoProcessingStatus
+     */
+    'call_id': string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof VideoProcessingStatus
+     */
+    'error'?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof VideoProcessingStatus
+     */
+    'video_hash': string;
 }
 
 /**

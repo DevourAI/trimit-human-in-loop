@@ -33,7 +33,7 @@ async def test_get_all_steps(client, workflow_15557970_with_transcript):
         },
     )
     assert response.status_code == 200
-    assert len(response.json()["steps"]) == 5
+    assert len(response.json()) == 5
 
 
 async def test_get_latest_state(client, workflow_15557970_with_transcript):
@@ -53,15 +53,15 @@ async def test_get_latest_state(client, workflow_15557970_with_transcript):
     assert response.status_code == 200
     data = response.json()
     assert len(data["all_steps"]) == 5
-    assert data["all_steps"][0]["substeps"][0]["name"] == "init_state"
+    assert data["all_steps"][0]["substeps"][0]["substep_name"] == "init_state"
     assert (
-        data["all_steps"][-1]["substeps"][-1]["name"]
+        data["all_steps"][-1]["substeps"][-1]["substep_name"]
         == "modify_transcript_holistically"
     )
     assert data["last_step"] is None
-    assert data["next_step"]["name"] == "remove_off_screen_speakers"
+    assert data["next_step"]["substep_name"] == "remove_off_screen_speakers"
     assert data["video_id"] is not None
     assert data["user_id"] is not None
     assert data["user_messages"] == []
-    assert data["step_history_state"] is None
+    assert data["step_history_state"] == []
     # TODO Test after running a step

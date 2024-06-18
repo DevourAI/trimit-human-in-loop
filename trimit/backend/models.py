@@ -1,4 +1,5 @@
 import json
+from IPython.display import Video
 from fastapi.encoders import jsonable_encoder
 from trimit.models.models import StepKey
 from pydantic import BaseModel, Field, model_serializer
@@ -1529,14 +1530,24 @@ class Soundbites(Transcript):
 
 
 class PartialFeedback(BaseModel):
-    partials_to_redo: list[bool]
-    relevant_user_feedback_list: list[str | None] | list[str]
+    partials_to_redo: list[bool] = Field(
+        ...,
+        description="list of bools, length of number of partial chunks of transcript, indicate which chunks to redo",
+    )
+    relevant_user_feedback_list: list[str | None] | list[str] = Field(
+        ..., description="specific feedback provided by LLM to each individual chunk"
+    )
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):
-    user_prompt: str | None = None
-    llm_modified_partial_feedback: PartialFeedback | None = None
-    is_retry: bool = False
+    user_prompt: str | None = Field(
+        None, description="prompt provided by user to this step"
+    )
+    llm_modified_partial_feedback: PartialFeedback | None = Field(
+        None,
+        description="feedback provided by LLM after processing the raw user_prompt",
+    )
+    is_retry: bool = Field(False, description="whether the current run is a retry")
     step_name: str | None = None
     substep_name: str | None = None
 
@@ -1551,14 +1562,32 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     step_name: str
     substep_name: str
     done: bool = False
-    user_feedback_request: str | None = None
+    user_feedback_request: str | None = Field(
+        None,
+        description="prompt to user for additional, optional input if the user wants to rerun the step",
+    )
     partial_user_feedback_request: str | None = None
-    step_inputs: CutTranscriptLinearWorkflowStepInput | None = None
-    step_outputs: dict | None = None
-    export_result: dict[str, str | list[str] | dict[str, list[str]]] | None = None
-    export_call_id: str | None = None
+    step_inputs: CutTranscriptLinearWorkflowStepInput | None = Field(
+        None,
+        description="the inputs that were provided to this step when it was most recently run",
+    )
+    step_outputs: dict | None = Field(
+        None,
+        description="the produced outputs from this step that were saved to the workflow's state",
+    )
+    export_result: dict[str, str | list[str] | dict[str, list[str]]] | None = Field(
+        None,
+        description="the files produced by this step. May be None if files are not ready yet. In that case, poll for them to be ready using export_call_id and then call /get_step_outputs",
+    )
+    export_call_id: str | None = Field(
+        None,
+        description="backend call_id that can be polled to wait until export files are fully created",
+    )
     error: str | None = None
-    retry: bool = False
+    retry: bool = Field(
+        False,
+        description="frontend should ignore this. backend may choose to retry the current step before asking the user for feedback, in which case this will be true",
+    )
 
     def merge(self, other: "CutTranscriptLinearWorkflowStepOutput"):
         if self.step_name == "" and other.step_name:
@@ -1614,9 +1643,16 @@ class CurrentStepInfo(BaseModel):
     def model_dump_json(self, *args, **kwargs):
         return json.dumps(self.model_dump(*args, **kwargs))
 
-    def model_dump(self, *args, **kwargs):
-        res = super().model_dump(*args, exclude={"method", "step"}, **kwargs)
-        res["step_name"] = self.step.name if self.step else None
+    def model_dump(self, *args, exclude=None, **kwargs):
+        step_name_in_exclude = False
+        if exclude is None:
+            exclude = {"method", "step", "step_name"}
+        else:
+            step_name_in_exclude = "step_name" in exclude
+            exclude |= {"method", "step", "step_name"}
+        res = super().model_dump(*args, exclude=exclude, **kwargs)
+        if not step_name_in_exclude:
+            res["step_name"] = self.step.name if self.step else None
         return res
 
     def to_dict(self):
@@ -1632,7 +1668,7 @@ class CurrentStepInfo(BaseModel):
         return ExportableStepInfo(
             substep_name=self.name,
             step_name=self.step.name if self.step else "",
-            **self.model_dump(exclude={"method", "step", "name"}),
+            **self.model_dump(exclude={"step_name"}),
         )
 
 
@@ -1708,23 +1744,48 @@ class PartialBackendOutput(BaseModel):
 
 class CutTranscriptLinearWorkflowStreamingOutput(BaseModel):
     # TODO annotate these
-    partial_llm_output: PartialLLMOutput | None = None
-    final_llm_output: FinalLLMOutput | None = None
-    partial_backend_output: PartialBackendOutput | None = None
-    partial_step_output: CutTranscriptLinearWorkflowStepOutput | None = None
-    final_step_output: CutTranscriptLinearWorkflowStepOutput | None = None
+    partial_llm_output: PartialLLMOutput | None = Field(
+        None, description="Chunk of output from the LLM"
+    )
+    final_llm_output: FinalLLMOutput | None = Field(
+        None, description="Full output from the LLM, not currently send to frontend"
+    )
+    partial_backend_output: PartialBackendOutput | None = Field(
+        None, description="Text output with metadata from the backend"
+    )
+    partial_step_output: CutTranscriptLinearWorkflowStepOutput | None = Field(
+        None,
+        description="An output of an intermediary substep that did not require user feedback",
+    )
+    final_step_output: CutTranscriptLinearWorkflowStepOutput | None = Field(
+        None, description="The final output from running the step"
+    )
 
 
 class GetStepOutputs(BaseModel):
     outputs: list[CutTranscriptLinearWorkflowStepOutput]
 
 
+class CallStatus(BaseModel):
+    status: str = Field(..., description="'done', 'pending', or 'error'")
+    call_id: str | None
+    error: str | None = None
+
+
+class VideoProcessingStatus(CallStatus):
+    video_hash: str
+
+    @classmethod
+    def from_call_status(cls, status, video_hash):
+        return cls(status=status, **status.model_dump())
+
+
 class GetVideoProcessingStatus(BaseModel):
-    statuses: list[dict[str, str]]
+    statuses: list[VideoProcessingStatus]
 
 
 class CheckFunctionCallResults(BaseModel):
-    statuses: list[dict[str, str]]
+    statuses: list[CallStatus]
 
 
 class StepWrapper(BaseModel):
@@ -1759,7 +1820,7 @@ class Steps(BaseModel):
         return {"steps": [s.model_dump() for s in self.steps]}
 
     def to_exportable(self):
-        return ExportableSteps(steps=[step.to_exportable() for step in self.steps])
+        return [step.to_exportable() for step in self.steps]
 
     def __iter__(self):
         return iter(self.steps)
@@ -1805,10 +1866,6 @@ class Steps(BaseModel):
         return step_index, substep_index
 
 
-class ExportableSteps(BaseModel):
-    steps: list[ExportableStepWrapper]
-
-
 class GetLatestState(BaseModel):
     user_messages: list[str] = Field(
         [], description="list of all messages user has provided"
@@ -1833,32 +1890,13 @@ class GetLatestState(BaseModel):
         None,
         description="information about the next scheduled (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
     )
-    all_steps: ExportableSteps | None = Field(
+    all_steps: list[ExportableStepWrapper] | None = Field(
         None,
         description="detailed, ordered, information about each step/substep in this workflow",
     )
     output: CutTranscriptLinearWorkflowStepOutput | None = Field(
         None, description="most recent substep output"
     )
-
-    #  @model_serializer()
-    #  def model_dump(self, *args, **kwargs):
-    #  return {
-    #  "user_messages": jsonable_encoder(self.user_messages),
-    #  "step_history_state": (
-    #  [s.model_dump() for s in self.step_history_state]
-    #  if self.step_history_state
-    #  else None
-    #  ),
-    #  "video_id": jsonable_encoder(self.video_id),
-    #  "user_id": jsonable_encoder(self.user_id),
-    #  "last_step": self.last_step.model_dump() if self.last_step else None,
-    #  "next_step": self.next_step.model_dump() if self.next_step else None,
-    #  "all_steps": (
-    #  [s.model_dump() for s in self.all_steps] if self.all_steps else None
-    #  ),
-    #  "output": self.output.model_dump() if self.output else None,
-    #  }
 
 
 class UploadedVideo(BaseModel):
@@ -1868,7 +1906,12 @@ class UploadedVideo(BaseModel):
 
 
 class UploadVideo(BaseModel):
-    processing_call_id: str | None = None
-    video_hashes: list[str] | None = None
-    result: str = "error"
-    messages: list[str] = []
+    processing_call_id: str | None = Field(
+        None,
+        description="backend call_id- use this to retrieve the status of video processing from /get_video_processing_status",
+    )
+    video_hashes: list[str] | None = Field(
+        None, description="list of hashes to refer to videos by in future"
+    )
+    result: str = Field("error", description="'success', or 'error'")
+    messages: list[str] = Field([], description="error messages")

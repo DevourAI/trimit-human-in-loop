@@ -28,6 +28,8 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.backend.models import (
+    CallStatus,
+    VideoProcessingStatus,
     ExportableStepInfo,
     UploadVideo,
     UploadedVideo,
@@ -40,7 +42,7 @@ from trimit.backend.models import (
     PartialLLMOutput,
     CutTranscriptLinearWorkflowStreamingOutput,
     Steps,
-    ExportableSteps,
+    ExportableStepWrapper,
 )
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
@@ -247,7 +249,7 @@ def check_call_status(modal_call_id, timeout: float = 0):
             result = {"status": "done"}
         else:
             result = {"status": "error", "error": str(e)}
-    return result
+    return CallStatus(call_id=modal_call_id, **result)
 
 
 # frontend should poll for this
@@ -285,18 +287,20 @@ async def get_video_processing_status(
         for call_id in call_ids
     ]
     statuses = []
-    for video_hash, status in zip(video_hashes, statuses):
+    for call_id, video_hash, status in zip(call_ids, video_hashes, statuses):
         if status is None:
-            status = {"status": "done"}
-        elif status["status"] == "done":
+            status = CallStatus(call_id=call_id, status="done")
+        elif status.status == "done":
             if (user.email, video_hash) in video_processing_call_ids:
                 try:
                     del video_processing_call_ids[(user.email, video_hash)]
                 except KeyError:
                     # TODO not sure why this happens since we check the key on the previous line
                     video_processing_call_ids[(user.email, video_hash)] = None
-        status["video_hash"] = video_hash
-        statuses.append(status)
+        video_processing_status = VideoProcessingStatus.from_call_status(
+            status, video_hash
+        )
+        statuses.append(video_processing_status)
     return GetVideoProcessingStatus(statuses=statuses)
 
 
@@ -479,7 +483,7 @@ async def revert_workflow_step_to(
 @web_app.get(
     "/all_steps",
     tags=["Workflows"],
-    response_model=ExportableSteps,
+    response_model=list[ExportableStepWrapper],
     summary="Get ordered, detailed description of each step for a workflow",
     description="These will be very similar for each workflow. The only current difference is in the number of stages.",
 )

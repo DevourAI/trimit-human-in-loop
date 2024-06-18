@@ -1724,13 +1724,32 @@ components:
       - timeline_name
       - user_email
       title: Body_upload_multiple_files_upload_post
+    CallStatus:
+      properties:
+        status:
+          type: string
+          title: Status
+          description: '''done'', ''pending'', or ''error'''
+        call_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Call Id
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+      type: object
+      required:
+      - status
+      - call_id
+      title: CallStatus
     CheckFunctionCallResults:
       properties:
         statuses:
           items:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/components/schemas/CallStatus'
           type: array
           title: Statuses
       type: object
@@ -1744,13 +1763,16 @@ components:
           - type: string
           - type: 'null'
           title: User Prompt
+          description: prompt provided by user to this step
         llm_modified_partial_feedback:
           anyOf:
           - $ref: '#/components/schemas/PartialFeedback'
           - type: 'null'
+          description: feedback provided by LLM after processing the raw user_prompt
         is_retry:
           type: boolean
           title: Is Retry
+          description: whether the current run is a retry
           default: false
         step_name:
           anyOf:
@@ -1781,6 +1803,8 @@ components:
           - type: string
           - type: 'null'
           title: User Feedback Request
+          description: prompt to user for additional, optional input if the user wants
+            to rerun the step
         partial_user_feedback_request:
           anyOf:
           - type: string
@@ -1790,11 +1814,15 @@ components:
           anyOf:
           - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepInput'
           - type: 'null'
+          description: the inputs that were provided to this step when it was most
+            recently run
         step_outputs:
           anyOf:
           - type: object
           - type: 'null'
           title: Step Outputs
+          description: the produced outputs from this step that were saved to the
+            workflow's state
         export_result:
           anyOf:
           - additionalProperties:
@@ -1811,11 +1839,16 @@ components:
             type: object
           - type: 'null'
           title: Export Result
+          description: the files produced by this step. May be None if files are not
+            ready yet. In that case, poll for them to be ready using export_call_id
+            and then call /get_step_outputs
         export_call_id:
           anyOf:
           - type: string
           - type: 'null'
           title: Export Call Id
+          description: backend call_id that can be polled to wait until export files
+            are fully created
         error:
           anyOf:
           - type: string
@@ -1824,6 +1857,9 @@ components:
         retry:
           type: boolean
           title: Retry
+          description: frontend should ignore this. backend may choose to retry the
+            current step before asking the user for feedback, in which case this will
+            be true
           default: false
       type: object
       required:
@@ -1836,22 +1872,28 @@ components:
           anyOf:
           - $ref: '#/components/schemas/PartialLLMOutput'
           - type: 'null'
+          description: Chunk of output from the LLM
         final_llm_output:
           anyOf:
           - $ref: '#/components/schemas/FinalLLMOutput'
           - type: 'null'
+          description: Full output from the LLM, not currently send to frontend
         partial_backend_output:
           anyOf:
           - $ref: '#/components/schemas/PartialBackendOutput'
           - type: 'null'
+          description: Text output with metadata from the backend
         partial_step_output:
           anyOf:
           - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepOutput'
           - type: 'null'
+          description: An output of an intermediary substep that did not require user
+            feedback
         final_step_output:
           anyOf:
           - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepOutput'
           - type: 'null'
+          description: The final output from running the step
       type: object
       title: CutTranscriptLinearWorkflowStreamingOutput
     ExportableStepInfo:
@@ -2051,9 +2093,7 @@ components:
       properties:
         statuses:
           items:
-            additionalProperties:
-              type: string
-            type: object
+            $ref: '#/components/schemas/VideoProcessingStatus'
           type: array
           title: Statuses
       type: object
@@ -2099,6 +2139,8 @@ components:
             type: boolean
           type: array
           title: Partials To Redo
+          description: list of bools, length of number of partial chunks of transcript,
+            indicate which chunks to redo
         relevant_user_feedback_list:
           anyOf:
           - items:
@@ -2110,6 +2152,7 @@ components:
               type: string
             type: array
           title: Relevant User Feedback List
+          description: specific feedback provided by LLM to each individual chunk
       type: object
       required:
       - partials_to_redo
@@ -2161,6 +2204,8 @@ components:
           - type: string
           - type: 'null'
           title: Processing Call Id
+          description: backend call_id- use this to retrieve the status of video processing
+            from /get_video_processing_status
         video_hashes:
           anyOf:
           - items:
@@ -2168,15 +2213,18 @@ components:
             type: array
           - type: 'null'
           title: Video Hashes
+          description: list of hashes to refer to videos by in future
         result:
           type: string
           title: Result
+          description: '''success'', or ''error'''
           default: error
         messages:
           items:
             type: string
           type: array
           title: Messages
+          description: error messages
           default: []
       type: object
       title: UploadVideo
@@ -2218,3 +2266,28 @@ components:
       - msg
       - type
       title: ValidationError
+    VideoProcessingStatus:
+      properties:
+        status:
+          type: string
+          title: Status
+          description: '''done'', ''pending'', or ''error'''
+        call_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Call Id
+        error:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Error
+        video_hash:
+          type: string
+          title: Video Hash
+      type: object
+      required:
+      - status
+      - call_id
+      - video_hash
+      title: VideoProcessingStatus
