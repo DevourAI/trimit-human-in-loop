@@ -28,6 +28,7 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.backend.models import (
+    ExportableStepInfo,
     UploadVideo,
     UploadedVideo,
     GetLatestState,
@@ -39,6 +40,7 @@ from trimit.backend.models import (
     PartialLLMOutput,
     CutTranscriptLinearWorkflowStreamingOutput,
     Steps,
+    ExportableSteps,
 )
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
@@ -449,14 +451,14 @@ async def revert_workflow_step_to(
 @web_app.get(
     "/all_steps",
     tags=["Workflows"],
-    response_model=Steps,
+    response_model=ExportableSteps,
     summary="Get ordered, detailed description of each step for a workflow",
     description="These will be very similar for each workflow. The only current difference is in the number of stages.",
 )
 async def get_all_steps(
     workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
 ):
-    return workflow.steps
+    return workflow.steps.to_exportable()
 
 
 @web_app.get(
@@ -481,10 +483,13 @@ async def get_latest_state(
     last_step_obj = await workflow.get_last_substep_with_user_feedback(
         with_load_state=False
     )
+    if last_step_obj is not None:
+        last_step_obj = last_step_obj.to_exportable()
     next_step_obj = await workflow.get_next_substep_with_user_feedback(
         with_load_state=False
     )
-
+    if next_step_obj is not None:
+        next_step_obj = next_step_obj.to_exportable()
     output = GetLatestState(
         last_step=last_step_obj,
         next_step=next_step_obj,
@@ -496,7 +501,7 @@ async def get_latest_state(
         output=None,
     )
     if with_all_steps:
-        output.all_steps = workflow.steps
+        output.all_steps = workflow.steps.to_exportable()
     if with_output:
         output.output = await workflow.get_last_output(with_load_state=False)
     return output

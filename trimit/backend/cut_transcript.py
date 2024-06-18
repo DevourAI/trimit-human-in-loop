@@ -882,7 +882,8 @@ class CutTranscriptLinearWorkflow:
         ), f"current_substep: {current_substep}"
 
         yield PartialBackendOutput(
-            value="Retrieved current substep", current_substep=current_substep
+            value="Retrieved current substep",
+            current_substep=current_substep.to_exportable(),
         ), False
 
         assert current_substep.input is not None

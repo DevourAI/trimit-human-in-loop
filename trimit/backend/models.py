@@ -1628,6 +1628,25 @@ class CurrentStepInfo(BaseModel):
             "step_name": self.step.name if self.step else None,
         }
 
+    def to_exportable(self):
+        return ExportableStepInfo(
+            step_name=self.step.name if self.step else "",
+            **self.model_dump(exclude={"method", "step"}),
+        )
+
+
+class ExportableStepInfo(BaseModel):
+    name: str
+    user_feedback: bool
+    step_name: str
+    input: CutTranscriptLinearWorkflowStepInput | None = None
+    chunked_feedback: bool = False
+    export_transcript: Optional[bool] = True
+    export_video: Optional[bool] = True
+    export_soundbites: Optional[bool] = True
+    export_timeline: Optional[bool] = True
+    export_speaker_tagging: Optional[bool] = False
+
 
 class PartialLLMOutput(BaseModel):
     value: str
@@ -1644,7 +1663,7 @@ class FinalLLMOutput(BaseModel):
 
 class PartialBackendOutput(BaseModel):
     value: str | None = None
-    current_substep: CurrentStepInfo | None = None
+    current_substep: ExportableStepInfo | None = None
     chunk: int | None = None
 
 
@@ -1680,6 +1699,17 @@ class StepWrapper(BaseModel):
     def model_dump(self, *args, **kwargs):
         return {"name": self.name, "substeps": [s.model_dump() for s in self.substeps]}
 
+    def to_exportable(self):
+        return ExportableStepWrapper(
+            name=self.name,
+            substeps=[substep.to_exportable() for substep in self.substeps],
+        )
+
+
+class ExportableStepWrapper(BaseModel):
+    name: str
+    substeps: list[ExportableStepInfo]
+
 
 class Steps(BaseModel):
     steps: list[StepWrapper]
@@ -1687,6 +1717,9 @@ class Steps(BaseModel):
     @model_serializer()
     def model_dump(self, *args, **kwargs):
         return {"steps": [s.model_dump() for s in self.steps]}
+
+    def to_exportable(self):
+        return ExportableSteps(steps=[step.to_exportable() for step in self.steps])
 
     def __iter__(self):
         return iter(self.steps)
@@ -1732,6 +1765,10 @@ class Steps(BaseModel):
         return step_index, substep_index
 
 
+class ExportableSteps(BaseModel):
+    steps: list[ExportableStepWrapper]
+
+
 class GetLatestState(BaseModel):
     user_messages: list[str] = Field(
         [], description="list of all messages user has provided"
@@ -1748,15 +1785,15 @@ class GetLatestState(BaseModel):
         None,
         description="id of the user's db model. Provide to future workflow calls for faster retrieval over user_email",
     )
-    last_step: CurrentStepInfo | None = Field(
+    last_step: ExportableStepInfo | None = Field(
         None,
         description="information about the most recently run (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
     )
-    next_step: CurrentStepInfo | None = Field(
+    next_step: ExportableStepInfo | None = Field(
         None,
         description="information about the next scheduled (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
     )
-    all_steps: Steps | None = Field(
+    all_steps: ExportableSteps | None = Field(
         None,
         description="detailed, ordered, information about each step/substep in this workflow",
     )
@@ -1764,24 +1801,24 @@ class GetLatestState(BaseModel):
         None, description="most recent substep output"
     )
 
-    @model_serializer()
-    def model_dump(self, *args, **kwargs):
-        return {
-            "user_messages": jsonable_encoder(self.user_messages),
-            "step_history_state": (
-                [s.model_dump() for s in self.step_history_state]
-                if self.step_history_state
-                else None
-            ),
-            "video_id": jsonable_encoder(self.video_id),
-            "user_id": jsonable_encoder(self.user_id),
-            "last_step": self.last_step.model_dump() if self.last_step else None,
-            "next_step": self.next_step.model_dump() if self.next_step else None,
-            "all_steps": (
-                [s.model_dump() for s in self.all_steps] if self.all_steps else None
-            ),
-            "output": self.output.model_dump() if self.output else None,
-        }
+    #  @model_serializer()
+    #  def model_dump(self, *args, **kwargs):
+    #  return {
+    #  "user_messages": jsonable_encoder(self.user_messages),
+    #  "step_history_state": (
+    #  [s.model_dump() for s in self.step_history_state]
+    #  if self.step_history_state
+    #  else None
+    #  ),
+    #  "video_id": jsonable_encoder(self.video_id),
+    #  "user_id": jsonable_encoder(self.user_id),
+    #  "last_step": self.last_step.model_dump() if self.last_step else None,
+    #  "next_step": self.next_step.model_dump() if self.next_step else None,
+    #  "all_steps": (
+    #  [s.model_dump() for s in self.all_steps] if self.all_steps else None
+    #  ),
+    #  "output": self.output.model_dump() if self.output else None,
+    #  }
 
 
 class UploadedVideo(BaseModel):

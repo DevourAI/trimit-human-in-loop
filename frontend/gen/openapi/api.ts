@@ -26,6 +26,19 @@ import { BASE_PATH, COLLECTION_FORMATS, BaseAPI, RequiredError, operationServerM
 /**
  * 
  * @export
+ * @interface CheckFunctionCallResults
+ */
+export interface CheckFunctionCallResults {
+    /**
+     * 
+     * @type {Array<{ [key: string]: string; }>}
+     * @memberof CheckFunctionCallResults
+     */
+    'statuses': Array<{ [key: string]: string; }>;
+}
+/**
+ * 
+ * @export
  * @interface CutTranscriptLinearWorkflowStepInput
  */
 export interface CutTranscriptLinearWorkflowStepInput {
@@ -143,6 +156,228 @@ export interface CutTranscriptLinearWorkflowStepOutputExportResultValue {
 /**
  * 
  * @export
+ * @interface CutTranscriptLinearWorkflowStreamingOutput
+ */
+export interface CutTranscriptLinearWorkflowStreamingOutput {
+    /**
+     * 
+     * @type {PartialLLMOutput}
+     * @memberof CutTranscriptLinearWorkflowStreamingOutput
+     */
+    'partial_llm_output'?: PartialLLMOutput | null;
+    /**
+     * 
+     * @type {FinalLLMOutput}
+     * @memberof CutTranscriptLinearWorkflowStreamingOutput
+     */
+    'final_llm_output'?: FinalLLMOutput | null;
+    /**
+     * 
+     * @type {PartialBackendOutput}
+     * @memberof CutTranscriptLinearWorkflowStreamingOutput
+     */
+    'partial_backend_output'?: PartialBackendOutput | null;
+    /**
+     * 
+     * @type {CutTranscriptLinearWorkflowStepOutput}
+     * @memberof CutTranscriptLinearWorkflowStreamingOutput
+     */
+    'partial_step_output'?: CutTranscriptLinearWorkflowStepOutput | null;
+    /**
+     * 
+     * @type {CutTranscriptLinearWorkflowStepOutput}
+     * @memberof CutTranscriptLinearWorkflowStreamingOutput
+     */
+    'final_step_output'?: CutTranscriptLinearWorkflowStepOutput | null;
+}
+/**
+ * 
+ * @export
+ * @interface ExportableStepInfo
+ */
+export interface ExportableStepInfo {
+    /**
+     * 
+     * @type {string}
+     * @memberof ExportableStepInfo
+     */
+    'name': string;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ExportableStepInfo
+     */
+    'user_feedback': boolean;
+    /**
+     * 
+     * @type {string}
+     * @memberof ExportableStepInfo
+     */
+    'step_name': string;
+    /**
+     * 
+     * @type {CutTranscriptLinearWorkflowStepInput}
+     * @memberof ExportableStepInfo
+     */
+    'input'?: CutTranscriptLinearWorkflowStepInput | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ExportableStepInfo
+     */
+    'chunked_feedback'?: boolean;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ExportableStepInfo
+     */
+    'export_transcript'?: boolean | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ExportableStepInfo
+     */
+    'export_video'?: boolean | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ExportableStepInfo
+     */
+    'export_soundbites'?: boolean | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ExportableStepInfo
+     */
+    'export_timeline'?: boolean | null;
+    /**
+     * 
+     * @type {boolean}
+     * @memberof ExportableStepInfo
+     */
+    'export_speaker_tagging'?: boolean | null;
+}
+/**
+ * 
+ * @export
+ * @interface ExportableStepWrapper
+ */
+export interface ExportableStepWrapper {
+    /**
+     * 
+     * @type {string}
+     * @memberof ExportableStepWrapper
+     */
+    'name': string;
+    /**
+     * 
+     * @type {Array<ExportableStepInfo>}
+     * @memberof ExportableStepWrapper
+     */
+    'substeps': Array<ExportableStepInfo>;
+}
+/**
+ * 
+ * @export
+ * @interface ExportableSteps
+ */
+export interface ExportableSteps {
+    /**
+     * 
+     * @type {Array<ExportableStepWrapper>}
+     * @memberof ExportableSteps
+     */
+    'steps': Array<ExportableStepWrapper>;
+}
+/**
+ * 
+ * @export
+ * @interface FinalLLMOutput
+ */
+export interface FinalLLMOutput {
+    /**
+     * 
+     * @type {string}
+     * @memberof FinalLLMOutput
+     */
+    'str_value'?: string | null;
+    /**
+     * 
+     * @type {object}
+     * @memberof FinalLLMOutput
+     */
+    'json_value'?: object | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof FinalLLMOutput
+     */
+    'chunk'?: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof FinalLLMOutput
+     */
+    'calling_method_name'?: string | null;
+}
+/**
+ * 
+ * @export
+ * @interface GetLatestState
+ */
+export interface GetLatestState {
+    /**
+     * list of all messages user has provided
+     * @type {Array<string>}
+     * @memberof GetLatestState
+     */
+    'user_messages'?: Array<string>;
+    /**
+     * list of every step and substeps run so far, including retry_{i} prefixes on substeps when a step was retried
+     * @type {Array<StepKey>}
+     * @memberof GetLatestState
+     */
+    'step_history_state'?: Array<StepKey>;
+    /**
+     * 
+     * @type {string}
+     * @memberof GetLatestState
+     */
+    'video_id'?: string | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof GetLatestState
+     */
+    'user_id'?: string | null;
+    /**
+     * 
+     * @type {ExportableStepInfo}
+     * @memberof GetLatestState
+     */
+    'last_step'?: ExportableStepInfo | null;
+    /**
+     * 
+     * @type {ExportableStepInfo}
+     * @memberof GetLatestState
+     */
+    'next_step'?: ExportableStepInfo | null;
+    /**
+     * 
+     * @type {ExportableSteps}
+     * @memberof GetLatestState
+     */
+    'all_steps'?: ExportableSteps | null;
+    /**
+     * 
+     * @type {CutTranscriptLinearWorkflowStepOutput}
+     * @memberof GetLatestState
+     */
+    'output'?: CutTranscriptLinearWorkflowStepOutput | null;
+}
+/**
+ * 
+ * @export
  * @interface GetStepOutputs
  */
 export interface GetStepOutputs {
@@ -152,6 +387,19 @@ export interface GetStepOutputs {
      * @memberof GetStepOutputs
      */
     'outputs': Array<CutTranscriptLinearWorkflowStepOutput>;
+}
+/**
+ * 
+ * @export
+ * @interface GetVideoProcessingStatus
+ */
+export interface GetVideoProcessingStatus {
+    /**
+     * 
+     * @type {Array<{ [key: string]: string; }>}
+     * @memberof GetVideoProcessingStatus
+     */
+    'statuses': Array<{ [key: string]: string; }>;
 }
 /**
  * 
@@ -176,6 +424,31 @@ export interface LocationInner {
 /**
  * 
  * @export
+ * @interface PartialBackendOutput
+ */
+export interface PartialBackendOutput {
+    /**
+     * 
+     * @type {string}
+     * @memberof PartialBackendOutput
+     */
+    'value'?: string | null;
+    /**
+     * 
+     * @type {ExportableStepInfo}
+     * @memberof PartialBackendOutput
+     */
+    'current_substep'?: ExportableStepInfo | null;
+    /**
+     * 
+     * @type {number}
+     * @memberof PartialBackendOutput
+     */
+    'chunk'?: number | null;
+}
+/**
+ * 
+ * @export
  * @interface PartialFeedback
  */
 export interface PartialFeedback {
@@ -195,6 +468,31 @@ export interface PartialFeedback {
 /**
  * 
  * @export
+ * @interface PartialLLMOutput
+ */
+export interface PartialLLMOutput {
+    /**
+     * 
+     * @type {string}
+     * @memberof PartialLLMOutput
+     */
+    'value': string;
+    /**
+     * 
+     * @type {number}
+     * @memberof PartialLLMOutput
+     */
+    'chunk'?: number | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof PartialLLMOutput
+     */
+    'calling_method_name'?: string | null;
+}
+/**
+ * 
+ * @export
  * @interface RelevantUserFeedbackList
  */
 export interface RelevantUserFeedbackList {
@@ -205,6 +503,81 @@ export interface RelevantUserFeedbackList {
  * @interface RelevantUserFeedbackListAnyOfInner
  */
 export interface RelevantUserFeedbackListAnyOfInner {
+}
+/**
+ * 
+ * @export
+ * @interface StepKey
+ */
+export interface StepKey {
+    /**
+     * 
+     * @type {string}
+     * @memberof StepKey
+     */
+    'name': string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof StepKey
+     */
+    'substeps': Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface UploadVideo
+ */
+export interface UploadVideo {
+    /**
+     * 
+     * @type {string}
+     * @memberof UploadVideo
+     */
+    'processing_call_id'?: string | null;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof UploadVideo
+     */
+    'video_hashes'?: Array<string> | null;
+    /**
+     * 
+     * @type {string}
+     * @memberof UploadVideo
+     */
+    'result'?: string;
+    /**
+     * 
+     * @type {Array<string>}
+     * @memberof UploadVideo
+     */
+    'messages'?: Array<string>;
+}
+/**
+ * 
+ * @export
+ * @interface UploadedVideo
+ */
+export interface UploadedVideo {
+    /**
+     * 
+     * @type {string}
+     * @memberof UploadedVideo
+     */
+    'filename': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UploadedVideo
+     */
+    'video_hash': string;
+    /**
+     * 
+     * @type {string}
+     * @memberof UploadedVideo
+     */
+    'path': string;
 }
 /**
  * 
@@ -238,47 +611,6 @@ export interface ValidationError {
  */
 export const DefaultApiAxiosParamCreator = function (configuration?: Configuration) {
     return {
-        /**
-         * 
-         * @summary Check Function Call Results
-         * @param {Array<string>} requestBody 
-         * @param {number} [timeout] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        checkFunctionCallResultsCheckFunctionCallResultsGet: async (requestBody: Array<string>, timeout?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'requestBody' is not null or undefined
-            assertParamExists('checkFunctionCallResultsCheckFunctionCallResultsGet', 'requestBody', requestBody)
-            const localVarPath = `/check_function_call_results`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
         /**
          * 
          * @summary Download Soundbites Text
@@ -581,606 +913,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
-         * @summary Get All Outputs
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAllOutputsGetAllOutputsGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/get_all_outputs`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (timelineName !== undefined) {
-                localVarQueryParameter['timeline_name'] = timelineName;
-            }
-
-            if (lengthSeconds !== undefined) {
-                localVarQueryParameter['length_seconds'] = lengthSeconds;
-            }
-
-            if (videoHash !== undefined) {
-                localVarQueryParameter['video_hash'] = videoHash;
-            }
-
-            if (userId !== undefined) {
-                localVarQueryParameter['user_id'] = userId;
-            }
-
-            if (videoId !== undefined) {
-                localVarQueryParameter['video_id'] = videoId;
-            }
-
-            if (waitUntilDoneRunning !== undefined) {
-                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
-            }
-
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-            if (waitInterval !== undefined) {
-                localVarQueryParameter['wait_interval'] = waitInterval;
-            }
-
-            if (forceRestart !== undefined) {
-                localVarQueryParameter['force_restart'] = forceRestart;
-            }
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Get Latest State
-         * @param {boolean} [withOutput] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getLatestStateGetLatestStateGet: async (withOutput?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/get_latest_state`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (withOutput !== undefined) {
-                localVarQueryParameter['with_output'] = withOutput;
-            }
-
-            if (timelineName !== undefined) {
-                localVarQueryParameter['timeline_name'] = timelineName;
-            }
-
-            if (lengthSeconds !== undefined) {
-                localVarQueryParameter['length_seconds'] = lengthSeconds;
-            }
-
-            if (videoHash !== undefined) {
-                localVarQueryParameter['video_hash'] = videoHash;
-            }
-
-            if (userId !== undefined) {
-                localVarQueryParameter['user_id'] = userId;
-            }
-
-            if (videoId !== undefined) {
-                localVarQueryParameter['video_id'] = videoId;
-            }
-
-            if (waitUntilDoneRunning !== undefined) {
-                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
-            }
-
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-            if (waitInterval !== undefined) {
-                localVarQueryParameter['wait_interval'] = waitInterval;
-            }
-
-            if (forceRestart !== undefined) {
-                localVarQueryParameter['force_restart'] = forceRestart;
-            }
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Get Video Processing Status
-         * @param {string} userEmail 
-         * @param {number} [timeout] 
-         * @param {Array<string> | null} [requestBody] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getVideoProcessingStatusGetVideoProcessingStatusGet: async (userEmail: string, timeout?: number, requestBody?: Array<string> | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'userEmail' is not null or undefined
-            assertParamExists('getVideoProcessingStatusGetVideoProcessingStatusGet', 'userEmail', userEmail)
-            const localVarPath = `/get_video_processing_status`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            localVarHeaderParameter['Content-Type'] = 'application/json';
-
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Reset Workflow
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        resetWorkflowResetWorkflowGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/reset_workflow`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (timelineName !== undefined) {
-                localVarQueryParameter['timeline_name'] = timelineName;
-            }
-
-            if (lengthSeconds !== undefined) {
-                localVarQueryParameter['length_seconds'] = lengthSeconds;
-            }
-
-            if (videoHash !== undefined) {
-                localVarQueryParameter['video_hash'] = videoHash;
-            }
-
-            if (userId !== undefined) {
-                localVarQueryParameter['user_id'] = userId;
-            }
-
-            if (videoId !== undefined) {
-                localVarQueryParameter['video_id'] = videoId;
-            }
-
-            if (waitUntilDoneRunning !== undefined) {
-                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
-            }
-
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-            if (waitInterval !== undefined) {
-                localVarQueryParameter['wait_interval'] = waitInterval;
-            }
-
-            if (forceRestart !== undefined) {
-                localVarQueryParameter['force_restart'] = forceRestart;
-            }
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Revert Workflow Step
-         * @param {boolean} [toBeforeRetries] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        revertWorkflowStepRevertWorkflowStepGet: async (toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/revert_workflow_step`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (toBeforeRetries !== undefined) {
-                localVarQueryParameter['to_before_retries'] = toBeforeRetries;
-            }
-
-            if (timelineName !== undefined) {
-                localVarQueryParameter['timeline_name'] = timelineName;
-            }
-
-            if (lengthSeconds !== undefined) {
-                localVarQueryParameter['length_seconds'] = lengthSeconds;
-            }
-
-            if (videoHash !== undefined) {
-                localVarQueryParameter['video_hash'] = videoHash;
-            }
-
-            if (userId !== undefined) {
-                localVarQueryParameter['user_id'] = userId;
-            }
-
-            if (videoId !== undefined) {
-                localVarQueryParameter['video_id'] = videoId;
-            }
-
-            if (waitUntilDoneRunning !== undefined) {
-                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
-            }
-
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-            if (waitInterval !== undefined) {
-                localVarQueryParameter['wait_interval'] = waitInterval;
-            }
-
-            if (forceRestart !== undefined) {
-                localVarQueryParameter['force_restart'] = forceRestart;
-            }
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Revert Workflow Step To
-         * @param {string} stepName 
-         * @param {string} substepName 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        revertWorkflowStepToRevertWorkflowStepToGet: async (stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'stepName' is not null or undefined
-            assertParamExists('revertWorkflowStepToRevertWorkflowStepToGet', 'stepName', stepName)
-            // verify required parameter 'substepName' is not null or undefined
-            assertParamExists('revertWorkflowStepToRevertWorkflowStepToGet', 'substepName', substepName)
-            const localVarPath = `/revert_workflow_step_to`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (stepName !== undefined) {
-                localVarQueryParameter['step_name'] = stepName;
-            }
-
-            if (substepName !== undefined) {
-                localVarQueryParameter['substep_name'] = substepName;
-            }
-
-            if (timelineName !== undefined) {
-                localVarQueryParameter['timeline_name'] = timelineName;
-            }
-
-            if (lengthSeconds !== undefined) {
-                localVarQueryParameter['length_seconds'] = lengthSeconds;
-            }
-
-            if (videoHash !== undefined) {
-                localVarQueryParameter['video_hash'] = videoHash;
-            }
-
-            if (userId !== undefined) {
-                localVarQueryParameter['user_id'] = userId;
-            }
-
-            if (videoId !== undefined) {
-                localVarQueryParameter['video_id'] = videoId;
-            }
-
-            if (waitUntilDoneRunning !== undefined) {
-                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
-            }
-
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-            if (waitInterval !== undefined) {
-                localVarQueryParameter['wait_interval'] = waitInterval;
-            }
-
-            if (forceRestart !== undefined) {
-                localVarQueryParameter['force_restart'] = forceRestart;
-            }
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
-         * @summary Step Endpoint
-         * @param {string | null} [userInput] 
-         * @param {boolean} [streaming] 
-         * @param {boolean} [ignoreRunningWorkflows] 
-         * @param {boolean} [retryStep] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        stepEndpointStepGet: async (userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            const localVarPath = `/step`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (userInput !== undefined) {
-                localVarQueryParameter['user_input'] = userInput;
-            }
-
-            if (streaming !== undefined) {
-                localVarQueryParameter['streaming'] = streaming;
-            }
-
-            if (ignoreRunningWorkflows !== undefined) {
-                localVarQueryParameter['ignore_running_workflows'] = ignoreRunningWorkflows;
-            }
-
-            if (retryStep !== undefined) {
-                localVarQueryParameter['retry_step'] = retryStep;
-            }
-
-            if (timelineName !== undefined) {
-                localVarQueryParameter['timeline_name'] = timelineName;
-            }
-
-            if (lengthSeconds !== undefined) {
-                localVarQueryParameter['length_seconds'] = lengthSeconds;
-            }
-
-            if (videoHash !== undefined) {
-                localVarQueryParameter['video_hash'] = videoHash;
-            }
-
-            if (userId !== undefined) {
-                localVarQueryParameter['user_id'] = userId;
-            }
-
-            if (videoId !== undefined) {
-                localVarQueryParameter['video_id'] = videoId;
-            }
-
-            if (waitUntilDoneRunning !== undefined) {
-                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
-            }
-
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
-            if (timeout !== undefined) {
-                localVarQueryParameter['timeout'] = timeout;
-            }
-
-            if (waitInterval !== undefined) {
-                localVarQueryParameter['wait_interval'] = waitInterval;
-            }
-
-            if (forceRestart !== undefined) {
-                localVarQueryParameter['force_restart'] = forceRestart;
-            }
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
          * @summary Stream Video
          * @param {string | null} [videoPath] 
          * @param {string | null} [stepName] 
@@ -1286,85 +1018,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
         },
         /**
          * 
-         * @summary Upload Multiple Files
-         * @param {Array<File>} files 
-         * @param {Array<string>} highResUserFilePaths 
-         * @param {string} timelineName 
-         * @param {string} userEmail 
-         * @param {boolean} [overwrite] 
-         * @param {boolean} [useExistingOutput] 
-         * @param {boolean} [reprocess] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        uploadMultipleFilesUploadPost: async (files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'files' is not null or undefined
-            assertParamExists('uploadMultipleFilesUploadPost', 'files', files)
-            // verify required parameter 'highResUserFilePaths' is not null or undefined
-            assertParamExists('uploadMultipleFilesUploadPost', 'highResUserFilePaths', highResUserFilePaths)
-            // verify required parameter 'timelineName' is not null or undefined
-            assertParamExists('uploadMultipleFilesUploadPost', 'timelineName', timelineName)
-            // verify required parameter 'userEmail' is not null or undefined
-            assertParamExists('uploadMultipleFilesUploadPost', 'userEmail', userEmail)
-            const localVarPath = `/upload`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-            const localVarFormParams = new ((configuration && configuration.formDataCtor) || FormData)();
-
-            if (files) {
-                files.forEach((element) => {
-                  localVarFormParams.append('files', element as any);
-                })
-            }
-
-                if (highResUserFilePaths) {
-                localVarFormParams.append('high_res_user_file_paths', highResUserFilePaths.join(COLLECTION_FORMATS.csv));
-            }
-
-    
-            if (timelineName !== undefined) { 
-                localVarFormParams.append('timeline_name', timelineName as any);
-            }
-    
-            if (overwrite !== undefined) { 
-                localVarFormParams.append('overwrite', String(overwrite) as any);
-            }
-    
-            if (useExistingOutput !== undefined) { 
-                localVarFormParams.append('use_existing_output', String(useExistingOutput) as any);
-            }
-    
-            if (reprocess !== undefined) { 
-                localVarFormParams.append('reprocess', String(reprocess) as any);
-            }
-    
-            if (userEmail !== undefined) { 
-                localVarFormParams.append('user_email', userEmail as any);
-            }
-    
-    
-            localVarHeaderParameter['Content-Type'] = 'multipart/form-data';
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-            localVarRequestOptions.data = localVarFormParams;
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
-        /**
-         * 
          * @summary Uploaded High Res Video Paths
          * @param {string} userEmail 
          * @param {Array<string>} [md5Hashes] 
@@ -1447,43 +1100,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 options: localVarRequestOptions,
             };
         },
-        /**
-         * 
-         * @summary Uploaded Videos
-         * @param {string} userEmail 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        uploadedVideosUploadedVideosGet: async (userEmail: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
-            // verify required parameter 'userEmail' is not null or undefined
-            assertParamExists('uploadedVideosUploadedVideosGet', 'userEmail', userEmail)
-            const localVarPath = `/uploaded_videos`;
-            // use dummy base URL string because the URL constructor only accepts absolute URLs.
-            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
-            let baseOptions;
-            if (configuration) {
-                baseOptions = configuration.baseOptions;
-            }
-
-            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
-            const localVarHeaderParameter = {} as any;
-            const localVarQueryParameter = {} as any;
-
-            if (userEmail !== undefined) {
-                localVarQueryParameter['user_email'] = userEmail;
-            }
-
-
-    
-            setSearchParams(localVarUrlObj, localVarQueryParameter);
-            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
-            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
-
-            return {
-                url: toPathString(localVarUrlObj),
-                options: localVarRequestOptions,
-            };
-        },
     }
 };
 
@@ -1494,20 +1110,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
 export const DefaultApiFp = function(configuration?: Configuration) {
     const localVarAxiosParamCreator = DefaultApiAxiosParamCreator(configuration)
     return {
-        /**
-         * 
-         * @summary Check Function Call Results
-         * @param {Array<string>} requestBody 
-         * @param {number} [timeout] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody, timeout, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.checkFunctionCallResultsCheckFunctionCallResultsGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
         /**
          * 
          * @summary Download Soundbites Text
@@ -1588,167 +1190,6 @@ export const DefaultApiFp = function(configuration?: Configuration) {
         },
         /**
          * 
-         * @summary Get All Outputs
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getAllOutputsGetAllOutputsGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Get Latest State
-         * @param {boolean} [withOutput] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getLatestStateGetLatestStateGet(withOutput?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatestStateGetLatestStateGet(withOutput, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getLatestStateGetLatestStateGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Get Video Processing Status
-         * @param {string} userEmail 
-         * @param {number} [timeout] 
-         * @param {Array<string> | null} [requestBody] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail, timeout, requestBody, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.getVideoProcessingStatusGetVideoProcessingStatusGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Reset Workflow
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.resetWorkflowResetWorkflowGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Revert Workflow Step
-         * @param {boolean} [toBeforeRetries] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.revertWorkflowStepRevertWorkflowStepGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Revert Workflow Step To
-         * @param {string} stepName 
-         * @param {string} substepName 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.revertWorkflowStepToRevertWorkflowStepToGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Step Endpoint
-         * @param {string | null} [userInput] 
-         * @param {boolean} [streaming] 
-         * @param {boolean} [ignoreRunningWorkflows] 
-         * @param {boolean} [retryStep] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.stepEndpointStepGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
          * @summary Stream Video
          * @param {string | null} [videoPath] 
          * @param {string | null} [stepName] 
@@ -1772,25 +1213,6 @@ export const DefaultApiFp = function(configuration?: Configuration) {
             const localVarAxiosArgs = await localVarAxiosParamCreator.streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.streamVideoVideoGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
-        /**
-         * 
-         * @summary Upload Multiple Files
-         * @param {Array<File>} files 
-         * @param {Array<string>} highResUserFilePaths 
-         * @param {string} timelineName 
-         * @param {string} userEmail 
-         * @param {boolean} [overwrite] 
-         * @param {boolean} [useExistingOutput] 
-         * @param {boolean} [reprocess] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadMultipleFilesUploadPost(files, highResUserFilePaths, timelineName, userEmail, overwrite, useExistingOutput, reprocess, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.uploadMultipleFilesUploadPost']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
         /**
@@ -1821,19 +1243,6 @@ export const DefaultApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.uploadedVideoHashesUploadedVideoHashesGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
-        /**
-         * 
-         * @summary Uploaded Videos
-         * @param {string} userEmail 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        async uploadedVideosUploadedVideosGet(userEmail: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadedVideosUploadedVideosGet(userEmail, options);
-            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
-            const localVarOperationServerBasePath = operationServerMap['DefaultApi.uploadedVideosUploadedVideosGet']?.[localVarOperationServerIndex]?.url;
-            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
-        },
     }
 };
 
@@ -1844,17 +1253,6 @@ export const DefaultApiFp = function(configuration?: Configuration) {
 export const DefaultApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
     const localVarFp = DefaultApiFp(configuration)
     return {
-        /**
-         * 
-         * @summary Check Function Call Results
-         * @param {Array<string>} requestBody 
-         * @param {number} [timeout] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: any): AxiosPromise<any> {
-            return localVarFp.checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody, timeout, options).then((request) => request(axios, basePath));
-        },
         /**
          * 
          * @summary Download Soundbites Text
@@ -1926,146 +1324,6 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
-         * @summary Get All Outputs
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Get Latest State
-         * @param {boolean} [withOutput] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getLatestStateGetLatestStateGet(withOutput?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.getLatestStateGetLatestStateGet(withOutput, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Get Video Processing Status
-         * @param {string} userEmail 
-         * @param {number} [timeout] 
-         * @param {Array<string> | null} [requestBody] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: any): AxiosPromise<any> {
-            return localVarFp.getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail, timeout, requestBody, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Reset Workflow
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Revert Workflow Step
-         * @param {boolean} [toBeforeRetries] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Revert Workflow Step To
-         * @param {string} stepName 
-         * @param {string} substepName 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
-         * @summary Step Endpoint
-         * @param {string | null} [userInput] 
-         * @param {boolean} [streaming] 
-         * @param {boolean} [ignoreRunningWorkflows] 
-         * @param {boolean} [retryStep] 
-         * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
-         * @param {string | null} [videoHash] 
-         * @param {string | null} [userId] 
-         * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
-         * @param {string | null} [userEmail] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
          * @summary Stream Video
          * @param {string | null} [videoPath] 
          * @param {string | null} [stepName] 
@@ -2090,22 +1348,6 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         },
         /**
          * 
-         * @summary Upload Multiple Files
-         * @param {Array<File>} files 
-         * @param {Array<string>} highResUserFilePaths 
-         * @param {string} timelineName 
-         * @param {string} userEmail 
-         * @param {boolean} [overwrite] 
-         * @param {boolean} [useExistingOutput] 
-         * @param {boolean} [reprocess] 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: any): AxiosPromise<any> {
-            return localVarFp.uploadMultipleFilesUploadPost(files, highResUserFilePaths, timelineName, userEmail, overwrite, useExistingOutput, reprocess, options).then((request) => request(axios, basePath));
-        },
-        /**
-         * 
          * @summary Uploaded High Res Video Paths
          * @param {string} userEmail 
          * @param {Array<string>} [md5Hashes] 
@@ -2126,16 +1368,6 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
         uploadedVideoHashesUploadedVideoHashesGet(userEmail: string, highResUserFilePaths?: Array<string>, options?: any): AxiosPromise<any> {
             return localVarFp.uploadedVideoHashesUploadedVideoHashesGet(userEmail, highResUserFilePaths, options).then((request) => request(axios, basePath));
         },
-        /**
-         * 
-         * @summary Uploaded Videos
-         * @param {string} userEmail 
-         * @param {*} [options] Override http request option.
-         * @throws {RequiredError}
-         */
-        uploadedVideosUploadedVideosGet(userEmail: string, options?: any): AxiosPromise<any> {
-            return localVarFp.uploadedVideosUploadedVideosGet(userEmail, options).then((request) => request(axios, basePath));
-        },
     };
 };
 
@@ -2145,17 +1377,6 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
  * @interface DefaultApi
  */
 export interface DefaultApiInterface {
-    /**
-     * 
-     * @summary Check Function Call Results
-     * @param {Array<string>} requestBody 
-     * @param {number} [timeout] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
     /**
      * 
      * @summary Download Soundbites Text
@@ -2227,146 +1448,6 @@ export interface DefaultApiInterface {
 
     /**
      * 
-     * @summary Get All Outputs
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
-     * @summary Get Latest State
-     * @param {boolean} [withOutput] 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    getLatestStateGetLatestStateGet(withOutput?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
-     * @summary Get Video Processing Status
-     * @param {string} userEmail 
-     * @param {number} [timeout] 
-     * @param {Array<string> | null} [requestBody] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
-     * @summary Reset Workflow
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
-     * @summary Revert Workflow Step
-     * @param {boolean} [toBeforeRetries] 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
-     * @summary Revert Workflow Step To
-     * @param {string} stepName 
-     * @param {string} substepName 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
-     * @summary Step Endpoint
-     * @param {string | null} [userInput] 
-     * @param {boolean} [streaming] 
-     * @param {boolean} [ignoreRunningWorkflows] 
-     * @param {boolean} [retryStep] 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
      * @summary Stream Video
      * @param {string | null} [videoPath] 
      * @param {string | null} [stepName] 
@@ -2391,22 +1472,6 @@ export interface DefaultApiInterface {
 
     /**
      * 
-     * @summary Upload Multiple Files
-     * @param {Array<File>} files 
-     * @param {Array<string>} highResUserFilePaths 
-     * @param {string} timelineName 
-     * @param {string} userEmail 
-     * @param {boolean} [overwrite] 
-     * @param {boolean} [useExistingOutput] 
-     * @param {boolean} [reprocess] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
-    /**
-     * 
      * @summary Uploaded High Res Video Paths
      * @param {string} userEmail 
      * @param {Array<string>} [md5Hashes] 
@@ -2427,16 +1492,6 @@ export interface DefaultApiInterface {
      */
     uploadedVideoHashesUploadedVideoHashesGet(userEmail: string, highResUserFilePaths?: Array<string>, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
-    /**
-     * 
-     * @summary Uploaded Videos
-     * @param {string} userEmail 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApiInterface
-     */
-    uploadedVideosUploadedVideosGet(userEmail: string, options?: RawAxiosRequestConfig): AxiosPromise<any>;
-
 }
 
 /**
@@ -2446,19 +1501,6 @@ export interface DefaultApiInterface {
  * @extends {BaseAPI}
  */
 export class DefaultApi extends BaseAPI implements DefaultApiInterface {
-    /**
-     * 
-     * @summary Check Function Call Results
-     * @param {Array<string>} requestBody 
-     * @param {number} [timeout] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody, timeout, options).then((request) => request(this.axios, this.basePath));
-    }
-
     /**
      * 
      * @summary Download Soundbites Text
@@ -2536,160 +1578,6 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
 
     /**
      * 
-     * @summary Get All Outputs
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Get Latest State
-     * @param {boolean} [withOutput] 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public getLatestStateGetLatestStateGet(withOutput?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).getLatestStateGetLatestStateGet(withOutput, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Get Video Processing Status
-     * @param {string} userEmail 
-     * @param {number} [timeout] 
-     * @param {Array<string> | null} [requestBody] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail, timeout, requestBody, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Reset Workflow
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Revert Workflow Step
-     * @param {boolean} [toBeforeRetries] 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Revert Workflow Step To
-     * @param {string} stepName 
-     * @param {string} substepName 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Step Endpoint
-     * @param {string | null} [userInput] 
-     * @param {boolean} [streaming] 
-     * @param {boolean} [ignoreRunningWorkflows] 
-     * @param {boolean} [retryStep] 
-     * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
-     * @param {string | null} [videoHash] 
-     * @param {string | null} [userId] 
-     * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
-     * @param {string | null} [userEmail] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
      * @summary Stream Video
      * @param {string | null} [videoPath] 
      * @param {string | null} [stepName] 
@@ -2712,24 +1600,6 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
      */
     public streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
         return DefaultApiFp(this.configuration).streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
-    }
-
-    /**
-     * 
-     * @summary Upload Multiple Files
-     * @param {Array<File>} files 
-     * @param {Array<string>} highResUserFilePaths 
-     * @param {string} timelineName 
-     * @param {string} userEmail 
-     * @param {boolean} [overwrite] 
-     * @param {boolean} [useExistingOutput] 
-     * @param {boolean} [reprocess] 
-     * @param {*} [options] Override http request option.
-     * @throws {RequiredError}
-     * @memberof DefaultApi
-     */
-    public uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).uploadMultipleFilesUploadPost(files, highResUserFilePaths, timelineName, userEmail, overwrite, useExistingOutput, reprocess, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2757,17 +1627,241 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
     public uploadedVideoHashesUploadedVideoHashesGet(userEmail: string, highResUserFilePaths?: Array<string>, options?: RawAxiosRequestConfig) {
         return DefaultApiFp(this.configuration).uploadedVideoHashesUploadedVideoHashesGet(userEmail, highResUserFilePaths, options).then((request) => request(this.axios, this.basePath));
     }
+}
 
+
+
+/**
+ * FunctionCallsApi - axios parameter creator
+ * @export
+ */
+export const FunctionCallsApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * TODO
+         * @summary Check the status of modal function calls
+         * @param {Array<string>} requestBody 
+         * @param {number} [timeout] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        checkFunctionCallResultsCheckFunctionCallResultsGet: async (requestBody: Array<string>, timeout?: number, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'requestBody' is not null or undefined
+            assertParamExists('checkFunctionCallResultsCheckFunctionCallResultsGet', 'requestBody', requestBody)
+            const localVarPath = `/check_function_call_results`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * TODO
+         * @summary Get status of video processing jobs
+         * @param {string} userEmail 
+         * @param {number} [timeout] 
+         * @param {Array<string> | null} [requestBody] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVideoProcessingStatusGetVideoProcessingStatusGet: async (userEmail: string, timeout?: number, requestBody?: Array<string> | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'userEmail' is not null or undefined
+            assertParamExists('getVideoProcessingStatusGetVideoProcessingStatusGet', 'userEmail', userEmail)
+            const localVarPath = `/get_video_processing_status`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            localVarHeaderParameter['Content-Type'] = 'application/json';
+
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = serializeDataIfNeeded(requestBody, localVarRequestOptions, configuration)
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * FunctionCallsApi - functional programming interface
+ * @export
+ */
+export const FunctionCallsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = FunctionCallsApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * TODO
+         * @summary Check the status of modal function calls
+         * @param {Array<string>} requestBody 
+         * @param {number} [timeout] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CheckFunctionCallResults>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody, timeout, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['FunctionCallsApi.checkFunctionCallResultsCheckFunctionCallResultsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * TODO
+         * @summary Get status of video processing jobs
+         * @param {string} userEmail 
+         * @param {number} [timeout] 
+         * @param {Array<string> | null} [requestBody] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetVideoProcessingStatus>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail, timeout, requestBody, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['FunctionCallsApi.getVideoProcessingStatusGetVideoProcessingStatusGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * FunctionCallsApi - factory interface
+ * @export
+ */
+export const FunctionCallsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = FunctionCallsApiFp(configuration)
+    return {
+        /**
+         * TODO
+         * @summary Check the status of modal function calls
+         * @param {Array<string>} requestBody 
+         * @param {number} [timeout] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: any): AxiosPromise<CheckFunctionCallResults> {
+            return localVarFp.checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody, timeout, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * TODO
+         * @summary Get status of video processing jobs
+         * @param {string} userEmail 
+         * @param {number} [timeout] 
+         * @param {Array<string> | null} [requestBody] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: any): AxiosPromise<GetVideoProcessingStatus> {
+            return localVarFp.getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail, timeout, requestBody, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * FunctionCallsApi - interface
+ * @export
+ * @interface FunctionCallsApi
+ */
+export interface FunctionCallsApiInterface {
     /**
-     * 
-     * @summary Uploaded Videos
-     * @param {string} userEmail 
+     * TODO
+     * @summary Check the status of modal function calls
+     * @param {Array<string>} requestBody 
+     * @param {number} [timeout] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
-     * @memberof DefaultApi
+     * @memberof FunctionCallsApiInterface
      */
-    public uploadedVideosUploadedVideosGet(userEmail: string, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).uploadedVideosUploadedVideosGet(userEmail, options).then((request) => request(this.axios, this.basePath));
+    checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: RawAxiosRequestConfig): AxiosPromise<CheckFunctionCallResults>;
+
+    /**
+     * TODO
+     * @summary Get status of video processing jobs
+     * @param {string} userEmail 
+     * @param {number} [timeout] 
+     * @param {Array<string> | null} [requestBody] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof FunctionCallsApiInterface
+     */
+    getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: RawAxiosRequestConfig): AxiosPromise<GetVideoProcessingStatus>;
+
+}
+
+/**
+ * FunctionCallsApi - object-oriented interface
+ * @export
+ * @class FunctionCallsApi
+ * @extends {BaseAPI}
+ */
+export class FunctionCallsApi extends BaseAPI implements FunctionCallsApiInterface {
+    /**
+     * TODO
+     * @summary Check the status of modal function calls
+     * @param {Array<string>} requestBody 
+     * @param {number} [timeout] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof FunctionCallsApi
+     */
+    public checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody: Array<string>, timeout?: number, options?: RawAxiosRequestConfig) {
+        return FunctionCallsApiFp(this.configuration).checkFunctionCallResultsCheckFunctionCallResultsGet(requestBody, timeout, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * TODO
+     * @summary Get status of video processing jobs
+     * @param {string} userEmail 
+     * @param {number} [timeout] 
+     * @param {Array<string> | null} [requestBody] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof FunctionCallsApi
+     */
+    public getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail: string, timeout?: number, requestBody?: Array<string> | null, options?: RawAxiosRequestConfig) {
+        return FunctionCallsApiFp(this.configuration).getVideoProcessingStatusGetVideoProcessingStatusGet(userEmail, timeout, requestBody, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -2781,7 +1875,92 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
     return {
         /**
          * TODO
-         * @summary Get outputs for a given list of steps
+         * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getAllOutputsGetAllOutputsGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/get_all_outputs`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timelineName !== undefined) {
+                localVarQueryParameter['timeline_name'] = timelineName;
+            }
+
+            if (lengthSeconds !== undefined) {
+                localVarQueryParameter['length_seconds'] = lengthSeconds;
+            }
+
+            if (videoHash !== undefined) {
+                localVarQueryParameter['video_hash'] = videoHash;
+            }
+
+            if (userId !== undefined) {
+                localVarQueryParameter['user_id'] = userId;
+            }
+
+            if (videoId !== undefined) {
+                localVarQueryParameter['video_id'] = videoId;
+            }
+
+            if (waitUntilDoneRunning !== undefined) {
+                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
+            }
+
+            if (blockUntil !== undefined) {
+                localVarQueryParameter['block_until'] = blockUntil;
+            }
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (waitInterval !== undefined) {
+                localVarQueryParameter['wait_interval'] = waitInterval;
+            }
+
+            if (forceRestart !== undefined) {
+                localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * TODO
+         * @summary Get specific outputs for a given workflow and list of steps
          * @param {string} stepKeys 
          * @param {boolean} [latestRetry] 
          * @param {string | null} [timelineName] 
@@ -2876,6 +2055,111 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
                 options: localVarRequestOptions,
             };
         },
+        /**
+         * TODO
+         * @summary Run next step
+         * @param {string | null} [userInput] 
+         * @param {boolean} [streaming] 
+         * @param {boolean} [ignoreRunningWorkflows] 
+         * @param {boolean} [retryStep] 
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        stepEndpointStepGet: async (userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/step`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (userInput !== undefined) {
+                localVarQueryParameter['user_input'] = userInput;
+            }
+
+            if (streaming !== undefined) {
+                localVarQueryParameter['streaming'] = streaming;
+            }
+
+            if (ignoreRunningWorkflows !== undefined) {
+                localVarQueryParameter['ignore_running_workflows'] = ignoreRunningWorkflows;
+            }
+
+            if (retryStep !== undefined) {
+                localVarQueryParameter['retry_step'] = retryStep;
+            }
+
+            if (timelineName !== undefined) {
+                localVarQueryParameter['timeline_name'] = timelineName;
+            }
+
+            if (lengthSeconds !== undefined) {
+                localVarQueryParameter['length_seconds'] = lengthSeconds;
+            }
+
+            if (videoHash !== undefined) {
+                localVarQueryParameter['video_hash'] = videoHash;
+            }
+
+            if (userId !== undefined) {
+                localVarQueryParameter['user_id'] = userId;
+            }
+
+            if (videoId !== undefined) {
+                localVarQueryParameter['video_id'] = videoId;
+            }
+
+            if (waitUntilDoneRunning !== undefined) {
+                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
+            }
+
+            if (blockUntil !== undefined) {
+                localVarQueryParameter['block_until'] = blockUntil;
+            }
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (waitInterval !== undefined) {
+                localVarQueryParameter['wait_interval'] = waitInterval;
+            }
+
+            if (forceRestart !== undefined) {
+                localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
     }
 };
 
@@ -2888,7 +2172,30 @@ export const StepsApiFp = function(configuration?: Configuration) {
     return {
         /**
          * TODO
-         * @summary Get outputs for a given list of steps
+         * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetStepOutputs>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['StepsApi.getAllOutputsGetAllOutputsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * TODO
+         * @summary Get specific outputs for a given workflow and list of steps
          * @param {string} stepKeys 
          * @param {boolean} [latestRetry] 
          * @param {string | null} [timelineName] 
@@ -2911,6 +2218,33 @@ export const StepsApiFp = function(configuration?: Configuration) {
             const localVarOperationServerBasePath = operationServerMap['StepsApi.getStepOutputsGetStepOutputsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
         },
+        /**
+         * TODO
+         * @summary Run next step
+         * @param {string | null} [userInput] 
+         * @param {boolean} [streaming] 
+         * @param {boolean} [ignoreRunningWorkflows] 
+         * @param {boolean} [retryStep] 
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['StepsApi.stepEndpointStepGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
     }
 };
 
@@ -2923,7 +2257,27 @@ export const StepsApiFactory = function (configuration?: Configuration, basePath
     return {
         /**
          * TODO
-         * @summary Get outputs for a given list of steps
+         * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<GetStepOutputs> {
+            return localVarFp.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * TODO
+         * @summary Get specific outputs for a given workflow and list of steps
          * @param {string} stepKeys 
          * @param {boolean} [latestRetry] 
          * @param {string | null} [timelineName] 
@@ -2943,6 +2297,30 @@ export const StepsApiFactory = function (configuration?: Configuration, basePath
         getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<GetStepOutputs> {
             return localVarFp.getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
         },
+        /**
+         * TODO
+         * @summary Run next step
+         * @param {string | null} [userInput] 
+         * @param {boolean} [streaming] 
+         * @param {boolean} [ignoreRunningWorkflows] 
+         * @param {boolean} [retryStep] 
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput> {
+            return localVarFp.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        },
     };
 };
 
@@ -2954,7 +2332,27 @@ export const StepsApiFactory = function (configuration?: Configuration, basePath
 export interface StepsApiInterface {
     /**
      * TODO
-     * @summary Get outputs for a given list of steps
+     * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StepsApiInterface
+     */
+    getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetStepOutputs>;
+
+    /**
+     * TODO
+     * @summary Get specific outputs for a given workflow and list of steps
      * @param {string} stepKeys 
      * @param {boolean} [latestRetry] 
      * @param {string | null} [timelineName] 
@@ -2974,6 +2372,30 @@ export interface StepsApiInterface {
      */
     getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetStepOutputs>;
 
+    /**
+     * TODO
+     * @summary Run next step
+     * @param {string | null} [userInput] 
+     * @param {boolean} [streaming] 
+     * @param {boolean} [ignoreRunningWorkflows] 
+     * @param {boolean} [retryStep] 
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StepsApiInterface
+     */
+    stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput>;
+
 }
 
 /**
@@ -2985,7 +2407,29 @@ export interface StepsApiInterface {
 export class StepsApi extends BaseAPI implements StepsApiInterface {
     /**
      * TODO
-     * @summary Get outputs for a given list of steps
+     * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StepsApi
+     */
+    public getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return StepsApiFp(this.configuration).getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * TODO
+     * @summary Get specific outputs for a given workflow and list of steps
      * @param {string} stepKeys 
      * @param {boolean} [latestRetry] 
      * @param {string | null} [timelineName] 
@@ -3005,6 +2449,1302 @@ export class StepsApi extends BaseAPI implements StepsApiInterface {
      */
     public getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
         return StepsApiFp(this.configuration).getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * TODO
+     * @summary Run next step
+     * @param {string | null} [userInput] 
+     * @param {boolean} [streaming] 
+     * @param {boolean} [ignoreRunningWorkflows] 
+     * @param {boolean} [retryStep] 
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof StepsApi
+     */
+    public stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return StepsApiFp(this.configuration).stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * UploadVideoApi - axios parameter creator
+ * @export
+ */
+export const UploadVideoApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * TODO
+         * @summary Upload a video
+         * @param {Array<File>} files 
+         * @param {Array<string>} highResUserFilePaths 
+         * @param {string} timelineName 
+         * @param {string} userEmail 
+         * @param {boolean} [overwrite] 
+         * @param {boolean} [useExistingOutput] 
+         * @param {boolean} [reprocess] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadMultipleFilesUploadPost: async (files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'files' is not null or undefined
+            assertParamExists('uploadMultipleFilesUploadPost', 'files', files)
+            // verify required parameter 'highResUserFilePaths' is not null or undefined
+            assertParamExists('uploadMultipleFilesUploadPost', 'highResUserFilePaths', highResUserFilePaths)
+            // verify required parameter 'timelineName' is not null or undefined
+            assertParamExists('uploadMultipleFilesUploadPost', 'timelineName', timelineName)
+            // verify required parameter 'userEmail' is not null or undefined
+            assertParamExists('uploadMultipleFilesUploadPost', 'userEmail', userEmail)
+            const localVarPath = `/upload`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'POST', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+            const localVarFormParams = new ((configuration && configuration.formDataCtor) || FormData)();
+
+            if (files) {
+                files.forEach((element) => {
+                  localVarFormParams.append('files', element as any);
+                })
+            }
+
+                if (highResUserFilePaths) {
+                localVarFormParams.append('high_res_user_file_paths', highResUserFilePaths.join(COLLECTION_FORMATS.csv));
+            }
+
+    
+            if (timelineName !== undefined) { 
+                localVarFormParams.append('timeline_name', timelineName as any);
+            }
+    
+            if (overwrite !== undefined) { 
+                localVarFormParams.append('overwrite', String(overwrite) as any);
+            }
+    
+            if (useExistingOutput !== undefined) { 
+                localVarFormParams.append('use_existing_output', String(useExistingOutput) as any);
+            }
+    
+            if (reprocess !== undefined) { 
+                localVarFormParams.append('reprocess', String(reprocess) as any);
+            }
+    
+            if (userEmail !== undefined) { 
+                localVarFormParams.append('user_email', userEmail as any);
+            }
+    
+    
+            localVarHeaderParameter['Content-Type'] = 'multipart/form-data';
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+            localVarRequestOptions.data = localVarFormParams;
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * UploadVideoApi - functional programming interface
+ * @export
+ */
+export const UploadVideoApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = UploadVideoApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * TODO
+         * @summary Upload a video
+         * @param {Array<File>} files 
+         * @param {Array<string>} highResUserFilePaths 
+         * @param {string} timelineName 
+         * @param {string} userEmail 
+         * @param {boolean} [overwrite] 
+         * @param {boolean} [useExistingOutput] 
+         * @param {boolean} [reprocess] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<UploadVideo>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadMultipleFilesUploadPost(files, highResUserFilePaths, timelineName, userEmail, overwrite, useExistingOutput, reprocess, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['UploadVideoApi.uploadMultipleFilesUploadPost']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * UploadVideoApi - factory interface
+ * @export
+ */
+export const UploadVideoApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = UploadVideoApiFp(configuration)
+    return {
+        /**
+         * TODO
+         * @summary Upload a video
+         * @param {Array<File>} files 
+         * @param {Array<string>} highResUserFilePaths 
+         * @param {string} timelineName 
+         * @param {string} userEmail 
+         * @param {boolean} [overwrite] 
+         * @param {boolean} [useExistingOutput] 
+         * @param {boolean} [reprocess] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: any): AxiosPromise<UploadVideo> {
+            return localVarFp.uploadMultipleFilesUploadPost(files, highResUserFilePaths, timelineName, userEmail, overwrite, useExistingOutput, reprocess, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * UploadVideoApi - interface
+ * @export
+ * @interface UploadVideoApi
+ */
+export interface UploadVideoApiInterface {
+    /**
+     * TODO
+     * @summary Upload a video
+     * @param {Array<File>} files 
+     * @param {Array<string>} highResUserFilePaths 
+     * @param {string} timelineName 
+     * @param {string} userEmail 
+     * @param {boolean} [overwrite] 
+     * @param {boolean} [useExistingOutput] 
+     * @param {boolean} [reprocess] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof UploadVideoApiInterface
+     */
+    uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: RawAxiosRequestConfig): AxiosPromise<UploadVideo>;
+
+}
+
+/**
+ * UploadVideoApi - object-oriented interface
+ * @export
+ * @class UploadVideoApi
+ * @extends {BaseAPI}
+ */
+export class UploadVideoApi extends BaseAPI implements UploadVideoApiInterface {
+    /**
+     * TODO
+     * @summary Upload a video
+     * @param {Array<File>} files 
+     * @param {Array<string>} highResUserFilePaths 
+     * @param {string} timelineName 
+     * @param {string} userEmail 
+     * @param {boolean} [overwrite] 
+     * @param {boolean} [useExistingOutput] 
+     * @param {boolean} [reprocess] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof UploadVideoApi
+     */
+    public uploadMultipleFilesUploadPost(files: Array<File>, highResUserFilePaths: Array<string>, timelineName: string, userEmail: string, overwrite?: boolean, useExistingOutput?: boolean, reprocess?: boolean, options?: RawAxiosRequestConfig) {
+        return UploadVideoApiFp(this.configuration).uploadMultipleFilesUploadPost(files, highResUserFilePaths, timelineName, userEmail, overwrite, useExistingOutput, reprocess, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * VideosApi - axios parameter creator
+ * @export
+ */
+export const VideosApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * TODO
+         * @summary Get information about a user\'s uploaded videos
+         * @param {string} userEmail 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadedVideosUploadedVideosGet: async (userEmail: string, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'userEmail' is not null or undefined
+            assertParamExists('uploadedVideosUploadedVideosGet', 'userEmail', userEmail)
+            const localVarPath = `/uploaded_videos`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * VideosApi - functional programming interface
+ * @export
+ */
+export const VideosApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = VideosApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * TODO
+         * @summary Get information about a user\'s uploaded videos
+         * @param {string} userEmail 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async uploadedVideosUploadedVideosGet(userEmail: string, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<UploadedVideo>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.uploadedVideosUploadedVideosGet(userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['VideosApi.uploadedVideosUploadedVideosGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * VideosApi - factory interface
+ * @export
+ */
+export const VideosApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = VideosApiFp(configuration)
+    return {
+        /**
+         * TODO
+         * @summary Get information about a user\'s uploaded videos
+         * @param {string} userEmail 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        uploadedVideosUploadedVideosGet(userEmail: string, options?: any): AxiosPromise<Array<UploadedVideo>> {
+            return localVarFp.uploadedVideosUploadedVideosGet(userEmail, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * VideosApi - interface
+ * @export
+ * @interface VideosApi
+ */
+export interface VideosApiInterface {
+    /**
+     * TODO
+     * @summary Get information about a user\'s uploaded videos
+     * @param {string} userEmail 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof VideosApiInterface
+     */
+    uploadedVideosUploadedVideosGet(userEmail: string, options?: RawAxiosRequestConfig): AxiosPromise<Array<UploadedVideo>>;
+
+}
+
+/**
+ * VideosApi - object-oriented interface
+ * @export
+ * @class VideosApi
+ * @extends {BaseAPI}
+ */
+export class VideosApi extends BaseAPI implements VideosApiInterface {
+    /**
+     * TODO
+     * @summary Get information about a user\'s uploaded videos
+     * @param {string} userEmail 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof VideosApi
+     */
+    public uploadedVideosUploadedVideosGet(userEmail: string, options?: RawAxiosRequestConfig) {
+        return VideosApiFp(this.configuration).uploadedVideosUploadedVideosGet(userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+}
+
+
+
+/**
+ * WorkflowsApi - axios parameter creator
+ * @export
+ */
+export const WorkflowsApiAxiosParamCreator = function (configuration?: Configuration) {
+    return {
+        /**
+         * These will be very similar for each workflow. The only current difference is in the number of stages.
+         * @summary Get ordered, detailed description of each step for a workflow
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getAllStepsAllStepsGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/all_steps`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timelineName !== undefined) {
+                localVarQueryParameter['timeline_name'] = timelineName;
+            }
+
+            if (lengthSeconds !== undefined) {
+                localVarQueryParameter['length_seconds'] = lengthSeconds;
+            }
+
+            if (videoHash !== undefined) {
+                localVarQueryParameter['video_hash'] = videoHash;
+            }
+
+            if (userId !== undefined) {
+                localVarQueryParameter['user_id'] = userId;
+            }
+
+            if (videoId !== undefined) {
+                localVarQueryParameter['video_id'] = videoId;
+            }
+
+            if (waitUntilDoneRunning !== undefined) {
+                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
+            }
+
+            if (blockUntil !== undefined) {
+                localVarQueryParameter['block_until'] = blockUntil;
+            }
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (waitInterval !== undefined) {
+                localVarQueryParameter['wait_interval'] = waitInterval;
+            }
+
+            if (forceRestart !== undefined) {
+                localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * TODO
+         * @summary Get the latest state of a workflow
+         * @param {boolean} [withOutput] if True, return the most recent step output
+         * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatestStateGetLatestStateGet: async (withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/get_latest_state`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (withOutput !== undefined) {
+                localVarQueryParameter['with_output'] = withOutput;
+            }
+
+            if (withAllSteps !== undefined) {
+                localVarQueryParameter['with_all_steps'] = withAllSteps;
+            }
+
+            if (timelineName !== undefined) {
+                localVarQueryParameter['timeline_name'] = timelineName;
+            }
+
+            if (lengthSeconds !== undefined) {
+                localVarQueryParameter['length_seconds'] = lengthSeconds;
+            }
+
+            if (videoHash !== undefined) {
+                localVarQueryParameter['video_hash'] = videoHash;
+            }
+
+            if (userId !== undefined) {
+                localVarQueryParameter['user_id'] = userId;
+            }
+
+            if (videoId !== undefined) {
+                localVarQueryParameter['video_id'] = videoId;
+            }
+
+            if (waitUntilDoneRunning !== undefined) {
+                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
+            }
+
+            if (blockUntil !== undefined) {
+                localVarQueryParameter['block_until'] = blockUntil;
+            }
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (waitInterval !== undefined) {
+                localVarQueryParameter['wait_interval'] = waitInterval;
+            }
+
+            if (forceRestart !== undefined) {
+                localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * TODO
+         * @summary Reset a workflow to initial state
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resetWorkflowResetWorkflowGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/reset_workflow`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (timelineName !== undefined) {
+                localVarQueryParameter['timeline_name'] = timelineName;
+            }
+
+            if (lengthSeconds !== undefined) {
+                localVarQueryParameter['length_seconds'] = lengthSeconds;
+            }
+
+            if (videoHash !== undefined) {
+                localVarQueryParameter['video_hash'] = videoHash;
+            }
+
+            if (userId !== undefined) {
+                localVarQueryParameter['user_id'] = userId;
+            }
+
+            if (videoId !== undefined) {
+                localVarQueryParameter['video_id'] = videoId;
+            }
+
+            if (waitUntilDoneRunning !== undefined) {
+                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
+            }
+
+            if (blockUntil !== undefined) {
+                localVarQueryParameter['block_until'] = blockUntil;
+            }
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (waitInterval !== undefined) {
+                localVarQueryParameter['wait_interval'] = waitInterval;
+            }
+
+            if (forceRestart !== undefined) {
+                localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * TODO
+         * @summary Revert a workflow one step
+         * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        revertWorkflowStepRevertWorkflowStepGet: async (toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            const localVarPath = `/revert_workflow_step`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (toBeforeRetries !== undefined) {
+                localVarQueryParameter['to_before_retries'] = toBeforeRetries;
+            }
+
+            if (timelineName !== undefined) {
+                localVarQueryParameter['timeline_name'] = timelineName;
+            }
+
+            if (lengthSeconds !== undefined) {
+                localVarQueryParameter['length_seconds'] = lengthSeconds;
+            }
+
+            if (videoHash !== undefined) {
+                localVarQueryParameter['video_hash'] = videoHash;
+            }
+
+            if (userId !== undefined) {
+                localVarQueryParameter['user_id'] = userId;
+            }
+
+            if (videoId !== undefined) {
+                localVarQueryParameter['video_id'] = videoId;
+            }
+
+            if (waitUntilDoneRunning !== undefined) {
+                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
+            }
+
+            if (blockUntil !== undefined) {
+                localVarQueryParameter['block_until'] = blockUntil;
+            }
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (waitInterval !== undefined) {
+                localVarQueryParameter['wait_interval'] = waitInterval;
+            }
+
+            if (forceRestart !== undefined) {
+                localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+        /**
+         * TODO
+         * @summary Revert a workflow to a particular step/substep
+         * @param {string} stepName 
+         * @param {string} substepName 
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        revertWorkflowStepToRevertWorkflowStepToGet: async (stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+            // verify required parameter 'stepName' is not null or undefined
+            assertParamExists('revertWorkflowStepToRevertWorkflowStepToGet', 'stepName', stepName)
+            // verify required parameter 'substepName' is not null or undefined
+            assertParamExists('revertWorkflowStepToRevertWorkflowStepToGet', 'substepName', substepName)
+            const localVarPath = `/revert_workflow_step_to`;
+            // use dummy base URL string because the URL constructor only accepts absolute URLs.
+            const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
+            let baseOptions;
+            if (configuration) {
+                baseOptions = configuration.baseOptions;
+            }
+
+            const localVarRequestOptions = { method: 'GET', ...baseOptions, ...options};
+            const localVarHeaderParameter = {} as any;
+            const localVarQueryParameter = {} as any;
+
+            if (stepName !== undefined) {
+                localVarQueryParameter['step_name'] = stepName;
+            }
+
+            if (substepName !== undefined) {
+                localVarQueryParameter['substep_name'] = substepName;
+            }
+
+            if (timelineName !== undefined) {
+                localVarQueryParameter['timeline_name'] = timelineName;
+            }
+
+            if (lengthSeconds !== undefined) {
+                localVarQueryParameter['length_seconds'] = lengthSeconds;
+            }
+
+            if (videoHash !== undefined) {
+                localVarQueryParameter['video_hash'] = videoHash;
+            }
+
+            if (userId !== undefined) {
+                localVarQueryParameter['user_id'] = userId;
+            }
+
+            if (videoId !== undefined) {
+                localVarQueryParameter['video_id'] = videoId;
+            }
+
+            if (waitUntilDoneRunning !== undefined) {
+                localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
+            }
+
+            if (blockUntil !== undefined) {
+                localVarQueryParameter['block_until'] = blockUntil;
+            }
+
+            if (timeout !== undefined) {
+                localVarQueryParameter['timeout'] = timeout;
+            }
+
+            if (waitInterval !== undefined) {
+                localVarQueryParameter['wait_interval'] = waitInterval;
+            }
+
+            if (forceRestart !== undefined) {
+                localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (userEmail !== undefined) {
+                localVarQueryParameter['user_email'] = userEmail;
+            }
+
+
+    
+            setSearchParams(localVarUrlObj, localVarQueryParameter);
+            let headersFromBaseOptions = baseOptions && baseOptions.headers ? baseOptions.headers : {};
+            localVarRequestOptions.headers = {...localVarHeaderParameter, ...headersFromBaseOptions, ...options.headers};
+
+            return {
+                url: toPathString(localVarUrlObj),
+                options: localVarRequestOptions,
+            };
+        },
+    }
+};
+
+/**
+ * WorkflowsApi - functional programming interface
+ * @export
+ */
+export const WorkflowsApiFp = function(configuration?: Configuration) {
+    const localVarAxiosParamCreator = WorkflowsApiAxiosParamCreator(configuration)
+    return {
+        /**
+         * These will be very similar for each workflow. The only current difference is in the number of stages.
+         * @summary Get ordered, detailed description of each step for a workflow
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ExportableSteps>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.getAllStepsAllStepsGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * TODO
+         * @summary Get the latest state of a workflow
+         * @param {boolean} [withOutput] if True, return the most recent step output
+         * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetLatestState>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.getLatestStateGetLatestStateGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * TODO
+         * @summary Reset a workflow to initial state
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.resetWorkflowResetWorkflowGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * TODO
+         * @summary Revert a workflow one step
+         * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.revertWorkflowStepRevertWorkflowStepGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+        /**
+         * TODO
+         * @summary Revert a workflow to a particular step/substep
+         * @param {string} stepName 
+         * @param {string} substepName 
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        async revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+            const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
+            const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.revertWorkflowStepToRevertWorkflowStepToGet']?.[localVarOperationServerIndex]?.url;
+            return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
+        },
+    }
+};
+
+/**
+ * WorkflowsApi - factory interface
+ * @export
+ */
+export const WorkflowsApiFactory = function (configuration?: Configuration, basePath?: string, axios?: AxiosInstance) {
+    const localVarFp = WorkflowsApiFp(configuration)
+    return {
+        /**
+         * These will be very similar for each workflow. The only current difference is in the number of stages.
+         * @summary Get ordered, detailed description of each step for a workflow
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<ExportableSteps> {
+            return localVarFp.getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * TODO
+         * @summary Get the latest state of a workflow
+         * @param {boolean} [withOutput] if True, return the most recent step output
+         * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<GetLatestState> {
+            return localVarFp.getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * TODO
+         * @summary Reset a workflow to initial state
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * TODO
+         * @summary Revert a workflow one step
+         * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        },
+        /**
+         * TODO
+         * @summary Revert a workflow to a particular step/substep
+         * @param {string} stepName 
+         * @param {string} substepName 
+         * @param {string | null} [timelineName] 
+         * @param {number | null} [lengthSeconds] 
+         * @param {string | null} [videoHash] 
+         * @param {string | null} [userId] 
+         * @param {string | null} [videoId] 
+         * @param {boolean} [waitUntilDoneRunning] 
+         * @param {boolean} [blockUntil] 
+         * @param {number} [timeout] 
+         * @param {number} [waitInterval] 
+         * @param {boolean} [forceRestart] 
+         * @param {string | null} [userEmail] 
+         * @param {*} [options] Override http request option.
+         * @throws {RequiredError}
+         */
+        revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        },
+    };
+};
+
+/**
+ * WorkflowsApi - interface
+ * @export
+ * @interface WorkflowsApi
+ */
+export interface WorkflowsApiInterface {
+    /**
+     * These will be very similar for each workflow. The only current difference is in the number of stages.
+     * @summary Get ordered, detailed description of each step for a workflow
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApiInterface
+     */
+    getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<ExportableSteps>;
+
+    /**
+     * TODO
+     * @summary Get the latest state of a workflow
+     * @param {boolean} [withOutput] if True, return the most recent step output
+     * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApiInterface
+     */
+    getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetLatestState>;
+
+    /**
+     * TODO
+     * @summary Reset a workflow to initial state
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApiInterface
+     */
+    resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+
+    /**
+     * TODO
+     * @summary Revert a workflow one step
+     * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApiInterface
+     */
+    revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+
+    /**
+     * TODO
+     * @summary Revert a workflow to a particular step/substep
+     * @param {string} stepName 
+     * @param {string} substepName 
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApiInterface
+     */
+    revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+
+}
+
+/**
+ * WorkflowsApi - object-oriented interface
+ * @export
+ * @class WorkflowsApi
+ * @extends {BaseAPI}
+ */
+export class WorkflowsApi extends BaseAPI implements WorkflowsApiInterface {
+    /**
+     * These will be very similar for each workflow. The only current difference is in the number of stages.
+     * @summary Get ordered, detailed description of each step for a workflow
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApi
+     */
+    public getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * TODO
+     * @summary Get the latest state of a workflow
+     * @param {boolean} [withOutput] if True, return the most recent step output
+     * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApi
+     */
+    public getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * TODO
+     * @summary Reset a workflow to initial state
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApi
+     */
+    public resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * TODO
+     * @summary Revert a workflow one step
+     * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApi
+     */
+    public revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    }
+
+    /**
+     * TODO
+     * @summary Revert a workflow to a particular step/substep
+     * @param {string} stepName 
+     * @param {string} substepName 
+     * @param {string | null} [timelineName] 
+     * @param {number | null} [lengthSeconds] 
+     * @param {string | null} [videoHash] 
+     * @param {string | null} [userId] 
+     * @param {string | null} [videoId] 
+     * @param {boolean} [waitUntilDoneRunning] 
+     * @param {boolean} [blockUntil] 
+     * @param {number} [timeout] 
+     * @param {number} [waitInterval] 
+     * @param {boolean} [forceRestart] 
+     * @param {string | null} [userEmail] 
+     * @param {*} [options] Override http request option.
+     * @throws {RequiredError}
+     * @memberof WorkflowsApi
+     */
+    public revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

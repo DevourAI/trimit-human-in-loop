@@ -877,7 +877,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Steps'
+                $ref: '#/components/schemas/ExportableSteps'
         '422':
           description: Validation Error
           content:
@@ -1577,7 +1577,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /uploaded_videos:
     get:
-      summary: Uploaded Videos
+      tags:
+      - Videos
+      summary: Get information about a user's uploaded videos
+      description: TODO
       operationId: uploaded_videos_uploaded_videos_get
       parameters:
       - name: user_email
@@ -1592,7 +1595,11 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UploadedVideo'
+                title: Response Uploaded Videos Uploaded Videos Get
         '422':
           description: Validation Error
           content:
@@ -1601,7 +1608,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /upload:
     post:
-      summary: Upload Multiple Files
+      tags:
+      - UploadVideo
+      summary: Upload a video
+      description: TODO
       operationId: upload_multiple_files_upload_post
       requestBody:
         content:
@@ -1614,7 +1624,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/UploadVideo'
         '422':
           description: Validation Error
           content:
@@ -1792,6 +1803,87 @@ components:
           - type: 'null'
       type: object
       title: CutTranscriptLinearWorkflowStreamingOutput
+    ExportableStepInfo:
+      properties:
+        name:
+          type: string
+          title: Name
+        user_feedback:
+          type: boolean
+          title: User Feedback
+        step_name:
+          type: string
+          title: Step Name
+        input:
+          anyOf:
+          - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepInput'
+          - type: 'null'
+        chunked_feedback:
+          type: boolean
+          title: Chunked Feedback
+          default: false
+        export_transcript:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Export Transcript
+          default: true
+        export_video:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Export Video
+          default: true
+        export_soundbites:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Export Soundbites
+          default: true
+        export_timeline:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Export Timeline
+          default: true
+        export_speaker_tagging:
+          anyOf:
+          - type: boolean
+          - type: 'null'
+          title: Export Speaker Tagging
+          default: false
+      type: object
+      required:
+      - name
+      - user_feedback
+      - step_name
+      title: ExportableStepInfo
+    ExportableStepWrapper:
+      properties:
+        name:
+          type: string
+          title: Name
+        substeps:
+          items:
+            $ref: '#/components/schemas/ExportableStepInfo'
+          type: array
+          title: Substeps
+      type: object
+      required:
+      - name
+      - substeps
+      title: ExportableStepWrapper
+    ExportableSteps:
+      properties:
+        steps:
+          items:
+            $ref: '#/components/schemas/ExportableStepWrapper'
+          type: array
+          title: Steps
+      type: object
+      required:
+      - steps
+      title: ExportableSteps
     FinalLLMOutput:
       properties:
         str_value:
@@ -1849,7 +1941,7 @@ components:
             for faster retrieval over user_email
         last_step:
           anyOf:
-          - $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+          - $ref: '#/components/schemas/ExportableStepInfo'
           - type: 'null'
           description: information about the most recently run (sub)step. provides
             additional information over what's is provided in step_history_state,
@@ -1857,14 +1949,14 @@ components:
             LLM
         next_step:
           anyOf:
-          - $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+          - $ref: '#/components/schemas/ExportableStepInfo'
           - type: 'null'
           description: information about the next scheduled (sub)step. provides additional
             information over what's is provided in step_history_state, like whether
             the state includes concurrent chunked responses from the LLM
         all_steps:
           anyOf:
-          - $ref: '#/components/schemas/Steps'
+          - $ref: '#/components/schemas/ExportableSteps'
           - type: 'null'
           description: detailed, ordered, information about each step/substep in this
             workflow
@@ -1917,7 +2009,7 @@ components:
           title: Value
         current_substep:
           anyOf:
-          - $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+          - $ref: '#/components/schemas/ExportableStepInfo'
           - type: 'null'
         chunk:
           anyOf:
@@ -1983,32 +2075,49 @@ components:
       - name
       - substeps
       title: StepKey
-    StepWrapper:
+    UploadVideo:
       properties:
-        name:
+        processing_call_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Processing Call Id
+        video_hashes:
+          anyOf:
+          - items:
+              type: string
+            type: array
+          - type: 'null'
+          title: Video Hashes
+        result:
           type: string
-          title: Name
-        substeps:
+          title: Result
+          default: error
+        messages:
           items:
-            $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+            type: string
           type: array
-          title: Substeps
+          title: Messages
+          default: []
       type: object
-      required:
-      - name
-      - substeps
-      title: StepWrapper
-    Steps:
+      title: UploadVideo
+    UploadedVideo:
       properties:
-        steps:
-          items:
-            $ref: '#/components/schemas/StepWrapper'
-          type: array
-          title: Steps
+        filename:
+          type: string
+          title: Filename
+        video_hash:
+          type: string
+          title: Video Hash
+        path:
+          type: string
+          title: Path
       type: object
       required:
-      - steps
-      title: Steps
+      - filename
+      - video_hash
+      - path
+      title: UploadedVideo
     ValidationError:
       properties:
         loc:
