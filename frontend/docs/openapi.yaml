@@ -8,7 +8,7 @@ paths:
     get:
       tags:
       - Steps
-      summary: Get outputs for a given list of steps
+      summary: Get specific outputs for a given workflow and list of steps
       description: TODO
       operationId: get_step_outputs_get_step_outputs_get
       parameters:
@@ -124,7 +124,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /get_all_outputs:
     get:
-      summary: Get All Outputs
+      tags:
+      - Steps
+      summary: Get all outputs, ordered earliest to latest in time, for a given workflow
+      description: TODO
       operationId: get_all_outputs_get_all_outputs_get
       parameters:
       - name: timeline_name
@@ -216,7 +219,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/GetStepOutputs'
         '422':
           description: Validation Error
           content:
@@ -225,7 +229,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /get_video_processing_status:
     get:
-      summary: Get Video Processing Status
+      tags:
+      - FunctionCalls
+      summary: Get status of video processing jobs
+      description: TODO
       operationId: get_video_processing_status_get_video_processing_status_get
       parameters:
       - name: timeout
@@ -257,7 +264,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/GetVideoProcessingStatus'
         '422':
           description: Validation Error
           content:
@@ -266,7 +274,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /check_function_call_results:
     get:
-      summary: Check Function Call Results
+      tags:
+      - FunctionCalls
+      summary: Check the status of modal function calls
+      description: TODO
       operationId: check_function_call_results_check_function_call_results_get
       parameters:
       - name: timeout
@@ -290,7 +301,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/CheckFunctionCallResults'
         '422':
           description: Validation Error
           content:
@@ -299,7 +311,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /step:
     get:
-      summary: Step Endpoint
+      tags:
+      - Steps
+      summary: Run next step
+      description: TODO
       operationId: step_endpoint_step_get
       parameters:
       - name: user_input
@@ -420,7 +435,8 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/CutTranscriptLinearWorkflowStreamingOutput'
         '422':
           description: Validation Error
           content:
@@ -429,7 +445,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /reset_workflow:
     get:
-      summary: Reset Workflow
+      tags:
+      - Workflows
+      summary: Reset a workflow to initial state
+      description: TODO
       operationId: reset_workflow_reset_workflow_get
       parameters:
       - name: timeline_name
@@ -530,7 +549,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /revert_workflow_step:
     get:
-      summary: Revert Workflow Step
+      tags:
+      - Workflows
+      summary: Revert a workflow one step
+      description: TODO
       operationId: revert_workflow_step_revert_workflow_step_get
       parameters:
       - name: to_before_retries
@@ -538,8 +560,12 @@ paths:
         required: false
         schema:
           type: boolean
+          description: If True, revert to before any retries. Otherwise, revert to
+            the most recent retry
           default: false
           title: To Before Retries
+        description: If True, revert to before any retries. Otherwise, revert to the
+          most recent retry
       - name: timeline_name
         in: query
         required: false
@@ -638,7 +664,10 @@ paths:
                 $ref: '#/components/schemas/HTTPValidationError'
   /revert_workflow_step_to:
     get:
-      summary: Revert Workflow Step To
+      tags:
+      - Workflows
+      summary: Revert a workflow to a particular step/substep
+      description: TODO
       operationId: revert_workflow_step_to_revert_workflow_step_to_get
       parameters:
       - name: step_name
@@ -749,18 +778,15 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HTTPValidationError'
-  /get_latest_state:
+  /all_steps:
     get:
-      summary: Get Latest State
-      operationId: get_latest_state_get_latest_state_get
+      tags:
+      - Workflows
+      summary: Get ordered, detailed description of each step for a workflow
+      description: These will be very similar for each workflow. The only current
+        difference is in the number of stages.
+      operationId: get_all_steps_all_steps_get
       parameters:
-      - name: with_output
-        in: query
-        required: false
-        schema:
-          type: boolean
-          default: false
-          title: With Output
       - name: timeline_name
         in: query
         required: false
@@ -850,7 +876,131 @@ paths:
           description: Successful Response
           content:
             application/json:
-              schema: {}
+              schema:
+                $ref: '#/components/schemas/Steps'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HTTPValidationError'
+  /get_latest_state:
+    get:
+      tags:
+      - Workflows
+      summary: Get the latest state of a workflow
+      description: TODO
+      operationId: get_latest_state_get_latest_state_get
+      parameters:
+      - name: with_output
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: if True, return the most recent step output
+          default: false
+          title: With Output
+        description: if True, return the most recent step output
+      - name: with_all_steps
+        in: query
+        required: false
+        schema:
+          type: boolean
+          description: if True, return the Steps object of all the workflow's steps
+          default: true
+          title: With All Steps
+        description: if True, return the Steps object of all the workflow's steps
+      - name: timeline_name
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Timeline Name
+      - name: length_seconds
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Length Seconds
+      - name: video_hash
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Hash
+      - name: user_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+      - name: video_id
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+      - name: wait_until_done_running
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Wait Until Done Running
+      - name: block_until
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Block Until
+      - name: timeout
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 5
+          title: Timeout
+      - name: wait_interval
+        in: query
+        required: false
+        schema:
+          type: number
+          default: 0.1
+          title: Wait Interval
+      - name: force_restart
+        in: query
+        required: false
+        schema:
+          type: boolean
+          default: false
+          title: Force Restart
+      - name: user_email
+        in: query
+        required: false
+        schema:
+          anyOf:
+          - type: string
+            format: email
+          - type: 'null'
+          title: User Email
+      responses:
+        '200':
+          description: Successful Response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GetLatestState'
         '422':
           description: Validation Error
           content:
@@ -1512,6 +1662,19 @@ components:
       - timeline_name
       - user_email
       title: Body_upload_multiple_files_upload_post
+    CheckFunctionCallResults:
+      properties:
+        statuses:
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
+          title: Statuses
+      type: object
+      required:
+      - statuses
+      title: CheckFunctionCallResults
     CutTranscriptLinearWorkflowStepInput:
       properties:
         user_prompt:
@@ -1605,6 +1768,113 @@ components:
       - step_name
       - substep_name
       title: CutTranscriptLinearWorkflowStepOutput
+    CutTranscriptLinearWorkflowStreamingOutput:
+      properties:
+        partial_llm_output:
+          anyOf:
+          - $ref: '#/components/schemas/PartialLLMOutput'
+          - type: 'null'
+        final_llm_output:
+          anyOf:
+          - $ref: '#/components/schemas/FinalLLMOutput'
+          - type: 'null'
+        partial_backend_output:
+          anyOf:
+          - $ref: '#/components/schemas/PartialBackendOutput'
+          - type: 'null'
+        partial_step_output:
+          anyOf:
+          - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepOutput'
+          - type: 'null'
+        final_step_output:
+          anyOf:
+          - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepOutput'
+          - type: 'null'
+      type: object
+      title: CutTranscriptLinearWorkflowStreamingOutput
+    FinalLLMOutput:
+      properties:
+        str_value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Str Value
+        json_value:
+          anyOf:
+          - type: object
+          - type: 'null'
+          title: Json Value
+        chunk:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Chunk
+        calling_method_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Calling Method Name
+      type: object
+      title: FinalLLMOutput
+    GetLatestState:
+      properties:
+        user_messages:
+          items:
+            type: string
+          type: array
+          title: User Messages
+          description: list of all messages user has provided
+          default: []
+        step_history_state:
+          items:
+            $ref: '#/components/schemas/StepKey'
+          type: array
+          title: Step History State
+          description: list of every step and substeps run so far, including retry_{i}
+            prefixes on substeps when a step was retried
+          default: []
+        video_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Video Id
+          description: id of the video's db model. Provide to future workflow calls
+            for faster retrieval over video_hash
+        user_id:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: User Id
+          description: id of the user's db model. Provide to future workflow calls
+            for faster retrieval over user_email
+        last_step:
+          anyOf:
+          - $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+          - type: 'null'
+          description: information about the most recently run (sub)step. provides
+            additional information over what's is provided in step_history_state,
+            like whether the state includes concurrent chunked responses from the
+            LLM
+        next_step:
+          anyOf:
+          - $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+          - type: 'null'
+          description: information about the next scheduled (sub)step. provides additional
+            information over what's is provided in step_history_state, like whether
+            the state includes concurrent chunked responses from the LLM
+        all_steps:
+          anyOf:
+          - $ref: '#/components/schemas/Steps'
+          - type: 'null'
+          description: detailed, ordered, information about each step/substep in this
+            workflow
+        output:
+          anyOf:
+          - $ref: '#/components/schemas/CutTranscriptLinearWorkflowStepOutput'
+          - type: 'null'
+          description: most recent substep output
+      type: object
+      title: GetLatestState
     GetStepOutputs:
       properties:
         outputs:
@@ -1616,6 +1886,19 @@ components:
       required:
       - outputs
       title: GetStepOutputs
+    GetVideoProcessingStatus:
+      properties:
+        statuses:
+          items:
+            additionalProperties:
+              type: string
+            type: object
+          type: array
+          title: Statuses
+      type: object
+      required:
+      - statuses
+      title: GetVideoProcessingStatus
     HTTPValidationError:
       properties:
         detail:
@@ -1625,6 +1908,24 @@ components:
           title: Detail
       type: object
       title: HTTPValidationError
+    PartialBackendOutput:
+      properties:
+        value:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Value
+        current_substep:
+          anyOf:
+          - $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+          - type: 'null'
+        chunk:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Chunk
+      type: object
+      title: PartialBackendOutput
     PartialFeedback:
       properties:
         partials_to_redo:
@@ -1648,6 +1949,66 @@ components:
       - partials_to_redo
       - relevant_user_feedback_list
       title: PartialFeedback
+    PartialLLMOutput:
+      properties:
+        value:
+          type: string
+          title: Value
+        chunk:
+          anyOf:
+          - type: integer
+          - type: 'null'
+          title: Chunk
+        calling_method_name:
+          anyOf:
+          - type: string
+          - type: 'null'
+          title: Calling Method Name
+      type: object
+      required:
+      - value
+      title: PartialLLMOutput
+    StepKey:
+      properties:
+        name:
+          type: string
+          title: Name
+        substeps:
+          items:
+            type: string
+          type: array
+          title: Substeps
+      type: object
+      required:
+      - name
+      - substeps
+      title: StepKey
+    StepWrapper:
+      properties:
+        name:
+          type: string
+          title: Name
+        substeps:
+          items:
+            $ref: '#/components/schemas/trimit__backend__models__CurrentStepInfo-Output__1'
+          type: array
+          title: Substeps
+      type: object
+      required:
+      - name
+      - substeps
+      title: StepWrapper
+    Steps:
+      properties:
+        steps:
+          items:
+            $ref: '#/components/schemas/StepWrapper'
+          type: array
+          title: Steps
+      type: object
+      required:
+      - steps
+      title: Steps
     ValidationError:
       properties:
         loc:

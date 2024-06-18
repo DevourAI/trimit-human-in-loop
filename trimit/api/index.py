@@ -6,13 +6,11 @@ from datetime import datetime
 from pathlib import Path
 import yaml
 
-from fastapi.encoders import jsonable_encoder
-from pydantic import BaseModel, EmailStr
+from pydantic import EmailStr
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter
 from beanie.operators import In
-from sqlalchemy import over
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import (
@@ -30,6 +28,8 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.backend.models import (
+    UploadVideo,
+    UploadedVideo,
     GetLatestState,
     GetStepOutputs,
     GetVideoProcessingStatus,
@@ -737,22 +737,34 @@ async def uploaded_video_hashes(
     }
 
 
-@web_app.get("/uploaded_videos")
+@web_app.get(
+    "/uploaded_videos",
+    response_model=list[UploadedVideo],
+    tags=["Videos"],
+    summary="Get information about a user's uploaded videos",
+    description="TODO",
+)
 async def uploaded_videos(user: User = Depends(find_or_create_user)):
     await maybe_init_mongo()
     return [
-        {
-            "filename": video.high_res_user_file_path,
-            "video_hash": video.md5_hash,
-            "path": video.path(get_volume_dir()),
-        }
+        UploadedVideo(
+            filename=video.high_res_user_file_path,
+            video_hash=video.md5_hash,
+            path=video.path(get_volume_dir()),
+        )
         for video in await Video.find(Video.user.email == user.email)
         .project(VideoFileProjection)
         .to_list()
     ]
 
 
-@web_app.post("/upload")
+@web_app.post(
+    "/upload",
+    response_model=UploadVideo,
+    tags=["UploadVideo"],
+    summary="Upload a video",
+    description="TODO",
+)
 async def upload_multiple_files(
     files: list[UploadFile] = File(...),
     user: User = Depends(form_user_dependency),
@@ -847,7 +859,7 @@ async def upload_multiple_files(
             }
         )
     if len(video_details) == 0:
-        return {"result": "success", "messages": resp_msgs}
+        return UploadVideo(result="success", messages=resp_msgs)
 
     to_process = []
     async with BulkWriter() as bulk_writer:
@@ -879,8 +891,8 @@ async def upload_multiple_files(
             call.object_id
         )
 
-    return {
-        "result": "success",
-        "processing_call_id": call.object_id,
-        "video_hashes": [video_detail["video_hash"] for video_detail in video_details],
-    }
+    return UploadVideo(
+        result="success",
+        processing_call_id=call.object_id,
+        video_hashes=[video_detail["video_hash"] for video_detail in video_details],
+    )

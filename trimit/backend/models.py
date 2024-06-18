@@ -1782,3 +1782,16 @@ class GetLatestState(BaseModel):
             ),
             "output": self.output.model_dump() if self.output else None,
         }
+
+
+class UploadedVideo(BaseModel):
+    filename: str
+    video_hash: str
+    path: str
+
+
+class UploadVideo(BaseModel):
+    processing_call_id: str | None = None
+    video_hashes: list[str] | None = None
+    result: str = "error"
+    messages: list[str] = []
