@@ -1,3 +1,4 @@
+from numpy import test
 from trimit.backend.conf import (
     LINEAR_WORKFLOW_OUTPUT_FOLDER,
     WORKFLOWS_DICT_NAME,
@@ -28,10 +29,12 @@ async def load_or_create_workflow(
     video_id: str | None = None,
     with_output: bool = False,
     wait_until_done_running: bool = False,
-    block_until: bool = False,
     timeout: float = 5,
     wait_interval: float = 0.1,
     force_restart: bool = False,
+    export_video: bool = True,
+    output_folder: str = LINEAR_WORKFLOW_OUTPUT_FOLDER,
+    volume_dir: str = VOLUME_DIR,
 ):
     print("in load or create workflow")
     if not video_hash and not video_id:
@@ -45,8 +48,9 @@ async def load_or_create_workflow(
         "timeline_name": timeline_name,
         "user_email": user_email,
         "length_seconds": length_seconds,
-        "output_folder": LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        "volume_dir": VOLUME_DIR,
+        "output_folder": output_folder or LINEAR_WORKFLOW_OUTPUT_FOLDER,
+        "volume_dir": volume_dir or VOLUME_DIR,
+        "export_video": export_video,
     }
     print("workflow params:", workflow_params)
 
@@ -55,9 +59,7 @@ async def load_or_create_workflow(
     )
     print("got workflow id:", workflow_id)
     running = running_workflows.get(workflow_id, False)
-    if running and not block_until and wait_until_done_running:
-        raise ValueError("Cannot wait until done running without blocking")
-    elif running and block_until and wait_until_done_running:
+    if running and wait_until_done_running:
         start_time = time.time()
         while running:
             await asyncio.sleep(wait_interval)
@@ -97,4 +99,34 @@ async def load_or_create_workflow(
             await workflow.load_step_order()
             print("loaded workflow step order")
 
+    workflow_state = workflow.state.static_state.model_dump(exclude={"video", "user"})
+    test_state = {
+        "id": None,
+        "timeline_name": "15557970_testimonial_test",
+        "volume_dir": "tests/fixtures/volume",
+        "output_folder": "tests/video_outputs/linear",
+        "length_seconds": 120,
+        "nstages": 2,
+        "first_pass_length": 360,
+        "max_partial_transcript_words": 800,
+        "max_word_extra_threshold": 50,
+        "clip_extra_trim_seconds": 0.1,
+        "use_agent_output_cache": True,
+        "max_iterations": 3,
+        "ask_user_for_feedback_every_iteration": False,
+        "max_total_soundbites": 15,
+        "num_speaker_tagging_samples": 3,
+        "export_transcript_text": True,
+        "export_transcript": True,
+        "export_soundbites": True,
+        "export_soundbites_text": True,
+        "export_timeline": True,
+        "export_video": False,
+        "export_speaker_tagging": True,
+    }
+    for k, v in workflow_state.items():
+        if k not in test_state:
+            print(f"{k} not in test_state")
+        elif test_state[k] != v:
+            print(f"{k} different, test_state={test_state[k]}, ws_state={v}")
     return workflow

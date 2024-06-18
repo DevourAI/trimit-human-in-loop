@@ -4,6 +4,7 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
+from torch import export
 import yaml
 
 from pydantic import EmailStr
@@ -148,16 +149,37 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
 
 async def get_current_workflow(
     timeline_name: str | None = None,
-    length_seconds: int | None = None,
+    length_seconds: int | None = Query(
+        None, description="desired final length of video"
+    ),
     user: User | None = Depends(maybe_user_wrapper),
     video_hash: str | None = None,
     user_id: str | None = None,
     video_id: str | None = None,
-    wait_until_done_running: bool = False,
-    block_until: bool = False,
-    timeout: float = 5,
-    wait_interval: float = 0.1,
-    force_restart: bool = False,
+    wait_until_done_running: bool = Query(
+        False,
+        description="If True, block returning a workflow until workflow is done running its current step",
+    ),
+    timeout: float = Query(
+        5,
+        description="Timeout until continuing without waiting if wait_until_done_running=True",
+    ),
+    wait_interval: float = Query(
+        0.1,
+        description="poll interval to wait for workflow step to finish if wait_until_done_running=True",
+    ),
+    force_restart: bool = Query(False, description="Force a fresh workflow state"),
+    export_video: bool = Query(
+        True, description="export mp4 videos after relevant steps"
+    ),
+    volume_dir: str = Query(
+        None,
+        description="mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests",
+    ),
+    output_folder: str = Query(
+        None,
+        description="mounted directory serving as root for exports. Only provide this parameter in tests",
+    ),
 ):
     if timeline_name is None or length_seconds is None or user is None:
         return None
@@ -171,10 +193,12 @@ async def get_current_workflow(
             video_id=video_id,
             with_output=True,
             wait_until_done_running=wait_until_done_running,
-            block_until=block_until,
             timeout=timeout,
             wait_interval=wait_interval,
             force_restart=force_restart,
+            export_video=export_video,
+            volume_dir=volume_dir,
+            output_folder=output_folder,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

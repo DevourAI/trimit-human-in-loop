@@ -571,14 +571,3 @@ async def workflow_3909774043_with_state_init(workflow_3909774043_with_transcrip
     assert len(workflow.raw_transcript.text) == 22855
     assert workflow.user_messages == ["make me a video"]
     return workflow
-
-
-@pytest.fixture(scope="function")
-async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
-    workflow = workflow_15557970_with_transcript
-    output = None
-    async for output, _ in workflow.step("make me a video"):
-        pass
-    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert workflow.user_messages == ["make me a video"]
-    return workflow

@@ -13,7 +13,7 @@ from trimit.backend.models import Soundbites
 from trimit.models.models import User, Video
 from trimit.models import get_upload_folder, maybe_init_mongo
 from trimit.utils.model_utils import save_video_with_details
-from trimit.backend.models import Transcript
+from trimit.backend.models import Transcript, CutTranscriptLinearWorkflowStepOutput
 from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 from dotenv import load_dotenv
 import shutil
@@ -378,3 +378,25 @@ async def workflow_15557970_with_transcript(
         with_provided_user_feedback=[],
         export_video=False,
     )
+
+
+@pytest.fixture(scope="function")
+async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
+    workflow = workflow_15557970_with_transcript
+    output = None
+    async for output, _ in workflow.step("make me a video"):
+        pass
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    assert workflow.user_messages == ["make me a video"]
+    return workflow
+
+
+@pytest.fixture(scope="function")
+async def workflow_15557970_after_first_step(workflow_15557970_with_state_init):
+    workflow = workflow_15557970_with_state_init
+    output = None
+    async for output, _ in workflow.step(""):
+        pass
+
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    return workflow

@@ -64,4 +64,43 @@ async def test_get_latest_state(client, workflow_15557970_with_transcript):
     assert data["user_id"] is not None
     assert data["user_messages"] == []
     assert data["step_history_state"] == []
-    # TODO Test after running a step
+
+
+async def test_get_latest_state_after_step(client, workflow_15557970_after_first_step):
+    workflow = workflow_15557970_after_first_step
+    from trimit.models import MONGO_INITIALIZED
+
+    MONGO_INITIALIZED[0] = False
+
+    response = client.get(
+        "/get_latest_state",
+        params={
+            "video_hash": workflow.video.md5_hash,
+            "user_email": workflow.user.email,
+            "timeline_name": workflow.timeline_name,
+            "length_seconds": workflow.length_seconds,
+            "export_video": workflow.export_video,
+            "volume_dir": workflow.volume_dir,
+            "output_folder": workflow.state.static_state.output_folder,
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["all_steps"]) == 5
+    assert data["all_steps"][0]["substeps"][0]["substep_name"] == "init_state"
+    assert (
+        data["all_steps"][-1]["substeps"][-1]["substep_name"]
+        == "modify_transcript_holistically"
+    )
+    assert data["last_step"]["substep_name"] == "remove_off_screen_speakers"
+    assert data["next_step"]["substep_name"] == "generate_story"
+    assert data["video_id"] is not None
+    assert data["user_id"] is not None
+    assert data["user_messages"] == ["make me a video"]
+    assert data["step_history_state"] == [
+        {
+            "name": "preprocess_video",
+            "substeps": ["init_state", "remove_off_screen_speakers"],
+        }
+    ]
