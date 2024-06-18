@@ -10,7 +10,6 @@ import { Button } from '@/components/ui/button';
 import { useStepper } from '@/components/ui/stepper';
 
 export interface FooterProps {
-  restart: () => void;
   prevStepWrapper: () => void;
   nextStepWrapper: () => void;
   undoLastStep: () => void;

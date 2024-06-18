@@ -133,7 +133,8 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   }, [userData, userParams, videoHash]);
 
   useEffect(() => {
-    setUserFeedbackRequest(latestState?.output?.user_feedback_request || null);
+    if (!latestState) return;
+    setUserFeedbackRequest(latestState.output?.user_feedback_request || null);
     const stepIndex = stepIndexFromState(latestState);
     if (stepIndex !== -1) {
       setTrueStepIndex(stepIndex);
@@ -168,6 +169,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   async function handleStepStream(reader: ReadableStreamDefaultReader) {
     activePromptDispatch({ type: 'restart', value: '' });
     const lastValue = await decodeStreamAsJSON(reader, (value: any) => {
+      console.log('value from stream:', value);
       let valueToAppend = value;
       if (typeof value !== 'string') {
         if (value.substep_name !== undefined) {
@@ -313,7 +315,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   }
 
   async function prevStepWrapper() {
-    if (currentStepIndex === 0) {
+    if (currentStepIndex === 0 || isLoading) {
       return;
     }
     setCurrentStepIndex(currentStepIndex - 1);
@@ -326,7 +328,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     );
   }
   async function nextStepWrapper() {
-    if (currentStepIndex >= trueStepIndex) {
+    if (currentStepIndex >= trueStepIndex || isLoading) {
       return;
     }
     setCurrentStepIndex(currentStepIndex + 1);
@@ -344,11 +346,11 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
         Video: {videoHash}
         <div className="flex gap-3 items-center">
-          <Button variant="outline" onClick={restart}>
+          <Button variant="outline" onClick={restart} disabled={isLoading}>
             <ReloadIcon className="mr-2" />
             Restart
           </Button>
-          <Button>
+          <Button disabled={isLoading}>
             <DownloadIcon className="mr-2" />
             Export
           </Button>

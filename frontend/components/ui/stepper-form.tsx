@@ -18,6 +18,7 @@ import {
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { Textarea } from '@/components/ui/textarea';
 import { StepInfo } from '@/lib/types';
+import { ReloadIcon } from '@radix-ui/react-icons';
 
 export const FormSchema = z.object({
   feedback: z.optional(z.string()),
@@ -70,7 +71,7 @@ export function StepperForm({
   };
 
   return (
-    <div className="relative">
+    <div className="relative p-3">
       <Form {...form}>
         <p>{systemPrompt}</p>
         <form
@@ -108,18 +109,29 @@ export function StepperForm({
               {prevUserMessage}
             </p>
           )}
-          <Button disabled={isLoading} type="submit">
-            Submit
-          </Button>
-          <Button disabled={isLoading} type="button" onClick={onRetryClick}>
-            Retry
-          </Button>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Button
+                size="sm"
+                disabled={isLoading}
+                type="button"
+                onClick={onRetryClick}
+                variant="secondary"
+              >
+                <ReloadIcon className="mr-2" />
+                Retry
+              </Button>
+              <ExportStepMenu
+                userParams={userParams}
+                stepName={step.step_name}
+                substepName={step.name}
+              />
+            </div>
+            <Button size="sm" disabled={isLoading} type="submit">
+              Submit
+            </Button>
+          </div>
         </form>
-        <ExportStepMenu
-          userParams={userParams}
-          stepName={step.step_name}
-          substepName={step.name}
-        />
       </Form>
       {isLoading && (
         <div className="absolute top-0 left-0 w-full h-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">

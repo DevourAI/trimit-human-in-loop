@@ -12,6 +12,7 @@ export interface StepParams extends CommonAPIParams {
   streaming: boolean;
   force_restart: boolean;
   ignore_running_workflows: boolean;
+  retry_step?: boolean;
 }
 
 export interface StepOutputParams extends CommonAPIParams {
@@ -61,6 +62,7 @@ export interface SubStepInfo {
 
 export interface StepInfo extends StepItem {
   name: string;
+  step_name: string;
   human_readable_name?: string;
   substeps: SubStepInfo[];
 }
