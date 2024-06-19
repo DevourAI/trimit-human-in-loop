@@ -47,6 +47,16 @@ export function StepperForm({
   onRetry,
   onCancelStep,
 }: StepperFormProps) {
+  console.log({
+    systemPrompt,
+    isLoading,
+    stepIndex,
+    userParams,
+    step,
+    prompt,
+    onSubmit,
+    onCancelStep,
+  });
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });

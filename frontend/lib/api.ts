@@ -1,5 +1,14 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, {AxiosResponse} from 'axios';
 
+import {
+  CheckFunctionCallResults,
+  CutTranscriptLinearWorkflowStepOutput,
+  GetLatestState,
+  UploadedVideo,
+  UploadVideo,
+  UploadVideoApi,
+  VideosApi,
+} from '@/gen/openapi/api';
 import {
   DownloadFileParams,
   GetLatestStateParams,
@@ -11,17 +20,7 @@ import {
   StepParams,
   UploadVideoParams,
   UserState,
-} from './types';
-import {
-  CheckFunctionCallResults,
-  CutTranscriptLinearWorkflowStepOutput,
-  GetLatestState,
-  UploadedVideo,
-  UploadVideo,
-  UploadVideoApi,
-  VideosApi,
-} from '@/gen/openapi/api';
-
+} from '@/lib/types';
 
 let API_URL = process.env.NEXT_PUBLIC_API_BASE_URL_REMOTE;
 if (process.env.BACKEND === 'local') {
@@ -47,7 +46,7 @@ const fetcherWithParams = async (
     return toReturn;
   } catch (error) {
     console.error('fetcherWithParams error', error);
-    return { error };
+    return {error};
   }
 };
 
@@ -65,7 +64,7 @@ const fetcherWithParamsRaw = async (
     return res;
   } catch (error) {
     console.error('fetcherWithParamsRaw error', error);
-    return { error };
+    return {error};
   }
 };
 
@@ -93,7 +92,7 @@ const postFetcherWithData = async (
     return res.data;
   } catch (error) {
     console.error('postFetcherWithData error', error);
-    return { error };
+    return {error};
   }
 };
 
@@ -147,7 +146,7 @@ export async function getLatestState(
   const data = await fetcherWithParams('get_latest_state', params);
   if (data && data.error) {
     console.error(data.error);
-    return { success: false, error: data.error };
+    return {success: false, error: data.error};
   } else if (data) {
     return data as GetLatestState;
   }
@@ -201,22 +200,23 @@ export async function step(
     console.error(err);
   }
 }
-
 export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
   if (params.userEmail === '' || !params.videoFile) return {};
+  let data: UploadVideo;
   try {
-    const data: UploadVideo =
-      await uploadVideosApi.uploadMultipleFilesUploadPost(
-        [params.videoFile],
-        [params.videoFile.name],
-        params.timelineName,
-        params.userEmail,
-        true,
-        false,
-        true
-      );
+    const response = await uploadVideosApi.uploadMultipleFilesUploadPost(
+      [params.videoFile],
+      [params.videoFile.name],
+      params.timelineName,
+      params.userEmail,
+      true,
+      false,
+      true
+    );
+    // TODO test this- do we need to take the data field or it already extracted?
+    data = response.data;
   } catch (error) {
-    console.error(data);
+    console.error(error);
     return;
   }
 
@@ -233,10 +233,10 @@ export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
 
 export async function getVideoProcessingStatuses(
   userEmail: string,
-  options: { timeout?: number } = { timeout: 0 }
+  options: {timeout?: number} = {timeout: 0}
 ): Promise<unknown> {
   if (!userEmail) {
-    return { result: 'error', message: 'No userEmail provided' };
+    return {result: 'error', message: 'No userEmail provided'};
   }
   const respData = await fetcherWithParams('get_video_processing_status', {
     user_email: userEmail,
@@ -245,15 +245,15 @@ export async function getVideoProcessingStatuses(
   if (respData && respData.result) {
     return respData;
   }
-  return { result: 'error', message: 'No result found' };
+  return {result: 'error', message: 'No result found'};
 }
 
 export async function getFunctionCallResults(
   callIds: string[],
-  options: { timeout?: number } = { timeout: 0 }
+  options: {timeout?: number} = {timeout: 0}
 ): Promise<unknown> {
   if (!callIds || callIds.length === 0) {
-    return { result: 'error', message: 'No callIds provided' };
+    return {result: 'error', message: 'No callIds provided'};
   }
   const respData = (await fetcherWithParams('check_function_call_results', {
     modal_call_ids: callIds,
@@ -262,7 +262,7 @@ export async function getFunctionCallResults(
   if (respData && respData.statuses) {
     return respData.statuses;
   }
-  return { result: 'error', message: 'No result found' };
+  return {result: 'error', message: 'No result found'};
 }
 
 function remoteVideoStreamURLForPath(path: string): string {
@@ -343,23 +343,23 @@ export async function downloadFile(params: DownloadFileParams): Promise<void> {
 }
 
 export async function downloadVideo(params: DownloadFileParams): Promise<void> {
-  await downloadFile({ ...params, filetype: 'video' });
+  await downloadFile({...params, filetype: 'video'});
 }
 
 export async function downloadTimeline(
   params: DownloadFileParams
 ): Promise<void> {
-  await downloadFile({ ...params, filetype: 'timeline' });
+  await downloadFile({...params, filetype: 'timeline'});
 }
 
 export async function downloadTranscriptText(
   params: DownloadFileParams
 ): Promise<void> {
-  await downloadFile({ ...params, filetype: 'transcript_text' });
+  await downloadFile({...params, filetype: 'transcript_text'});
 }
 
 export async function downloadSoundbitesText(
   params: DownloadFileParams
 ): Promise<void> {
-  await downloadFile({ ...params, filetype: 'soundbites_text' });
+  await downloadFile({...params, filetype: 'soundbites_text'});
 }
