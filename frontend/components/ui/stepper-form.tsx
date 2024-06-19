@@ -5,6 +5,8 @@ import {ChangeEvent, useState} from 'react';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
 
+import {ToastAction} from "@/components/ui/toast"
+import {useToast} from "@/components/ui/use-toast"
 import {Button} from '@/components/ui/button';
 import ExportStepMenu from '@/components/ui/export-step-menu';
 import {
@@ -29,14 +31,17 @@ export const FormSchema = z.object({
 
 interface StepperFormProps {
   systemPrompt: string;
+  backendMessage: string;
   isLoading: boolean;
   stepIndex: number;
   userParams: any;
   step: ExportableStepWrapper;
   prompt: string;
-  onSubmit: (
+  onRetry: (
     stepIndex: number,
-    retry: boolean,
+    data: z.infer<typeof FormSchema>
+  ) => void;
+  handleFormValueChange: (
     data: z.infer<typeof FormSchema>
   ) => void;
   onCancelStep?: () => void;
@@ -44,41 +49,49 @@ interface StepperFormProps {
 
 export function StepperForm({
   systemPrompt,
+  backendMessage,
   isLoading,
   stepIndex,
   userParams,
   step,
   prompt,
-  onSubmit,
+  onRetry,
+  handleFormValueChange,
   onCancelStep,
 }: StepperFormProps) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
+  const {toast} = useToast()
   const [textAreaValue, setTextAreaValue] = useState<string>('');
   const [prevUserMessage, setPrevUserMessage] = useState<string>('');
 
-  const innerOnSubmit = (data: z.infer<typeof FormSchema>, retry = false) => {
+  const onSubmit = (data: z.infer<typeof FormSchema>) => {
     setPrevUserMessage(textAreaValue);
     setTextAreaValue('');
-    onSubmit(stepIndex, retry, data);
-  };
-
-  const onRetryClick = () => {
-    const formData = form.getValues();
-    innerOnSubmit(formData, true);
+    onRetry(stepIndex, data);
   };
 
   const handleTextAreaChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
     setTextAreaValue(event.target.value);
   };
 
+  if (backendMessage) {
+    toast({
+      title: backendMessage,
+      // description: "Friday, February 10, 2023 at 5:57 PM",
+      // action: (
+      // <ToastAction altText="Goto schedule to undo">Undo</ToastAction>
+      // ),
+    })
+  }
+
   return (
     <div className="relative p-3">
       <Form {...form}>
         <p>{systemPrompt}</p>
         <form
-          onSubmit={form.handleSubmit((data) => innerOnSubmit(data, false))}
+          onSubmit={form.handleSubmit((data) => onSubmit(data))}
           className="w-2/3 space-y-6"
         >
           <FormField
@@ -88,6 +101,7 @@ export function StepperForm({
               const originalOnChange = field.onChange;
               field.onChange = (event) => {
                 handleTextAreaChange(event);
+                handleFormValueChange(form.getValues());
                 originalOnChange(event);
               };
               field.value = textAreaValue;
@@ -117,8 +131,7 @@ export function StepperForm({
               <Button
                 size="sm"
                 disabled={isLoading}
-                type="button"
-                onClick={onRetryClick}
+                type="submit"
                 variant="secondary"
               >
                 <ReloadIcon className="mr-2" />
@@ -130,9 +143,6 @@ export function StepperForm({
                 substepName={step.name}
               />
             </div>
-            <Button size="sm" disabled={isLoading} type="submit">
-              Submit
-            </Button>
           </div>
         </form>
       </Form>

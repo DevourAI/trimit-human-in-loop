@@ -4,10 +4,10 @@ import {
   ArrowRightIcon,
   ResetIcon,
 } from '@radix-ui/react-icons';
-import React, { useEffect } from 'react';
+import React, {useEffect} from 'react';
 
-import { Button } from '@/components/ui/button';
-import { useStepper } from '@/components/ui/stepper';
+import {Button} from '@/components/ui/button';
+import {useStepper} from '@/components/ui/stepper';
 
 export interface FooterProps {
   prevStepWrapper: () => void;
@@ -16,6 +16,7 @@ export interface FooterProps {
   currentStepIndex: number;
   trueStepIndex: number;
   hasCompletedAllSteps: boolean;
+  totalNSteps: number;
 }
 
 export const Footer = ({
@@ -25,6 +26,7 @@ export const Footer = ({
   currentStepIndex,
   trueStepIndex,
   hasCompletedAllSteps,
+  totalNSteps,
 }: FooterProps) => {
   const {
     nextStep,
@@ -73,7 +75,7 @@ export const Footer = ({
         <Button
           size="sm"
           onClick={nextStepWrapper}
-          disabled={currentStepIndex >= trueStepIndex}
+          disabled={trueStepIndex >= totalNSteps - 1}
         >
           Next
           <ArrowRightIcon className="ml-2" />

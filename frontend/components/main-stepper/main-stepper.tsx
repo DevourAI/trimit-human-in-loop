@@ -16,7 +16,6 @@ import {
   revertStepToInBackend,
   step,
 } from '@/lib/api';
-import {stepData} from '@/lib/data';
 import {decodeStreamAsJSON} from '@/lib/streams';
 import {
   GetLatestStateParams,
@@ -40,13 +39,11 @@ function stepIndexFromState(state: GetLatestState): number {
   if (!state.all_steps) {
     throw new Error("state does not contain all_steps")
   }
-  if (state && state.next_step) {
+  if (state && state.last_step) {
     return stepIndexFromName(
-      state.next_step.step_name,
+      state.last_step.step_name,
       state.all_steps,
     );
-  } else if (state && state.last_step) {
-    return -1;
   }
   return 0;
 }
@@ -83,10 +80,10 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     Record<string, any>
   >({});
   const [latestExportCallId, setLatestExportCallId] = useState<string>('');
-  const [finalResult, setFinalResult] = useState<Record<string, any>>({});
   const [finalStepResult, setFinalStepResult] = useState<CutTranscriptLinearWorkflowStepOutput | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [backendMessage, setBackendMessage] = useState<string>('');
+  const [currentStepFormValues, setCurrentStepFormValues] = useState<z.infer<typeof FormSchema>>({});
   const [hasCompletedAllSteps, setHasCompletedAllSteps] =
     useState<boolean>(false);
 
@@ -111,6 +108,7 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
       let stepIndex = 0;
       try {
         stepIndex = stepIndexFromState(data);
+        console.log("stepIndex", stepIndex)
       } catch (error) {
         console.log(error)
       }
@@ -203,20 +201,39 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     setIsLoading(false);
   }
 
-  async function onSubmit(
+  async function advanceStep(
+    stepIndex: number
+  ) {
+    setIsLoading(true);
+    if (trueStepIndex > stepIndex) {
+      // TODO send name of step and have backend to reversions
+      const success = await revertStepTo(stepIndex);
+      if (!success) {
+        setIsLoading(false);
+        return;
+      }
+    }
+    const params: StepParams = {
+      user_input:
+        currentStepFormValues.feedback !== undefined && currentStepFormValues.feedback !== null
+          ? currentStepFormValues.feedback
+          : '',
+      streaming: true,
+      force_restart: false,
+      ignore_running_workflows: true,
+      retry_step: false,
+      ...userParams,
+    };
+    await step(params, handleStepStream);
+  }
+
+  async function retryStep(
     stepIndex: number,
-    retry: boolean,
     data: z.infer<typeof FormSchema>
   ) {
     setIsLoading(true);
     if (trueStepIndex > stepIndex) {
-      let success = false;
-      if (retry) {
-        success = await revertStepTo(stepIndex + 1);
-      } else {
-        success = await revertStepTo(stepIndex);
-      }
-      console.log('success', success);
+      const success = await revertStepTo(stepIndex + 1);
       if (!success) {
         setIsLoading(false);
         return;
@@ -230,16 +247,16 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
       streaming: true,
       force_restart: false,
       ignore_running_workflows: true,
-      retry_step: retry,
+      retry_step: true,
       ...userParams,
     };
     await step(params, handleStepStream);
   }
 
+
   async function restart() {
     setIsLoading(true);
     activePromptDispatch({type: 'restart', value: ''});
-    setFinalResult({});
     setFinalStepResult(null);
     await resetWorkflow(userParams as ResetWorkflowParams);
     const newState = await getLatestState(userParams as GetLatestStateParams);
@@ -251,7 +268,6 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
   async function revertStep(toBeforeRetries: boolean) {
     setIsLoading(true);
     activePromptDispatch({type: 'restart', value: ''});
-    setFinalResult({});
     setFinalStepResult(null);
     await revertStepInBackend({
       to_before_retries: toBeforeRetries,
@@ -279,7 +295,6 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     console.log('in revertStepTo success', success);
     if (success) {
       activePromptDispatch({type: 'restart', value: ''});
-      setFinalResult({});
       const latestState = await getLatestState(
         userParams as GetLatestStateParams
       );
@@ -294,10 +309,6 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     await revertStep(false);
   }
 
-  async function undoLastStepBeforeRetries() {
-    await revertStep(true);
-  }
-
   async function prevStepWrapper() {
     if (currentStepIndex === 0 || isLoading || !latestState?.all_steps) {
       return;
@@ -310,15 +321,19 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     );
   }
   async function nextStepWrapper() {
-    if (currentStepIndex >= trueStepIndex || isLoading || !latestState?.all_steps) {
+    if (isLoading || !latestState?.all_steps || currentStepIndex > trueStepIndex) {
       return;
     }
     setCurrentStepIndex(currentStepIndex + 1);
     const currentStepName = latestState.all_steps[currentStepIndex + 1].name;
     activePromptDispatch({type: 'restart', value: ''});
-    setFinalStepResult(
-      await getStepOutput({step_name: currentStepName, ...userParams})
-    );
+    if (currentStepIndex == trueStepIndex) {
+      await advanceStep(currentStepIndex,)
+    } else {
+      setFinalStepResult(
+        await getStepOutput({step_name: currentStepName, ...userParams})
+      );
+    }
   }
 
   return (
@@ -348,12 +363,14 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
                 <div className="grid w-full gap-2">
                   <StepperForm
                     systemPrompt={activePrompt}
+                    backendMessage={backendMessage}
                     isLoading={isLoading}
                     prompt={userFeedbackRequest}
                     stepIndex={index}
-                    onSubmit={onSubmit}
+                    onRetry={retryStep}
                     userParams={userParams}
                     step={step}
+                    handleFormValueChange={setCurrentStepFormValues}
                     onCancelStep={() => {
                       throw new Error('Unimplemented');
                     }}
@@ -368,6 +385,7 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
               nextStepWrapper={nextStepWrapper}
               undoLastStep={undoLastStep}
               hasCompletedAllSteps={hasCompletedAllSteps}
+              totalNSteps={latestState.all_steps.length}
             />
           </Stepper>
           : null
