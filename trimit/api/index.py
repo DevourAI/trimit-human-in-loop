@@ -4,13 +4,14 @@ import asyncio
 import json
 from datetime import datetime
 from pathlib import Path
+from torch import export
+import yaml
 
-from pydantic import BaseModel, EmailStr
+from pydantic import EmailStr
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter
 from beanie.operators import In
-from sqlalchemy import over
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
 from fastapi import (
@@ -19,12 +20,31 @@ from fastapi import (
     UploadFile,
     File,
     Request,
+    Response,
     Query,
     HTTPException,
     Depends,
 )
+from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
+from trimit.backend.models import (
+    CallStatus,
+    VideoProcessingStatus,
+    ExportableStepInfo,
+    UploadVideo,
+    UploadedVideo,
+    GetLatestState,
+    GetStepOutputs,
+    GetVideoProcessingStatus,
+    CheckFunctionCallResults,
+    CutTranscriptLinearWorkflowStepOutput,
+    PartialBackendOutput,
+    PartialLLMOutput,
+    CutTranscriptLinearWorkflowStreamingOutput,
+    Steps,
+    ExportableStepWrapper,
+)
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
@@ -129,16 +149,37 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
 
 async def get_current_workflow(
     timeline_name: str | None = None,
-    length_seconds: int | None = None,
+    length_seconds: int | None = Query(
+        None, description="desired final length of video"
+    ),
     user: User | None = Depends(maybe_user_wrapper),
     video_hash: str | None = None,
     user_id: str | None = None,
     video_id: str | None = None,
-    wait_until_done_running: bool = False,
-    block_until: bool = False,
-    timeout: float = 5,
-    wait_interval: float = 0.1,
-    force_restart: bool = False,
+    wait_until_done_running: bool = Query(
+        False,
+        description="If True, block returning a workflow until workflow is done running its current step",
+    ),
+    timeout: float = Query(
+        5,
+        description="Timeout until continuing without waiting if wait_until_done_running=True",
+    ),
+    wait_interval: float = Query(
+        0.1,
+        description="poll interval to wait for workflow step to finish if wait_until_done_running=True",
+    ),
+    force_restart: bool = Query(False, description="Force a fresh workflow state"),
+    export_video: bool = Query(
+        True, description="export mp4 videos after relevant steps"
+    ),
+    volume_dir: str = Query(
+        None,
+        description="mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests",
+    ),
+    output_folder: str = Query(
+        None,
+        description="mounted directory serving as root for exports. Only provide this parameter in tests",
+    ),
 ):
     if timeline_name is None or length_seconds is None or user is None:
         return None
@@ -152,10 +193,12 @@ async def get_current_workflow(
             video_id=video_id,
             with_output=True,
             wait_until_done_running=wait_until_done_running,
-            block_until=block_until,
             timeout=timeout,
             wait_interval=wait_interval,
             force_restart=force_restart,
+            export_video=export_video,
+            volume_dir=volume_dir,
+            output_folder=output_folder,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -167,32 +210,70 @@ def frontend_server():
     return web_app
 
 
-@web_app.get("/get_step_outputs")
+@web_app.get("/openapi.yaml", include_in_schema=False)
+async def get_openapi_yaml():
+    openapi_schema = get_openapi(
+        openapi_version="3.0.0",
+        title="TrimIt API",
+        version="0.0.1",
+        description="API documentation",
+        routes=web_app.routes,
+    )
+    yaml_schema = yaml.safe_dump(openapi_schema, sort_keys=False)
+    return Response(content=yaml_schema, media_type="application/x-yaml")
+
+
+@web_app.get(
+    "/get_step_outputs",
+    response_model=GetStepOutputs,
+    tags=["Steps"],
+    summary="Get specific outputs for a given workflow and list of steps",
+    description="TODO",
+)
 async def get_step_outputs(
-    step_keys: str,
+    step_keys: str | None = Query(
+        None,
+        description="Step keys in format `step_name.substep_name`, comma-separated",
+    ),
+    step_names: str | None = Query(
+        None,
+        description="Step names (no substeps), comma-separated. If provided instead of step_keys, the last substep of each step will be returned",
+    ),
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     latest_retry: bool = False,
 ):
-
-    step_keys = step_keys.split(",")
-
     if not workflow:
         raise HTTPException(status_code=400, detail="Workflow not found")
-    return {
-        "outputs": await workflow.get_output_for_keys(
-            step_keys, latest_retry=latest_retry
+
+    if step_keys is not None:
+        return GetStepOutputs(
+            outputs=await workflow.get_output_for_keys(
+                keys=step_keys.split(","), latest_retry=latest_retry
+            )
         )
-    }
+    elif step_names is not None:
+        return GetStepOutputs(
+            outputs=await workflow.get_output_for_names(
+                names=step_names.split(","), latest_retry=latest_retry
+            )
+        )
+    raise ValueError("one of step_keys or step_names must be provided")
 
 
-@web_app.get("/get_all_outputs")
+@web_app.get(
+    "/get_all_outputs",
+    response_model=GetStepOutputs,
+    tags=["Steps"],
+    summary="Get all outputs, ordered earliest to latest in time, for a given workflow",
+    description="TODO",
+)
 async def get_all_outputs(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
     if not workflow:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
-    return await workflow.get_all_outputs()
+    return GetStepOutputs(outputs=await workflow.get_all_outputs())
 
 
 def check_call_status(modal_call_id, timeout: float = 0):
@@ -207,12 +288,18 @@ def check_call_status(modal_call_id, timeout: float = 0):
             result = {"status": "done"}
         else:
             result = {"status": "error", "error": str(e)}
-    return result
+    return CallStatus(call_id=modal_call_id, **result)
 
 
 # frontend should poll for this
 # sometime in the future we can use kafka or pubsub to push to frontend
-@web_app.get("/get_video_processing_status")
+@web_app.get(
+    "/get_video_processing_status",
+    response_model=GetVideoProcessingStatus,
+    tags=["FunctionCalls"],
+    summary="Get status of video processing jobs",
+    description="TODO",
+)
 async def get_video_processing_status(
     user: User = Depends(find_or_create_user),
     video_hashes: list[str] | None = None,
@@ -238,25 +325,33 @@ async def get_video_processing_status(
         check_call_status(call_id, timeout=timeout) if call_id else None
         for call_id in call_ids
     ]
-    expanded_statuses = []
-    for video_hash, status in zip(video_hashes, statuses):
+    statuses = []
+    for call_id, video_hash, status in zip(call_ids, video_hashes, statuses):
         if status is None:
-            status = {"status": "done"}
-        elif status["status"] == "done":
+            status = CallStatus(call_id=call_id, status="done")
+        elif status.status == "done":
             if (user.email, video_hash) in video_processing_call_ids:
                 try:
                     del video_processing_call_ids[(user.email, video_hash)]
                 except KeyError:
                     # TODO not sure why this happens since we check the key on the previous line
                     video_processing_call_ids[(user.email, video_hash)] = None
-        status["video_hash"] = video_hash
-        expanded_statuses.append(status)
-    return {"result": expanded_statuses}
+        video_processing_status = VideoProcessingStatus.from_call_status(
+            status, video_hash
+        )
+        statuses.append(video_processing_status)
+    return GetVideoProcessingStatus(statuses=statuses)
 
 
 # frontend should poll for this
 # sometime in the future we can use kafka or pubsub to push to frontend
-@web_app.get("/check_function_call_results")
+@web_app.get(
+    "/check_function_call_results",
+    response_model=CheckFunctionCallResults,
+    tags=["FunctionCalls"],
+    summary="Check the status of modal function calls",
+    description="TODO",
+)
 async def check_function_call_results(modal_call_ids: list[str], timeout: float = 0):
     statuses = await asyncio.gather(
         *[
@@ -264,16 +359,48 @@ async def check_function_call_results(modal_call_ids: list[str], timeout: float 
             for call_id in modal_call_ids
         ]
     )
-    return {"result": statuses}
+    return CheckFunctionCallResults(statuses=statuses)
 
 
-@web_app.get("/step")
+@web_app.get(
+    "/step",
+    response_model=CutTranscriptLinearWorkflowStreamingOutput,
+    tags=["Steps"],
+    summary="Run next step",
+    description="""
+This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON.
+The chunk JSONs are each "instances" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class.
+The wrapper class includes several type variants, only one of which will be non-null at a time.
+
+The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed.
+Along the way, partial output will be streamed to the client.
+These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`).
+While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing.
+The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`,
+which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`.
+However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client,
+and the backend will continue on without waiting for feedback.
+The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
+""",
+)
 def step_endpoint(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    user_input: str | None = None,
-    streaming: bool = False,
-    ignore_running_workflows: bool = False,
-    retry_step: bool = False,
+    user_input: str | None = Query(
+        None,
+        description="string conversational input from the user that will be provided to the underlying LLM",
+    ),
+    streaming: bool = Query(
+        True,
+        description="If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran",
+    ),
+    ignore_running_workflows: bool = Query(
+        False,
+        description="If True, run this workflow's step even if it is already running. May lead to race conditions in underlying database",
+    ),
+    retry_step: bool = Query(
+        False,
+        description="If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output",
+    ),
 ):
     step_params = {
         "workflow": workflow,
@@ -285,35 +412,65 @@ def step_endpoint(
     from trimit.backend.serve import step as step_function
 
     print(f"Starting step with params: {step_params}")
-    if streaming:
+    if not streaming:
+        step_function.spawn(**step_params)
+    else:
 
         async def streamer():
-            yield json.dumps({"message": "Running step...\n", "is_last": False}) + "\n"
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                partial_backend_output=PartialBackendOutput(value="Running step...")
+            ).model_dump_json()
             if is_local():
                 method = step_function.local
             else:
                 method = step_function.remote_gen.aio
+
+            last_result = None
             async for partial_result, is_last in method(**step_params):
-                if isinstance(partial_result, BaseModel):
-                    yield json.dumps(
-                        {
-                            "result": json.loads(partial_result.model_dump_json()),
-                            "is_last": is_last,
-                        }
-                    ) + "\n"
+                if last_result is not None:
+                    if last_result.user_feedback_request:
+                        raise ValueError(
+                            "Step loop should not continue after a feedback request"
+                        )
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_step_output=last_result
+                    ).model_dump_json()
+                    last_result = None
+                if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
+                    if not is_last:
+                        raise ValueError(
+                            "step result should be CutTranscriptLinearWorkflowStepOutput if is_last is True"
+                        )
+                    if partial_result.user_feedback_request:
+                        last_result = partial_result
+                elif isinstance(partial_result, PartialLLMOutput):
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_llm_output=partial_result
+                    ).model_dump_json()
+                elif isinstance(partial_result, PartialBackendOutput):
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_backend_output=partial_result
+                    ).model_dump_json()
                 else:
-                    yield json.dumps(
-                        {"message": partial_result, "is_last": is_last}
-                    ) + "\n"
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Unparseable response from internal step function: {partial_result}",
+                    )
                 await asyncio.sleep(0)
+            if last_result is not None:
+                yield CutTranscriptLinearWorkflowStreamingOutput(
+                    final_step_output=last_result
+                ).model_dump_json()
 
-        return StreamingResponse(streamer(), media_type="text/event-stream")
-
-    else:
-        step_function.spawn(**step_params)
+        return StreamingResponse(streamer(), media_type="application/json")
 
 
-@web_app.get("/reset_workflow")
+@web_app.get(
+    "/reset_workflow",
+    tags=["Workflows"],
+    summary="Reset a workflow to initial state",
+    description="TODO",
+)
 async def reset_workflow(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
@@ -324,10 +481,18 @@ async def reset_workflow(
     print(f"Workflow {workflow.id} reset")
 
 
-@web_app.get("/revert_workflow_step")
+@web_app.get(
+    "/revert_workflow_step",
+    tags=["Workflows"],
+    summary="Revert a workflow one step",
+    description="TODO",
+)
 async def revert_workflow_step(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    to_before_retries: bool = False,
+    to_before_retries: bool = Query(
+        False,
+        description="If True, revert to before any retries. Otherwise, revert to the most recent retry",
+    ),
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
@@ -336,55 +501,87 @@ async def revert_workflow_step(
     print(f"Workflow {workflow.id} reverted")
 
 
-@web_app.get("/revert_workflow_step_to")
+@web_app.get(
+    "/revert_workflow_step_to",
+    tags=["Workflows"],
+    summary="Revert a workflow to a particular step/substep",
+    description="TODO",
+)
 async def revert_workflow_step_to(
     step_name: str,
-    substep_name: str,
+    substep_name: str | None = Query(
+        None, description="if not provided, assume the first substep"
+    ),
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
     print(f"Reverting workflow {workflow.id}")
+    matching = [s for s in workflow.steps if s.name == step_name]
+    if len(matching) == 0:
+        raise HTTPException(status_code=400, detail=f"step named {step_name} not found")
+    substep_name = matching[0].substeps[0].name
     await workflow.revert_step_to_before(step_name, substep_name)
     print(f"Workflow {workflow.id} reverted to {step_name}.{substep_name}")
 
 
-@web_app.get("/get_latest_state")
-async def get_latest_state(
-    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    with_output: bool = False,
+@web_app.get(
+    "/all_steps",
+    tags=["Workflows"],
+    response_model=list[ExportableStepWrapper],
+    summary="Get ordered, detailed description of each step for a workflow",
+    description="These will be very similar for each workflow. The only current difference is in the number of stages.",
+)
+async def get_all_steps(
+    workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
 ):
-    print("got workflow in get_latest_state")
+    return workflow.steps.to_exportable()
+
+
+@web_app.get(
+    "/get_latest_state",
+    tags=["Workflows"],
+    response_model=GetLatestState,
+    summary="Get the latest state of a workflow",
+    description="TODO",
+)
+async def get_latest_state(
+    workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
+    with_output: bool = Query(
+        False, description="if True, return the most recent step output"
+    ),
+    with_all_steps: bool = Query(
+        True, description="if True, return the Steps object of all the workflow's steps"
+    ),
+):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
     last_step_obj = await workflow.get_last_substep_with_user_feedback(
         with_load_state=False
     )
-    print("got last step obj")
-    last_step_dict = last_step_obj.to_dict() if last_step_obj else None
-    print("got last step dict")
+    if last_step_obj is not None:
+        last_step_obj = last_step_obj.to_exportable()
     next_step_obj = await workflow.get_next_substep_with_user_feedback(
         with_load_state=False
     )
-    print("got next step obj")
-    next_step_dict = next_step_obj.to_dict() if next_step_obj else None
-    print("got next step dict")
-
-    return_dict = {
-        "last_step": last_step_dict,
-        "next_step": next_step_dict,
-        "all_steps": workflow.serializable_steps,
-        "video_id": str(workflow.video.id),
-        "user_id": str(workflow.user.id),
-        "user_messages": workflow.user_messages,
-        "step_history_state": workflow.serializable_state_step_order,
-    }
-    print("got return dict")
+    if next_step_obj is not None:
+        next_step_obj = next_step_obj.to_exportable()
+    output = GetLatestState(
+        last_step=last_step_obj,
+        next_step=next_step_obj,
+        video_id=str(workflow.video.id),
+        user_id=str(workflow.user.id),
+        user_messages=workflow.user_messages,
+        step_history_state=workflow.serializable_state_step_order,
+        all_steps=None,
+        output=None,
+    )
+    if with_all_steps:
+        output.all_steps = workflow.steps.to_exportable()
     if with_output:
-        return_dict["output"] = await workflow.get_last_output(with_load_state=False)
-        print("got return dict output")
-    return return_dict
+        output.output = await workflow.get_last_output(with_load_state=False)
+    return output
 
 
 @web_app.get("/download_transcript_text")
@@ -622,22 +819,36 @@ async def uploaded_video_hashes(
     }
 
 
-@web_app.get("/uploaded_videos")
+@web_app.get(
+    "/uploaded_videos",
+    response_model=list[UploadedVideo],
+    tags=["Videos"],
+    summary="Get information about a user's uploaded videos",
+    description="TODO",
+)
 async def uploaded_videos(user: User = Depends(find_or_create_user)):
     await maybe_init_mongo()
-    return [
-        {
-            "filename": video.high_res_user_file_path,
-            "video_hash": video.md5_hash,
-            "path": video.path(get_volume_dir()),
-        }
+    data = [
+        UploadedVideo(
+            filename=video.high_res_user_file_path,
+            video_hash=video.md5_hash,
+            path=video.path(get_volume_dir()),
+        )
         for video in await Video.find(Video.user.email == user.email)
         .project(VideoFileProjection)
         .to_list()
     ]
+    print("uploaded_videos:", data)
+    return data
 
 
-@web_app.post("/upload")
+@web_app.post(
+    "/upload",
+    response_model=UploadVideo,
+    tags=["UploadVideo"],
+    summary="Upload a video",
+    description="TODO",
+)
 async def upload_multiple_files(
     files: list[UploadFile] = File(...),
     user: User = Depends(form_user_dependency),
@@ -732,7 +943,7 @@ async def upload_multiple_files(
             }
         )
     if len(video_details) == 0:
-        return {"result": "success", "messages": resp_msgs}
+        return UploadVideo(result="success", messages=resp_msgs)
 
     to_process = []
     async with BulkWriter() as bulk_writer:
@@ -764,8 +975,8 @@ async def upload_multiple_files(
             call.object_id
         )
 
-    return {
-        "result": "success",
-        "processing_call_id": call.object_id,
-        "video_hashes": [video_detail["video_hash"] for video_detail in video_details],
-    }
+    return UploadVideo(
+        result="success",
+        processing_call_id=call.object_id,
+        video_hashes=[video_detail["video_hash"] for video_detail in video_details],
+    )

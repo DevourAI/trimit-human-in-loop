@@ -1,11 +1,11 @@
 'use client';
 
-import { zodResolver } from '@hookform/resolvers/zod';
-import { ChangeEvent, useState } from 'react';
-import { useForm } from 'react-hook-form';
-import { z } from 'zod';
+import {zodResolver} from '@hookform/resolvers/zod';
+import {ChangeEvent, useState} from 'react';
+import {useForm} from 'react-hook-form';
+import {z} from 'zod';
 
-import { Button } from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
 import ExportStepMenu from '@/components/ui/export-step-menu';
 import {
   Form,
@@ -15,10 +15,13 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { Textarea } from '@/components/ui/textarea';
-import { StepInfo } from '@/lib/types';
-import { ReloadIcon } from '@radix-ui/react-icons';
+import {LoadingSpinner} from '@/components/ui/loading-spinner';
+import {Textarea} from '@/components/ui/textarea';
+import {ReloadIcon} from '@radix-ui/react-icons';
+import {
+  ExportableStepWrapper,
+} from '@/gen/openapi/api'
+
 
 export const FormSchema = z.object({
   feedback: z.optional(z.string()),
@@ -29,7 +32,7 @@ interface StepperFormProps {
   isLoading: boolean;
   stepIndex: number;
   userParams: any;
-  step: StepInfo;
+  step: ExportableStepWrapper;
   prompt: string;
   onSubmit: (
     stepIndex: number,
@@ -81,7 +84,7 @@ export function StepperForm({
           <FormField
             control={form.control}
             name="feedback"
-            render={({ field }) => {
+            render={({field}) => {
               const originalOnChange = field.onChange;
               field.onChange = (event) => {
                 handleTextAreaChange(event);
@@ -123,7 +126,7 @@ export function StepperForm({
               </Button>
               <ExportStepMenu
                 userParams={userParams}
-                stepName={step.step_name}
+                stepName={step.name}
                 substepName={step.name}
               />
             </div>

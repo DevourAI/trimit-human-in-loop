@@ -10,7 +10,12 @@ from pathlib import Path
 from typing import Union
 import asyncio
 from tqdm.asyncio import tqdm as tqdm_async
-from trimit.backend.models import Transcript, TranscriptChunk
+from trimit.backend.models import (
+    Transcript,
+    TranscriptChunk,
+    PartialLLMOutput,
+    FinalLLMOutput,
+)
 from trimit.backend.image import image
 from trimit.backend.memory import load_memory
 from trimit.utils.prompt_engineering import load_prompt_template_as_string
@@ -261,8 +266,12 @@ async def get_agent_output(
     if from_cache and cache_key in AGENT_OUTPUT_CACHE:
         last_output, outputs = AGENT_OUTPUT_CACHE[cache_key]
         for _output in outputs:
-            yield _output, False
-        yield last_output, True
+            yield PartialLLMOutput(value=_output), False
+        if isinstance(last_output, str):
+            yield FinalLLMOutput(str_value=last_output), True
+        else:
+            assert isinstance(last_output, dict)
+            yield FinalLLMOutput(json_value=last_output), True
         return
 
     async_gen = get_agent_output_no_cache(
@@ -281,7 +290,7 @@ async def get_agent_output(
         outputs = []
         async for output_chunk in async_gen:
             if isinstance(output_chunk, str):
-                yield output_chunk, False
+                yield PartialLLMOutput(value=output_chunk), False
             outputs.append(output_chunk)
         output = None
         if len(outputs):
@@ -290,7 +299,11 @@ async def get_agent_output(
         output, outputs = await async_gen.__anext__()
 
     AGENT_OUTPUT_CACHE[cache_key] = (output, outputs)
-    yield output, True
+    if isinstance(output, str):
+        yield FinalLLMOutput(str_value=output), True
+    else:
+        assert isinstance(output, dict)
+        yield FinalLLMOutput(json_value=output), True
 
 
 @rate_limited(0.5)

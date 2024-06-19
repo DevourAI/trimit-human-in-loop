@@ -1,4 +1,4 @@
-import { type StepItem } from '@/components/ui/stepper';
+import {type StepItem} from '@/components/ui/stepper';
 
 export interface CommonAPIParams {
   user_email: string;
@@ -16,7 +16,7 @@ export interface StepParams extends CommonAPIParams {
 }
 
 export interface StepOutputParams extends CommonAPIParams {
-  step_keys: string; // comma separated
+  step_name: string;
   latest_retry?: boolean;
 }
 
@@ -33,7 +33,6 @@ export interface RevertStepParams extends CommonAPIParams {
 
 export interface RevertStepToParams extends CommonAPIParams {
   step_name: string;
-  substep_name: string;
 }
 
 export interface ResetWorkflowParams extends CommonAPIParams {}

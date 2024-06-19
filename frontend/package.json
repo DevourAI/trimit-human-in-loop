@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "openapi": "openapi-generator-cli generate -i /local/docs/openapi.yaml -g typescript-axios -o /local/gen/openapi --additional-properties=withInterfaces=true"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.2",
@@ -52,6 +53,7 @@
   },
   "packageManager": "yarn@4.2.2",
   "devDependencies": {
+    "@openapitools/openapi-generator-cli": "^2.13.4",
     "@types/debug": "^4",
     "@types/js-cookie": "^3",
     "@types/jsonwebtoken": "^9",
