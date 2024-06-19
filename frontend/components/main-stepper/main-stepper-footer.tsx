@@ -4,10 +4,10 @@ import {
   ArrowRightIcon,
   ResetIcon,
 } from '@radix-ui/react-icons';
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 
-import {Button} from '@/components/ui/button';
-import {useStepper} from '@/components/ui/stepper';
+import { Button } from '@/components/ui/button';
+import { useStepper } from '@/components/ui/stepper';
 
 export interface FooterProps {
   prevStepWrapper: () => void;
