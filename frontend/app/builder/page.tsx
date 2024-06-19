@@ -1,13 +1,14 @@
 'use client';
-import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useEffect } from 'react';
+import {useRouter, useSearchParams} from 'next/navigation';
+import React, {useEffect} from 'react';
 
 import AppShell from '@/components/layout/app-shell';
 import MainStepper from '@/components/main-stepper/main-stepper';
-import { useUser } from '@/contexts/user-context';
+import {StepperFormProvider} from '@/contexts/stepper-form-context';
+import {useUser} from '@/contexts/user-context';
 
 export default function Builder() {
-  const { isLoggedIn, isLoading } = useUser();
+  const {isLoggedIn, isLoading} = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
   const videoHash = searchParams.get('videoHash');
@@ -26,7 +27,9 @@ export default function Builder() {
 
   return (
     <AppShell title="Builder">
-      <MainStepper videoHash={videoHash} />
+      <StepperFormProvider>
+        <MainStepper videoHash={videoHash} />
+      </StepperFormProvider>
     </AppShell>
   );
 }

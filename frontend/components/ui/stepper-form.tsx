@@ -5,8 +5,7 @@ import {ChangeEvent, useState} from 'react';
 import {useForm} from 'react-hook-form';
 import {z} from 'zod';
 
-import {ToastAction} from "@/components/ui/toast"
-import {useToast} from "@/components/ui/use-toast"
+import {useStepperForm} from "@/contexts/stepper-form-context";
 import {Button} from '@/components/ui/button';
 import ExportStepMenu from '@/components/ui/export-step-menu';
 import {
@@ -41,28 +40,22 @@ interface StepperFormProps {
     stepIndex: number,
     data: z.infer<typeof FormSchema>
   ) => void;
-  handleFormValueChange: (
-    data: z.infer<typeof FormSchema>
-  ) => void;
   onCancelStep?: () => void;
 }
 
 export function StepperForm({
   systemPrompt,
-  backendMessage,
   isLoading,
   stepIndex,
   userParams,
   step,
   prompt,
   onRetry,
-  handleFormValueChange,
   onCancelStep,
 }: StepperFormProps) {
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
-  const {toast} = useToast()
   const [textAreaValue, setTextAreaValue] = useState<string>('');
   const [prevUserMessage, setPrevUserMessage] = useState<string>('');
 
@@ -76,15 +69,7 @@ export function StepperForm({
     setTextAreaValue(event.target.value);
   };
 
-  if (backendMessage) {
-    toast({
-      title: backendMessage,
-      // description: "Friday, February 10, 2023 at 5:57 PM",
-      // action: (
-      // <ToastAction altText="Goto schedule to undo">Undo</ToastAction>
-      // ),
-    })
-  }
+  const {handleFormValueChange} = useStepperForm();
 
   return (
     <div className="relative p-3">
@@ -101,6 +86,7 @@ export function StepperForm({
               const originalOnChange = field.onChange;
               field.onChange = (event) => {
                 handleTextAreaChange(event);
+
                 handleFormValueChange(form.getValues());
                 originalOnChange(event);
               };

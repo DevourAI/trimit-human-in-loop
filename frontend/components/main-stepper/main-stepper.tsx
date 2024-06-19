@@ -8,6 +8,8 @@ import {Button} from '@/components/ui/button';
 import {Step, Stepper} from '@/components/ui/stepper';
 import {FormSchema, StepperForm} from '@/components/ui/stepper-form';
 import {useUser} from '@/contexts/user-context';
+import {useStepperForm} from '@/contexts/stepper-form-context';
+import {useToast} from "@/components/ui/use-toast";
 import {
   getLatestState,
   getStepOutput,
@@ -72,6 +74,8 @@ function stepNameFromIndex(allSteps: Array<ExportableStepWrapper>, stepIndex: nu
 
 export default function MainStepper({videoHash}: {videoHash: string}) {
   const {userData} = useUser();
+  const {stepperFormValues} = useStepperForm();
+  const {toast} = useToast()
   const [latestState, setLatestState] = useState<GetLatestState | null>(null);
   const [userFeedbackRequest, setUserFeedbackRequest] = useState<string>('');
   const [trueStepIndex, setTrueStepIndex] = useState<number>(0);
@@ -162,6 +166,7 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     const lastValue: CutTranscriptLinearWorkflowStepOutput | null = await decodeStreamAsJSON(
       reader,
       (value: CutTranscriptLinearWorkflowStreamingOutput) => {
+        setIsLoading(false);
         if (value?.partial_step_output) {
           let output = value.partial_step_output
           console.log("partial step output", output)
@@ -170,11 +175,15 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
               output.step_name,
               latestState.all_steps,
             );
-            setTrueStepIndex(stepIndex);
-            setCurrentStepIndex(stepIndex);
-            if (output.export_result) {
+            if (stepIndex !== trueStepIndex) {
+              setTrueStepIndex(stepIndex);
+            }
+            if (stepIndex !== currentStepIndex) {
+              setCurrentStepIndex(stepIndex);
+            }
+            if (output.export_result && output.export_result != latestExportResult) {
               setLatestExportResult(output.export_result);
-            } else if (output.export_call_id) {
+            } else if (output.export_call_id && output.export_call_id != latestExportCallId) {
               setLatestExportCallId(output.export_call_id);
             }
           }
@@ -190,12 +199,12 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
           console.log("partial llm output", output)
           if (output.chunk === null || output.chunk == 0) {
             activePromptDispatch({type: 'append', value: output.value});
+            //  TODO: for some reason this is not triggering StepperForm+systemPrompt to reload
           }
         }
       }
     )
     setFinalStepResult(lastValue);
-    setIsLoading(false);
   }
 
   async function advanceStep(
@@ -212,8 +221,8 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     }
     const params: StepParams = {
       user_input:
-        currentStepFormValues.feedback !== undefined && currentStepFormValues.feedback !== null
-          ? currentStepFormValues.feedback
+        stepperFormValues.feedback !== undefined && stepperFormValues.feedback !== null
+          ? stepperFormValues.feedback
           : '',
       streaming: true,
       force_restart: false,
@@ -221,13 +230,20 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
       retry_step: false,
       ...userParams,
     };
-    await step(params, handleStepStream);
+    try {
+      await step(params, handleStepStream);
+    } catch (error) {
+      console.error("error in step", error)
+    }
   }
 
   async function retryStep(
     stepIndex: number,
     data: z.infer<typeof FormSchema>
   ) {
+    console.log("passed form data", data)
+    console.log("form context data", stepperFormValues)
+    // TODO: stepperFormValues.feedback is cut off- doesn't include last character
     setIsLoading(true);
     if (trueStepIndex > stepIndex) {
       const success = await revertStepTo(stepIndex + 1);
@@ -247,7 +263,11 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
       retry_step: true,
       ...userParams,
     };
-    await step(params, handleStepStream);
+    try {
+      await step(params, handleStepStream);
+    } catch (error) {
+      console.error("error in step", error)
+    }
   }
 
 
@@ -333,6 +353,19 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     }
   }
 
+  useEffect(() => {
+    toast({
+      title: backendMessage,
+      // description: "Friday, February 10, 2023 at 5:57 PM",
+      // action: (
+      // <ToastAction altText="Goto schedule to undo">Undo</ToastAction>
+      // ),
+    })
+
+  }, [backendMessage]);
+
+
+
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
@@ -360,14 +393,12 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
                 <div className="grid w-full gap-2">
                   <StepperForm
                     systemPrompt={activePrompt}
-                    backendMessage={backendMessage}
                     isLoading={isLoading}
                     prompt={userFeedbackRequest}
                     stepIndex={index}
                     onRetry={retryStep}
                     userParams={userParams}
                     step={step}
-                    handleFormValueChange={setCurrentStepFormValues}
                     onCancelStep={() => {
                       throw new Error('Unimplemented');
                     }}
