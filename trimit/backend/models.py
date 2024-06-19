@@ -1462,7 +1462,12 @@ class Soundbites(Transcript):
             end_word_index=end_word_index,
         )
         assert soundbite.start_segment_index in self.transcript.kept_segments
-        assert soundbite.end_segment_index in self.transcript.kept_segments
+        if end_word_index:
+            assert soundbite.end_segment_index in self.transcript.kept_segments
+        else:
+            assert soundbite.end_segment_index - 1 in self.transcript.kept_segments
+        soundbite.start_word_index = soundbite.start_word_index or 0
+
         start_seg = self.transcript.segments[soundbite.start_segment_index]
         start_seg.cut_segments = [
             cut_seg
@@ -1478,21 +1483,22 @@ class Soundbites(Transcript):
             start_seg.cut_segments[-1] = last_cut_seg
         start_seg.cut(soundbite.start_word_index, len(start_seg.words))
 
-        end_seg = self.transcript.segments[soundbite.end_segment_index]
-        # TODO need better interface to cut
-        end_seg.cut_segments = [
-            cut_seg
-            for cut_seg in end_seg.cut_segments
-            if cut_seg[-1] >= soundbite.end_word_index
-        ]
-        if (
-            end_seg.cut_segments
-            and end_seg.cut_segments[0][0] < soundbite.end_word_index
-        ):
-            first_cut_seg = end_seg.cut_segments[0]
-            first_cut_seg = (soundbite.end_word_index, first_cut_seg[1])
-            end_seg.cut_segments[0] = first_cut_seg
-        end_seg.cut(0, soundbite.end_word_index)
+        if soundbite.end_word_index:
+            end_seg = self.transcript.segments[soundbite.end_segment_index]
+            # TODO need better interface to cut
+            end_seg.cut_segments = [
+                cut_seg
+                for cut_seg in end_seg.cut_segments
+                if cut_seg[-1] >= soundbite.end_word_index
+            ]
+            if (
+                end_seg.cut_segments
+                and end_seg.cut_segments[0][0] < soundbite.end_word_index
+            ):
+                first_cut_seg = end_seg.cut_segments[0]
+                first_cut_seg = (soundbite.end_word_index, first_cut_seg[1])
+                end_seg.cut_segments[0] = first_cut_seg
+            end_seg.cut(0, soundbite.end_word_index)
 
         self.soundbites.append(soundbite)
         self.soundbites = sorted(
