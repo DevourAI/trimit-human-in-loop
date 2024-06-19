@@ -231,18 +231,33 @@ async def get_openapi_yaml():
     description="TODO",
 )
 async def get_step_outputs(
-    step_keys: str,
+    step_keys: str | None = Query(
+        None,
+        description="Step keys in format `step_name.substep_name`, comma-separated",
+    ),
+    step_names: str | None = Query(
+        None,
+        description="Step names (no substeps), comma-separated. If provided instead of step_keys, the last substep of each step will be returned",
+    ),
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     latest_retry: bool = False,
 ):
-
-    step_keys = step_keys.split(",")
-
     if not workflow:
         raise HTTPException(status_code=400, detail="Workflow not found")
-    return GetStepOutputs(
-        outputs=await workflow.get_output_for_keys(step_keys, latest_retry=latest_retry)
-    )
+
+    if step_keys is not None:
+        return GetStepOutputs(
+            outputs=await workflow.get_output_for_keys(
+                keys=step_keys.split(","), latest_retry=latest_retry
+            )
+        )
+    elif step_names is not None:
+        return GetStepOutputs(
+            outputs=await workflow.get_output_for_names(
+                names=step_names.split(","), latest_retry=latest_retry
+            )
+        )
+    raise ValueError("one of step_keys or step_names must be provided")
 
 
 @web_app.get(
@@ -494,12 +509,18 @@ async def revert_workflow_step(
 )
 async def revert_workflow_step_to(
     step_name: str,
-    substep_name: str,
+    substep_name: str | None = Query(
+        None, description="if not provided, assume the first substep"
+    ),
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
     print(f"Reverting workflow {workflow.id}")
+    matching = [s for s in workflow.steps if s.name == step_name]
+    if len(matching) == 0:
+        raise HTTPException(status_code=400, detail=f"step named {step_name} not found")
+    substep_name = matching[0].substeps[0].name
     await workflow.revert_step_to_before(step_name, substep_name)
     print(f"Workflow {workflow.id} reverted to {step_name}.{substep_name}")
 
@@ -807,7 +828,7 @@ async def uploaded_video_hashes(
 )
 async def uploaded_videos(user: User = Depends(find_or_create_user)):
     await maybe_init_mongo()
-    return [
+    data = [
         UploadedVideo(
             filename=video.high_res_user_file_path,
             video_hash=video.md5_hash,
@@ -817,6 +838,8 @@ async def uploaded_videos(user: User = Depends(find_or_create_user)):
         .project(VideoFileProjection)
         .to_list()
     ]
+    print("uploaded_videos:", data)
+    return data
 
 
 @web_app.post(

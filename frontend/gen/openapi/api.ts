@@ -296,23 +296,16 @@ export interface ExportableStepWrapper {
     'name': string;
     /**
      * 
+     * @type {string}
+     * @memberof ExportableStepWrapper
+     */
+    'human_readable_name': string;
+    /**
+     * 
      * @type {Array<ExportableStepInfo>}
      * @memberof ExportableStepWrapper
      */
     'substeps': Array<ExportableStepInfo>;
-}
-/**
- * 
- * @export
- * @interface ExportableSteps
- */
-export interface ExportableSteps {
-    /**
-     * 
-     * @type {Array<ExportableStepWrapper>}
-     * @memberof ExportableSteps
-     */
-    'steps': Array<ExportableStepWrapper>;
 }
 /**
  * 
@@ -389,10 +382,10 @@ export interface GetLatestState {
     'next_step'?: ExportableStepInfo | null;
     /**
      * 
-     * @type {ExportableSteps}
+     * @type {Array<ExportableStepWrapper>}
      * @memberof GetLatestState
      */
-    'all_steps'?: ExportableSteps | null;
+    'all_steps'?: Array<ExportableStepWrapper> | null;
     /**
      * 
      * @type {CutTranscriptLinearWorkflowStepOutput}
@@ -674,20 +667,22 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadSoundbitesTextDownloadSoundbitesTextGet: async (stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        downloadSoundbitesTextDownloadSoundbitesTextGet: async (stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/download_soundbites_text`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -736,10 +731,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -750,6 +741,18 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -774,20 +777,22 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadTimelineDownloadTimelineGet: async (stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        downloadTimelineDownloadTimelineGet: async (stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/download_timeline`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -836,10 +841,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -850,6 +851,18 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -874,20 +887,22 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadTranscriptTextDownloadTranscriptTextGet: async (stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        downloadTranscriptTextDownloadTranscriptTextGet: async (stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/download_transcript_text`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -936,10 +951,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -950,6 +961,18 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -975,20 +998,22 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        streamVideoVideoGet: async (videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        streamVideoVideoGet: async (videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/video`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1041,10 +1066,6 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -1055,6 +1076,18 @@ export const DefaultApiAxiosParamCreator = function (configuration?: Configurati
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -1173,21 +1206,23 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadSoundbitesTextDownloadSoundbitesTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadSoundbitesTextDownloadSoundbitesTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.downloadSoundbitesTextDownloadSoundbitesTextGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1199,21 +1234,23 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadTimelineDownloadTimelineGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadTimelineDownloadTimelineGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.downloadTimelineDownloadTimelineGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1225,21 +1262,23 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadTranscriptTextDownloadTranscriptTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.downloadTranscriptTextDownloadTranscriptTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.downloadTranscriptTextDownloadTranscriptTextGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1252,21 +1291,23 @@ export const DefaultApiFp = function(configuration?: Configuration) {
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['DefaultApi.streamVideoVideoGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -1316,21 +1357,23 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.downloadSoundbitesTextDownloadSoundbitesTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.downloadSoundbitesTextDownloadSoundbitesTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1339,21 +1382,23 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.downloadTimelineDownloadTimelineGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.downloadTimelineDownloadTimelineGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1362,21 +1407,23 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.downloadTranscriptTextDownloadTranscriptTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.downloadTranscriptTextDownloadTranscriptTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1386,21 +1433,23 @@ export const DefaultApiFactory = function (configuration?: Configuration, basePa
          * @param {string | null} [substepName] 
          * @param {boolean} [stream] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * 
@@ -1440,21 +1489,23 @@ export interface DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApiInterface
      */
-    downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+    downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
     /**
      * 
@@ -1463,21 +1514,23 @@ export interface DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApiInterface
      */
-    downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+    downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
     /**
      * 
@@ -1486,21 +1539,23 @@ export interface DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApiInterface
      */
-    downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+    downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
     /**
      * 
@@ -1510,21 +1565,23 @@ export interface DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApiInterface
      */
-    streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+    streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
     /**
      * 
@@ -1564,22 +1621,24 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).downloadSoundbitesTextDownloadSoundbitesTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public downloadSoundbitesTextDownloadSoundbitesTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).downloadSoundbitesTextDownloadSoundbitesTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1589,22 +1648,24 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).downloadTimelineDownloadTimelineGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public downloadTimelineDownloadTimelineGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).downloadTimelineDownloadTimelineGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1614,22 +1675,24 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).downloadTranscriptTextDownloadTranscriptTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public downloadTranscriptTextDownloadTranscriptTextGet(stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).downloadTranscriptTextDownloadTranscriptTextGet(stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1640,22 +1703,24 @@ export class DefaultApi extends BaseAPI implements DefaultApiInterface {
      * @param {string | null} [substepName] 
      * @param {boolean} [stream] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof DefaultApi
      */
-    public streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return DefaultApiFp(this.configuration).streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public streamVideoVideoGet(videoPath?: string | null, stepName?: string | null, substepName?: string | null, stream?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return DefaultApiFp(this.configuration).streamVideoVideoGet(videoPath, stepName, substepName, stream, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -1933,20 +1998,22 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
          * TODO
          * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getAllOutputsGetAllOutputsGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getAllOutputsGetAllOutputsGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/get_all_outputs`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -1983,10 +2050,6 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -1997,6 +2060,18 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -2020,20 +2095,22 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
          * @param {string} stepKeys 
          * @param {boolean} [latestRetry] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getStepOutputsGetStepOutputsGet: async (stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getStepOutputsGetStepOutputsGet: async (stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'stepKeys' is not null or undefined
             assertParamExists('getStepOutputsGetStepOutputsGet', 'stepKeys', stepKeys)
             const localVarPath = `/get_step_outputs`;
@@ -2080,10 +2157,6 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -2094,6 +2167,18 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -2119,20 +2204,22 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
          * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
          * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        stepEndpointStepGet: async (userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        stepEndpointStepGet: async (userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/step`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2185,10 +2272,6 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -2199,6 +2282,18 @@ export const StepsApiAxiosParamCreator = function (configuration?: Configuration
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -2230,21 +2325,23 @@ export const StepsApiFp = function(configuration?: Configuration) {
          * TODO
          * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetStepOutputs>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetStepOutputs>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['StepsApi.getAllOutputsGetAllOutputsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2255,21 +2352,23 @@ export const StepsApiFp = function(configuration?: Configuration) {
          * @param {string} stepKeys 
          * @param {boolean} [latestRetry] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetStepOutputs>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetStepOutputs>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['StepsApi.getStepOutputsGetStepOutputsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2282,21 +2381,23 @@ export const StepsApiFp = function(configuration?: Configuration) {
          * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
          * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['StepsApi.stepEndpointStepGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -2315,21 +2416,23 @@ export const StepsApiFactory = function (configuration?: Configuration, basePath
          * TODO
          * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<GetStepOutputs> {
-            return localVarFp.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<GetStepOutputs> {
+            return localVarFp.getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * TODO
@@ -2337,21 +2440,23 @@ export const StepsApiFactory = function (configuration?: Configuration, basePath
          * @param {string} stepKeys 
          * @param {boolean} [latestRetry] 
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<GetStepOutputs> {
-            return localVarFp.getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<GetStepOutputs> {
+            return localVarFp.getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON. The chunk JSONs are each \"instances\" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class. The wrapper class includes several type variants, only one of which will be non-null at a time.  The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed. Along the way, partial output will be streamed to the client. These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`). While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing. The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`, which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`. However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client, and the backend will continue on without waiting for feedback. The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
@@ -2361,21 +2466,23 @@ export const StepsApiFactory = function (configuration?: Configuration, basePath
          * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
          * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput> {
-            return localVarFp.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput> {
+            return localVarFp.stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -2390,21 +2497,23 @@ export interface StepsApiInterface {
      * TODO
      * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof StepsApiInterface
      */
-    getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetStepOutputs>;
+    getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetStepOutputs>;
 
     /**
      * TODO
@@ -2412,21 +2521,23 @@ export interface StepsApiInterface {
      * @param {string} stepKeys 
      * @param {boolean} [latestRetry] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof StepsApiInterface
      */
-    getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetStepOutputs>;
+    getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetStepOutputs>;
 
     /**
      * This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON. The chunk JSONs are each \"instances\" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class. The wrapper class includes several type variants, only one of which will be non-null at a time.  The method will call the underlying `step()` method of the workflow until a step is run that needs user feedback to proceed. Along the way, partial output will be streamed to the client. These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`). While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing. The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`, which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`. However, since some substeps do not request user feedback, some of these outputs will be streamed as `partial_step_output` to the client, and the backend will continue on without waiting for feedback. The last output this method produces is always `final_step_output`, which includes a request/prompt for user feedback (`response.final_step_output.user_feedback_request`)
@@ -2436,21 +2547,23 @@ export interface StepsApiInterface {
      * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
      * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof StepsApiInterface
      */
-    stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput>;
+    stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<CutTranscriptLinearWorkflowStreamingOutput>;
 
 }
 
@@ -2465,22 +2578,24 @@ export class StepsApi extends BaseAPI implements StepsApiInterface {
      * TODO
      * @summary Get all outputs, ordered earliest to latest in time, for a given workflow
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof StepsApi
      */
-    public getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return StepsApiFp(this.configuration).getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public getAllOutputsGetAllOutputsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return StepsApiFp(this.configuration).getAllOutputsGetAllOutputsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2489,22 +2604,24 @@ export class StepsApi extends BaseAPI implements StepsApiInterface {
      * @param {string} stepKeys 
      * @param {boolean} [latestRetry] 
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof StepsApi
      */
-    public getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return StepsApiFp(this.configuration).getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public getStepOutputsGetStepOutputsGet(stepKeys: string, latestRetry?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return StepsApiFp(this.configuration).getStepOutputsGetStepOutputsGet(stepKeys, latestRetry, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -2515,22 +2632,24 @@ export class StepsApi extends BaseAPI implements StepsApiInterface {
      * @param {boolean} [ignoreRunningWorkflows] If True, run this workflow\&#39;s step even if it is already running. May lead to race conditions in underlying database
      * @param {boolean} [retryStep] If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof StepsApi
      */
-    public stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return StepsApiFp(this.configuration).stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public stepEndpointStepGet(userInput?: string | null, streaming?: boolean, ignoreRunningWorkflows?: boolean, retryStep?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return StepsApiFp(this.configuration).stepEndpointStepGet(userInput, streaming, ignoreRunningWorkflows, retryStep, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 }
 
@@ -2870,20 +2989,22 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
          * These will be very similar for each workflow. The only current difference is in the number of stages.
          * @summary Get ordered, detailed description of each step for a workflow
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getAllStepsAllStepsGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getAllStepsAllStepsGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/all_steps`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -2920,10 +3041,6 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -2934,6 +3051,18 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -2957,20 +3086,22 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
          * @param {boolean} [withOutput] if True, return the most recent step output
          * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getLatestStateGetLatestStateGet: async (withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        getLatestStateGetLatestStateGet: async (withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/get_latest_state`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3015,10 +3146,6 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -3029,6 +3156,18 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -3050,20 +3189,22 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
          * TODO
          * @summary Reset a workflow to initial state
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        resetWorkflowResetWorkflowGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        resetWorkflowResetWorkflowGet: async (timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/reset_workflow`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3100,10 +3241,6 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -3114,6 +3251,18 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -3136,20 +3285,22 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
          * @summary Revert a workflow one step
          * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        revertWorkflowStepRevertWorkflowStepGet: async (toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        revertWorkflowStepRevertWorkflowStepGet: async (toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             const localVarPath = `/revert_workflow_step`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3190,10 +3341,6 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -3204,6 +3351,18 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -3225,26 +3384,26 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
          * TODO
          * @summary Revert a workflow to a particular step/substep
          * @param {string} stepName 
-         * @param {string} substepName 
+         * @param {string | null} [substepName] if not provided, assume the first substep
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        revertWorkflowStepToRevertWorkflowStepToGet: async (stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
+        revertWorkflowStepToRevertWorkflowStepToGet: async (stepName: string, substepName?: string | null, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options: RawAxiosRequestConfig = {}): Promise<RequestArgs> => {
             // verify required parameter 'stepName' is not null or undefined
             assertParamExists('revertWorkflowStepToRevertWorkflowStepToGet', 'stepName', stepName)
-            // verify required parameter 'substepName' is not null or undefined
-            assertParamExists('revertWorkflowStepToRevertWorkflowStepToGet', 'substepName', substepName)
             const localVarPath = `/revert_workflow_step_to`;
             // use dummy base URL string because the URL constructor only accepts absolute URLs.
             const localVarUrlObj = new URL(localVarPath, DUMMY_BASE_URL);
@@ -3289,10 +3448,6 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
                 localVarQueryParameter['wait_until_done_running'] = waitUntilDoneRunning;
             }
 
-            if (blockUntil !== undefined) {
-                localVarQueryParameter['block_until'] = blockUntil;
-            }
-
             if (timeout !== undefined) {
                 localVarQueryParameter['timeout'] = timeout;
             }
@@ -3303,6 +3458,18 @@ export const WorkflowsApiAxiosParamCreator = function (configuration?: Configura
 
             if (forceRestart !== undefined) {
                 localVarQueryParameter['force_restart'] = forceRestart;
+            }
+
+            if (exportVideo !== undefined) {
+                localVarQueryParameter['export_video'] = exportVideo;
+            }
+
+            if (volumeDir !== undefined) {
+                localVarQueryParameter['volume_dir'] = volumeDir;
+            }
+
+            if (outputFolder !== undefined) {
+                localVarQueryParameter['output_folder'] = outputFolder;
             }
 
             if (userEmail !== undefined) {
@@ -3334,21 +3501,23 @@ export const WorkflowsApiFp = function(configuration?: Configuration) {
          * These will be very similar for each workflow. The only current difference is in the number of stages.
          * @summary Get ordered, detailed description of each step for a workflow
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<ExportableSteps>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<Array<ExportableStepWrapper>>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.getAllStepsAllStepsGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3359,21 +3528,23 @@ export const WorkflowsApiFp = function(configuration?: Configuration) {
          * @param {boolean} [withOutput] if True, return the most recent step output
          * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetLatestState>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<GetLatestState>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.getLatestStateGetLatestStateGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3382,21 +3553,23 @@ export const WorkflowsApiFp = function(configuration?: Configuration) {
          * TODO
          * @summary Reset a workflow to initial state
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.resetWorkflowResetWorkflowGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3406,21 +3579,23 @@ export const WorkflowsApiFp = function(configuration?: Configuration) {
          * @summary Revert a workflow one step
          * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.revertWorkflowStepRevertWorkflowStepGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3429,23 +3604,25 @@ export const WorkflowsApiFp = function(configuration?: Configuration) {
          * TODO
          * @summary Revert a workflow to a particular step/substep
          * @param {string} stepName 
-         * @param {string} substepName 
+         * @param {string | null} [substepName] if not provided, assume the first substep
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        async revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
-            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options);
+        async revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName?: string | null, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): Promise<(axios?: AxiosInstance, basePath?: string) => AxiosPromise<any>> {
+            const localVarAxiosArgs = await localVarAxiosParamCreator.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options);
             const localVarOperationServerIndex = configuration?.serverIndex ?? 0;
             const localVarOperationServerBasePath = operationServerMap['WorkflowsApi.revertWorkflowStepToRevertWorkflowStepToGet']?.[localVarOperationServerIndex]?.url;
             return (axios, basePath) => createRequestFunction(localVarAxiosArgs, globalAxios, BASE_PATH, configuration)(axios, localVarOperationServerBasePath || basePath);
@@ -3464,21 +3641,23 @@ export const WorkflowsApiFactory = function (configuration?: Configuration, base
          * These will be very similar for each workflow. The only current difference is in the number of stages.
          * @summary Get ordered, detailed description of each step for a workflow
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<ExportableSteps> {
-            return localVarFp.getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<Array<ExportableStepWrapper>> {
+            return localVarFp.getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * TODO
@@ -3486,84 +3665,92 @@ export const WorkflowsApiFactory = function (configuration?: Configuration, base
          * @param {boolean} [withOutput] if True, return the most recent step output
          * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<GetLatestState> {
-            return localVarFp.getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<GetLatestState> {
+            return localVarFp.getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * TODO
          * @summary Reset a workflow to initial state
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * TODO
          * @summary Revert a workflow one step
          * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
         /**
          * TODO
          * @summary Revert a workflow to a particular step/substep
          * @param {string} stepName 
-         * @param {string} substepName 
+         * @param {string | null} [substepName] if not provided, assume the first substep
          * @param {string | null} [timelineName] 
-         * @param {number | null} [lengthSeconds] 
+         * @param {number | null} [lengthSeconds] desired final length of video
          * @param {string | null} [videoHash] 
          * @param {string | null} [userId] 
          * @param {string | null} [videoId] 
-         * @param {boolean} [waitUntilDoneRunning] 
-         * @param {boolean} [blockUntil] 
-         * @param {number} [timeout] 
-         * @param {number} [waitInterval] 
-         * @param {boolean} [forceRestart] 
+         * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+         * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+         * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+         * @param {boolean} [forceRestart] Force a fresh workflow state
+         * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+         * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+         * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
          * @param {string | null} [userEmail] 
          * @param {*} [options] Override http request option.
          * @throws {RequiredError}
          */
-        revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: any): AxiosPromise<any> {
-            return localVarFp.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(axios, basePath));
+        revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName?: string | null, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: any): AxiosPromise<any> {
+            return localVarFp.revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(axios, basePath));
         },
     };
 };
@@ -3578,21 +3765,23 @@ export interface WorkflowsApiInterface {
      * These will be very similar for each workflow. The only current difference is in the number of stages.
      * @summary Get ordered, detailed description of each step for a workflow
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApiInterface
      */
-    getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<ExportableSteps>;
+    getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<Array<ExportableStepWrapper>>;
 
     /**
      * TODO
@@ -3600,84 +3789,92 @@ export interface WorkflowsApiInterface {
      * @param {boolean} [withOutput] if True, return the most recent step output
      * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApiInterface
      */
-    getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetLatestState>;
+    getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<GetLatestState>;
 
     /**
      * TODO
      * @summary Reset a workflow to initial state
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApiInterface
      */
-    resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+    resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
     /**
      * TODO
      * @summary Revert a workflow one step
      * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApiInterface
      */
-    revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+    revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
     /**
      * TODO
      * @summary Revert a workflow to a particular step/substep
      * @param {string} stepName 
-     * @param {string} substepName 
+     * @param {string | null} [substepName] if not provided, assume the first substep
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApiInterface
      */
-    revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
+    revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName?: string | null, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig): AxiosPromise<any>;
 
 }
 
@@ -3692,22 +3889,24 @@ export class WorkflowsApi extends BaseAPI implements WorkflowsApiInterface {
      * These will be very similar for each workflow. The only current difference is in the number of stages.
      * @summary Get ordered, detailed description of each step for a workflow
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApi
      */
-    public getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return WorkflowsApiFp(this.configuration).getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public getAllStepsAllStepsGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).getAllStepsAllStepsGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3716,44 +3915,48 @@ export class WorkflowsApi extends BaseAPI implements WorkflowsApiInterface {
      * @param {boolean} [withOutput] if True, return the most recent step output
      * @param {boolean} [withAllSteps] if True, return the Steps object of all the workflow\&#39;s steps
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApi
      */
-    public getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return WorkflowsApiFp(this.configuration).getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public getLatestStateGetLatestStateGet(withOutput?: boolean, withAllSteps?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).getLatestStateGetLatestStateGet(withOutput, withAllSteps, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * TODO
      * @summary Reset a workflow to initial state
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApi
      */
-    public resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return WorkflowsApiFp(this.configuration).resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public resetWorkflowResetWorkflowGet(timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).resetWorkflowResetWorkflowGet(timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
@@ -3761,46 +3964,50 @@ export class WorkflowsApi extends BaseAPI implements WorkflowsApiInterface {
      * @summary Revert a workflow one step
      * @param {boolean} [toBeforeRetries] If True, revert to before any retries. Otherwise, revert to the most recent retry
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApi
      */
-    public revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return WorkflowsApiFp(this.configuration).revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries?: boolean, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).revertWorkflowStepRevertWorkflowStepGet(toBeforeRetries, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 
     /**
      * TODO
      * @summary Revert a workflow to a particular step/substep
      * @param {string} stepName 
-     * @param {string} substepName 
+     * @param {string | null} [substepName] if not provided, assume the first substep
      * @param {string | null} [timelineName] 
-     * @param {number | null} [lengthSeconds] 
+     * @param {number | null} [lengthSeconds] desired final length of video
      * @param {string | null} [videoHash] 
      * @param {string | null} [userId] 
      * @param {string | null} [videoId] 
-     * @param {boolean} [waitUntilDoneRunning] 
-     * @param {boolean} [blockUntil] 
-     * @param {number} [timeout] 
-     * @param {number} [waitInterval] 
-     * @param {boolean} [forceRestart] 
+     * @param {boolean} [waitUntilDoneRunning] If True, block returning a workflow until workflow is done running its current step
+     * @param {number} [timeout] Timeout until continuing without waiting if wait_until_done_running&#x3D;True
+     * @param {number} [waitInterval] poll interval to wait for workflow step to finish if wait_until_done_running&#x3D;True
+     * @param {boolean} [forceRestart] Force a fresh workflow state
+     * @param {boolean} [exportVideo] export mp4 videos after relevant steps
+     * @param {string} [volumeDir] mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests
+     * @param {string} [outputFolder] mounted directory serving as root for exports. Only provide this parameter in tests
      * @param {string | null} [userEmail] 
      * @param {*} [options] Override http request option.
      * @throws {RequiredError}
      * @memberof WorkflowsApi
      */
-    public revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName: string, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, blockUntil?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, userEmail?: string | null, options?: RawAxiosRequestConfig) {
-        return WorkflowsApiFp(this.configuration).revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, blockUntil, timeout, waitInterval, forceRestart, userEmail, options).then((request) => request(this.axios, this.basePath));
+    public revertWorkflowStepToRevertWorkflowStepToGet(stepName: string, substepName?: string | null, timelineName?: string | null, lengthSeconds?: number | null, videoHash?: string | null, userId?: string | null, videoId?: string | null, waitUntilDoneRunning?: boolean, timeout?: number, waitInterval?: number, forceRestart?: boolean, exportVideo?: boolean, volumeDir?: string, outputFolder?: string, userEmail?: string | null, options?: RawAxiosRequestConfig) {
+        return WorkflowsApiFp(this.configuration).revertWorkflowStepToRevertWorkflowStepToGet(stepName, substepName, timelineName, lengthSeconds, videoHash, userId, videoId, waitUntilDoneRunning, timeout, waitInterval, forceRestart, exportVideo, volumeDir, outputFolder, userEmail, options).then((request) => request(this.axios, this.basePath));
     }
 }
 

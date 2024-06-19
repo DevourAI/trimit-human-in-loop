@@ -104,3 +104,32 @@ async def test_get_latest_state_after_step(client, workflow_15557970_after_first
             "substeps": ["init_state", "remove_off_screen_speakers"],
         }
     ]
+
+
+async def test_get_output_for_name(client, workflow_15557970_after_second_step):
+    workflow = workflow_15557970_after_second_step
+    from trimit.models import MONGO_INITIALIZED
+
+    MONGO_INITIALIZED[0] = False
+
+    response = client.get(
+        "/get_step_outputs",
+        params={
+            "video_hash": workflow.video.md5_hash,
+            "user_email": workflow.user.email,
+            "timeline_name": workflow.timeline_name,
+            "length_seconds": workflow.length_seconds,
+            "export_video": workflow.export_video,
+            "volume_dir": workflow.volume_dir,
+            "output_folder": workflow.state.static_state.output_folder,
+            "step_names": "preprocess_video,generate_story",
+        },
+    )
+    assert response.status_code == 200
+    data = response.json()
+
+    assert len(data["outputs"]) == 2
+    assert data["outputs"][0]["step_name"] == "preprocess_video"
+    assert data["outputs"][0]["substep_name"] == "remove_off_screen_speakers"
+    assert data["outputs"][1]["step_name"] == "generate_story"
+    assert data["outputs"][1]["substep_name"] == "generate_story"

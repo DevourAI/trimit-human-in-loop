@@ -497,6 +497,7 @@ class CutTranscriptLinearWorkflow:
         _steps = [
             StepWrapper(
                 name="preprocess_video",
+                human_readable_name="Remove Off-Screen Speakers",
                 substeps=[
                     CurrentStepInfo(
                         name="init_state",
@@ -522,6 +523,7 @@ class CutTranscriptLinearWorkflow:
             ),
             StepWrapper(
                 name="generate_story",
+                human_readable_name="Generate Narrative Story",
                 substeps=[
                     CurrentStepInfo(
                         name="generate_story",
@@ -537,6 +539,7 @@ class CutTranscriptLinearWorkflow:
             ),
             StepWrapper(
                 name="identify_key_soundbites",
+                human_readable_name="Identify Key Selects",
                 substeps=[
                     CurrentStepInfo(
                         name="identify_key_soundbites",
@@ -555,6 +558,7 @@ class CutTranscriptLinearWorkflow:
         for stage_num, _ in enumerate(self.stage_lengths):
             step_wrapper = StepWrapper(
                 name=stage_key_for_step_name("generate_transcript", stage_num),
+                human_readable_name=f"Generate Transcript, Stage {stage_num}",
                 substeps=[
                     CurrentStepInfo(
                         name="cut_partial_transcripts_with_critiques",
@@ -738,6 +742,19 @@ class CutTranscriptLinearWorkflow:
                 latest_retry=latest_retry,
             )
             for key in keys
+        ]
+
+    async def get_output_for_names(
+        self, names: list[str], with_load_state=True, latest_retry=False
+    ):
+        if with_load_state:
+            await self.load_state()
+        assert self.state is not None
+        return [
+            self._get_output_for_name(
+                name, substep_name=None, latest_retry=latest_retry
+            )
+            for name in names
         ]
 
     async def get_all_outputs(self, with_load_state=True):
@@ -1612,9 +1629,15 @@ class CutTranscriptLinearWorkflow:
         await self.state.set_current_step_output_atomic(state_save_key, output)
 
     def _get_output_for_name(
-        self, step_name: str, substep_name: str, latest_retry=False
+        self, step_name: str, substep_name: str | None = None, latest_retry=False
     ):
         assert self.state is not None
+        if substep_name is None:
+            matching = [step for step in self.steps if step.name == step_name]
+            if not matching:
+                raise ValueError(f"Unknown step_name: {step_name}")
+            step = matching[0]
+            substep_name = step.substeps[-1].name
         key = get_dynamic_state_key(step_name, substep_name)
         if latest_retry:
             key = self.state.get_latest_dynamic_key_with_retry_from(

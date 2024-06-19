@@ -1,4 +1,4 @@
-import axios, { AxiosResponse } from 'axios';
+import axios, {AxiosResponse} from 'axios';
 
 import {
   DownloadFileParams,
@@ -13,10 +13,29 @@ import {
   UserState,
 } from './types';
 
+import {
+  CheckFunctionCallResults,
+  UploadedVideo,
+  VideosApi,
+  UploadVideoApi,
+  UploadVideo,
+  GetLatestState,
+  CutTranscriptLinearWorkflowStepOutput
+} from '@/gen/openapi/api'
+
 let API_URL = process.env.NEXT_PUBLIC_API_BASE_URL_REMOTE;
 if (process.env.BACKEND === 'local') {
   API_URL = process.env.NEXT_PUBLIC_API_BASE_URL_LOCAL;
 }
+
+const uploadVideosApi = new UploadVideoApi(
+  undefined,
+  API_URL,
+)
+const videosApi = new VideosApi(
+  undefined,
+  API_URL,
+)
 
 const fetcherWithParams = async (
   url: string,
@@ -34,7 +53,7 @@ const fetcherWithParams = async (
     return toReturn;
   } catch (error) {
     console.error('fetcherWithParams error', error);
-    return { error };
+    return {error};
   }
 };
 
@@ -52,7 +71,7 @@ const fetcherWithParamsRaw = async (
     return res;
   } catch (error) {
     console.error('fetcherWithParamsRaw error', error);
-    return { error };
+    return {error};
   }
 };
 
@@ -80,7 +99,7 @@ const postFetcherWithData = async (
     return res.data;
   } catch (error) {
     console.error('postFetcherWithData error', error);
-    return { error };
+    return {error};
   }
 };
 
@@ -119,7 +138,7 @@ export async function revertStepToInBackend(
 
 export async function getLatestState(
   params: GetLatestStateParams
-): Promise<UserState> {
+): Promise<GetLatestState> {
   if (
     !params.user_email ||
     !params.video_hash ||
@@ -134,27 +153,27 @@ export async function getLatestState(
   const data = await fetcherWithParams('get_latest_state', params);
   if (data && data.error) {
     console.error(data.error);
-    return { success: false, error: data.error };
+    return {success: false, error: data.error};
   } else if (data) {
-    return data;
+    return data as GetLatestState;
   }
-  return {};
+  return {} as GetLatestState;
 }
 
 export async function getStepOutput(
   params: StepOutputParams
-): Promise<unknown> {
-  if (params.user_email === '' || !params.video_hash) return {};
+): Promise<CutTranscriptLinearWorkflowStepOutput | null> {
+  if (params.user_email === '' || !params.video_hash) return null;
   params.latest_retry = params.latest_retry ?? true;
-  params.step_keys = params.step_key;
-  delete params.step_key;
+  params.step_names = params.step_name;
+  delete params.step_name;
   const data = await fetcherWithParams('get_step_outputs', params);
   if (data && data.error) {
     console.error(data.error);
   } else if (data && data.outputs) {
     return data.outputs[0];
   }
-  return {};
+  return null
 }
 
 export async function step(
@@ -191,35 +210,38 @@ export async function step(
 
 export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
   if (params.userEmail === '' || !params.videoFile) return {};
-  const data = {
-    user_email: params.userEmail,
-    files: [params.videoFile],
-    timeline_name: params.timelineName,
-    high_res_user_file_paths: [params.videoFile.name],
-    reprocess: true,
-    use_existing_output: false,
-    overwrite: true,
-  };
+  try {
+    const data: UploadVideo = await uploadVideosApi.uploadMultipleFilesUploadPost(
+      [params.videoFile],
+      [params.videoFile.name],
+      params.timelineName,
+      params.userEmail,
+      true,
+      false,
+      true,
+    )
+  } catch (error) {
+    console.error(data);
+    return;
+  }
 
-  const respData = await postFetcherWithData('upload', data);
-
-  if (respData && respData.result && respData.result.error) {
-    console.error(respData);
-  } else if (respData && respData.videoHashes && respData.videoHashes.length) {
+  if (data.result === "error") {
+    console.error(data.messages);
+  } else if (data.video_hashes && data.video_hashes.length) {
     return {
-      videoHash: respData.videoHashes[0],
-      callId: respData.processing_call_id,
+      videoHash: data.video_hashes[0],
+      callId: data.processing_call_id,
     };
   }
-  return respData;
+  return data;
 }
 
 export async function getVideoProcessingStatuses(
   userEmail: string,
-  options: { timeout?: number } = { timeout: 0 }
+  options: {timeout?: number} = {timeout: 0}
 ): Promise<unknown> {
   if (!userEmail) {
-    return { result: 'error', message: 'No userEmail provided' };
+    return {result: 'error', message: 'No userEmail provided'};
   }
   const respData = await fetcherWithParams('get_video_processing_status', {
     user_email: userEmail,
@@ -228,24 +250,24 @@ export async function getVideoProcessingStatuses(
   if (respData && respData.result) {
     return respData;
   }
-  return { result: 'error', message: 'No result found' };
+  return {result: 'error', message: 'No result found'};
 }
 
 export async function getFunctionCallResults(
   callIds: string[],
-  options: { timeout?: number } = { timeout: 0 }
+  options: {timeout?: number} = {timeout: 0}
 ): Promise<unknown> {
   if (!callIds || callIds.length === 0) {
-    return { result: 'error', message: 'No callIds provided' };
+    return {result: 'error', message: 'No callIds provided'};
   }
   const respData = await fetcherWithParams('check_function_call_results', {
     modal_call_ids: callIds,
     ...options,
-  });
-  if (respData && respData.result) {
-    return respData;
+  }) as CheckFunctionCallResults;
+  if (respData && respData.statuses) {
+    return respData.statuses;
   }
-  return { result: 'error', message: 'No result found' };
+  return {result: 'error', message: 'No result found'};
 }
 
 function remoteVideoStreamURLForPath(path: string): string {
@@ -256,12 +278,17 @@ export async function getUploadedVideos(
   params: GetUploadedVideoParams
 ): Promise<unknown> {
   if (params.user_email === '') return {};
-  const respData = await fetcherWithParams('uploaded_videos', params);
 
+
+  console.log(params.user_email)
+  const respData = await videosApi.uploadedVideosUploadedVideosGet(params.user_email)
+  console.log('upload video resp data', respData)
+
+  const data = respData.data
   if (respData && respData.error) {
     console.error(respData);
-  } else if (respData && respData.length > 0) {
-    return respData.map((video: unknown) => {
+  } else if (data && data.length > 0) {
+    return data.map((video: UploadedVideo) => {
       return {
         filename: video.filename,
         hash: video.video_hash,
@@ -320,23 +347,23 @@ export async function downloadFile(params: DownloadFileParams): Promise<void> {
 }
 
 export async function downloadVideo(params: DownloadFileParams): Promise<void> {
-  await downloadFile({ ...params, filetype: 'video' });
+  await downloadFile({...params, filetype: 'video'});
 }
 
 export async function downloadTimeline(
   params: DownloadFileParams
 ): Promise<void> {
-  await downloadFile({ ...params, filetype: 'timeline' });
+  await downloadFile({...params, filetype: 'timeline'});
 }
 
 export async function downloadTranscriptText(
   params: DownloadFileParams
 ): Promise<void> {
-  await downloadFile({ ...params, filetype: 'transcript_text' });
+  await downloadFile({...params, filetype: 'transcript_text'});
 }
 
 export async function downloadSoundbitesText(
   params: DownloadFileParams
 ): Promise<void> {
-  await downloadFile({ ...params, filetype: 'soundbites_text' });
+  await downloadFile({...params, filetype: 'soundbites_text'});
 }

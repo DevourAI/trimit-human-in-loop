@@ -1790,6 +1790,7 @@ class CheckFunctionCallResults(BaseModel):
 
 class StepWrapper(BaseModel):
     name: str
+    human_readable_name: str
     substeps: list[CurrentStepInfo]
 
     def __init__(self, *args, **kwargs):
@@ -1803,12 +1804,14 @@ class StepWrapper(BaseModel):
     def to_exportable(self):
         return ExportableStepWrapper(
             name=self.name,
+            human_readable_name=self.human_readable_name,
             substeps=[substep.to_exportable() for substep in self.substeps],
         )
 
 
 class ExportableStepWrapper(BaseModel):
     name: str
+    human_readable_name: str
     substeps: list[ExportableStepInfo]
 
 
