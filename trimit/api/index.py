@@ -462,7 +462,7 @@ def step_endpoint(
                     final_step_output=last_result
                 ).model_dump_json()
 
-        return StreamingResponse(streamer(), media_type="application/json")
+        return StreamingResponse(streamer(), media_type="text/event-stream")
 
 
 @web_app.get(

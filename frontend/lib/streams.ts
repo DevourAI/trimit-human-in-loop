@@ -26,18 +26,29 @@ export async function decodeStreamAsJSON(
     }
     if (done) {
       if (buffer.length > 0) {
-        lastValue = processChunk(buffer);
+        [buffer, lastValue] = splitAndProcessBuffer(buffer)
       }
       return {done, success: true};
     }
     const chunk = new TextDecoder('utf-8').decode(value);
     buffer += chunk;
-    const parts = buffer.split('\n');
-    for (let i = 0; i < parts.length - 1; i++) {
-      lastValue = processChunk(parts[i]);
-    }
-    buffer = parts[parts.length - 1];
+    [buffer, lastValue] = splitAndProcessBuffer(buffer)
     return {done: false, success: true};
+  }
+  function splitAndProcessBuffer(buffer: string) {
+    const parts = buffer.split(/(?<=})(?={)/);
+    let lastValue = null;
+    let parsed = false;
+    const n = parts.length > 1 ? parts.length - 1 : parts.length;
+    for (let i = 0; i < n; i++) {
+      [lastValue, parsed] = processChunk(parts[i]);
+    }
+    if (parts.length > 1) {
+      buffer = parts[parts.length - 1];
+    } else if (parsed) {
+      buffer = ''
+    }
+    return [buffer, lastValue]
   }
   function processChunk(text: string) {
     if (text) {
@@ -45,19 +56,21 @@ export async function decodeStreamAsJSON(
       try {
         valueDecoded = JSON.parse(text);
       } catch (e) {
+        console.log("text with error", text)
         console.error(e);
-        return null;
+        return [null, false];
       }
       if (valueDecoded && valueDecoded.final_step_output) {
-        return valueDecoded.final_step_output;
+        return [valueDecoded.final_step_output, true];
       } else if (valueDecoded) {
         callback(valueDecoded);
       } else {
         console.log('Could not parse message', valueDecoded);
       }
     }
-    return null;
+    return [null, true];
   }
+
   let nFailures = 0;
   while (true) {
     const result = await read();

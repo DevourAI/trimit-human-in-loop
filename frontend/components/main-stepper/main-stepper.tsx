@@ -162,11 +162,9 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
     const lastValue: CutTranscriptLinearWorkflowStepOutput | null = await decodeStreamAsJSON(
       reader,
       (value: CutTranscriptLinearWorkflowStreamingOutput) => {
-        console.log('value from stream:', value);
-        let llmValueToAppend = '';
-        let backendValueToAppend = '';
         if (value?.partial_step_output) {
           let output = value.partial_step_output
+          console.log("partial step output", output)
           if (latestState?.all_steps) {
             const stepIndex = stepIndexFromName(
               output.step_name,
@@ -179,22 +177,21 @@ export default function MainStepper({videoHash}: {videoHash: string}) {
             } else if (output.export_call_id) {
               setLatestExportCallId(output.export_call_id);
             }
-            llmValueToAppend = '';
           }
 
         } else if (value?.partial_backend_output) {
           let output = value.partial_backend_output
+          console.log("partial backend output", output)
           if (output.chunk === null || output.chunk == 0) {
-            backendValueToAppend = output.value || '';
+            setBackendMessage(output.value || '');
           }
         } else if (value?.partial_llm_output) {
           let output = value.partial_llm_output
+          console.log("partial llm output", output)
           if (output.chunk === null || output.chunk == 0) {
-            llmValueToAppend = output.value
+            activePromptDispatch({type: 'append', value: output.value});
           }
         }
-        activePromptDispatch({type: 'append', value: llmValueToAppend});
-        setBackendMessage(backendValueToAppend);
       }
     )
     setFinalStepResult(lastValue);
