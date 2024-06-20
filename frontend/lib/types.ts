@@ -1,4 +1,4 @@
-import {type StepItem} from '@/components/ui/stepper';
+import { type StepItem } from '@/components/ui/stepper';
 
 export interface CommonAPIParams {
   user_email: string;

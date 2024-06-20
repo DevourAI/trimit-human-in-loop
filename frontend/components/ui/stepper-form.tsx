@@ -1,12 +1,12 @@
 'use client';
 
-import {zodResolver} from '@hookform/resolvers/zod';
-import {ChangeEvent, useState} from 'react';
-import {useForm} from 'react-hook-form';
-import {z} from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { ReloadIcon } from '@radix-ui/react-icons';
+import { ChangeEvent, useState } from 'react';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
 
-import {useStepperForm} from "@/contexts/stepper-form-context";
-import {Button} from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import ExportStepMenu from '@/components/ui/export-step-menu';
 import {
   Form,
@@ -16,13 +16,10 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import {LoadingSpinner} from '@/components/ui/loading-spinner';
-import {Textarea} from '@/components/ui/textarea';
-import {ReloadIcon} from '@radix-ui/react-icons';
-import {
-  ExportableStepWrapper,
-} from '@/gen/openapi/api'
-
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Textarea } from '@/components/ui/textarea';
+import { useStepperForm } from '@/contexts/stepper-form-context';
+import { ExportableStepWrapper } from '@/gen/openapi/api';
 
 export const FormSchema = z.object({
   feedback: z.optional(z.string()),
@@ -36,10 +33,7 @@ interface StepperFormProps {
   userParams: any;
   step: ExportableStepWrapper;
   prompt: string;
-  onRetry: (
-    stepIndex: number,
-    data: z.infer<typeof FormSchema>
-  ) => void;
+  onRetry: (stepIndex: number, data: z.infer<typeof FormSchema>) => void;
   onCancelStep?: () => void;
 }
 
@@ -69,7 +63,7 @@ export function StepperForm({
     setTextAreaValue(event.target.value);
   };
 
-  const {handleFormValueChange} = useStepperForm();
+  const { handleFormValueChange } = useStepperForm();
 
   return (
     <div className="relative p-3">
@@ -82,7 +76,7 @@ export function StepperForm({
           <FormField
             control={form.control}
             name="feedback"
-            render={({field}) => {
+            render={({ field }) => {
               const originalOnChange = field.onChange;
               field.onChange = (event) => {
                 handleTextAreaChange(event);

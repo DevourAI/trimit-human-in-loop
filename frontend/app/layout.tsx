@@ -1,12 +1,12 @@
 import '../styles/globals.css';
 
-import {GoogleOAuthProvider} from '@react-oauth/google';
-import {Inter as FontSans} from 'next/font/google';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { Inter as FontSans } from 'next/font/google';
 
-import {UserProvider} from '@/contexts/user-context';
-import {cn} from '@/lib/utils';
-import {ThemeProvider} from '@/providers/theme-provider';
-import {Toaster} from "@/components/ui/toaster"
+import { Toaster } from '@/components/ui/toaster';
+import { UserProvider } from '@/contexts/user-context';
+import { cn } from '@/lib/utils';
+import { ThemeProvider } from '@/providers/theme-provider';
 
 const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
 
