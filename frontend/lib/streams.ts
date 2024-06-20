@@ -1,9 +1,12 @@
 const MAX_READ_FAILURES = 10;
-import {CutTranscriptLinearWorkflowStreamingOutput, CutTranscriptLinearWorkflowStepOutput} from '@/gen/openapi/api'
+import {
+  CutTranscriptLinearWorkflowStepOutput,
+  CutTranscriptLinearWorkflowStreamingOutput,
+} from '@/gen/openapi/api';
 
 export function createChunkDecoder() {
   const decoder = new TextDecoder();
-  return (chunk: Uint8Array): string => decoder.decode(chunk, {stream: true});
+  return (chunk: Uint8Array): string => decoder.decode(chunk, { stream: true });
 }
 
 export async function decodeStreamAsJSON(
@@ -22,18 +25,18 @@ export async function decodeStreamAsJSON(
       value = res.value ? res.value : value;
     } catch (error) {
       console.error(error);
-      return {done: false, success: false};
+      return { done: false, success: false };
     }
     if (done) {
       if (buffer.length > 0) {
-        [buffer, lastValue] = splitAndProcessBuffer(buffer)
+        [buffer, lastValue] = splitAndProcessBuffer(buffer);
       }
-      return {done, success: true};
+      return { done, success: true };
     }
     const chunk = new TextDecoder('utf-8').decode(value);
     buffer += chunk;
-    [buffer, lastValue] = splitAndProcessBuffer(buffer)
-    return {done: false, success: true};
+    [buffer, lastValue] = splitAndProcessBuffer(buffer);
+    return { done: false, success: true };
   }
   function splitAndProcessBuffer(buffer: string) {
     const parts = buffer.split(/(?<=})(?={)/);
@@ -46,9 +49,9 @@ export async function decodeStreamAsJSON(
     if (parts.length > 1) {
       buffer = parts[parts.length - 1];
     } else if (parsed) {
-      buffer = ''
+      buffer = '';
     }
-    return [buffer, lastValue]
+    return [buffer, lastValue];
   }
   function processChunk(text: string) {
     if (text) {
@@ -56,7 +59,7 @@ export async function decodeStreamAsJSON(
       try {
         valueDecoded = JSON.parse(text);
       } catch (e) {
-        console.log("text with error", text)
+        console.log('text with error', text);
         console.error(e);
         return [null, false];
       }
