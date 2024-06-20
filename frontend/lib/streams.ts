@@ -1,6 +1,6 @@
 import {
-  CutTranscriptLinearWorkflowStepOutput,
   CutTranscriptLinearWorkflowStreamingOutput,
+  GetLatestState,
 } from '@/gen/openapi/api';
 
 const MAX_READ_FAILURES = 10;
@@ -8,17 +8,16 @@ const MAX_READ_FAILURES = 10;
 // Function to create a chunk decoder using TextDecoder
 export function createChunkDecoder() {
   const decoder = new TextDecoder();
-  return (chunk: Uint8Array): string => decoder.decode(chunk, { stream: true });
+  return (chunk: Uint8Array): string => decoder.decode(chunk, {stream: true});
 }
 
 // Function to decode a stream as JSON and process the data using a callback
 export async function decodeStreamAsJSON(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   callback: (output: CutTranscriptLinearWorkflowStreamingOutput) => void
-): Promise<CutTranscriptLinearWorkflowStepOutput | null> {
+): Promise<GetLatestState | null> {
   let buffer = ''; // Buffer to accumulate chunks of data
   let lastValue = null; // Variable to store the last processed value
-
   // Function to process a chunk of text and parse it as JSON
   function processChunk(text: string) {
     if (text) {
@@ -30,8 +29,8 @@ export async function decodeStreamAsJSON(
         console.error(e);
         return [null, false];
       }
-      if (valueDecoded && valueDecoded.final_step_output) {
-        return [valueDecoded.final_step_output, true];
+      if (valueDecoded && valueDecoded.final_state) {
+        return [valueDecoded.final_state, true];
       } else if (valueDecoded) {
         console.log('valueDecoded, passing to callback', valueDecoded);
         callback(valueDecoded);
@@ -52,18 +51,18 @@ export async function decodeStreamAsJSON(
       value = res.value ? res.value : value;
     } catch (error) {
       console.error(error);
-      return { done: false, success: false };
+      return {done: false, success: false};
     }
     if (done) {
       if (buffer.length > 0) {
         [buffer, lastValue] = splitAndProcessBuffer(buffer);
       }
-      return { done, success: true };
+      return {done, success: true};
     }
     const chunk = new TextDecoder('utf-8').decode(value);
     buffer += chunk;
     [buffer, lastValue] = splitAndProcessBuffer(buffer);
-    return { done: false, success: true };
+    return {done: false, success: true};
   }
   function splitAndProcessBuffer(buffer: string) {
     const parts = buffer.split(/(?<=})(?={)/);
@@ -80,7 +79,6 @@ export async function decodeStreamAsJSON(
     }
     return [buffer, lastValue];
   }
-
   let nFailures = 0; // Counter for the number of read failures
   while (true) {
     const result = await read();
