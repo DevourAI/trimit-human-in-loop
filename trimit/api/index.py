@@ -457,9 +457,12 @@ def step_endpoint(
                         detail=f"Unparseable response from internal step function: {partial_result}",
                     )
                 await asyncio.sleep(0)
+            latest_state = await workflow.get_latest_state(
+                with_load_state=True, with_output=True, with_all_steps=True
+            )
             if last_result is not None:
                 yield CutTranscriptLinearWorkflowStreamingOutput(
-                    final_step_output=last_result
+                    final_state=latest_state
                 ).model_dump_json()
 
         return StreamingResponse(streamer(), media_type="text/event-stream")
@@ -557,31 +560,9 @@ async def get_latest_state(
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
-    last_step_obj = await workflow.get_last_substep_with_user_feedback(
-        with_load_state=False
+    return await workflow.get_latest_state(
+        with_load_state=False, with_output=with_output, with_all_steps=with_all_steps
     )
-    if last_step_obj is not None:
-        last_step_obj = last_step_obj.to_exportable()
-    next_step_obj = await workflow.get_next_substep_with_user_feedback(
-        with_load_state=False
-    )
-    if next_step_obj is not None:
-        next_step_obj = next_step_obj.to_exportable()
-    output = GetLatestState(
-        last_step=last_step_obj,
-        next_step=next_step_obj,
-        video_id=str(workflow.video.id),
-        user_id=str(workflow.user.id),
-        user_messages=workflow.user_messages,
-        step_history_state=workflow.serializable_state_step_order,
-        all_steps=None,
-        output=None,
-    )
-    if with_all_steps:
-        output.all_steps = workflow.steps.to_exportable()
-    if with_output:
-        output.output = await workflow.get_last_output(with_load_state=False)
-    return output
 
 
 @web_app.get("/download_transcript_text")

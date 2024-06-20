@@ -211,9 +211,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
           }
         }
       );
-    setIsLoading(false);
-    console.log(`got value ${lastValue}`);
-    setStepOutput(lastValue);
+    setLatestState(lastValue);
   }
 
   async function advanceStep(stepIndex: number) {

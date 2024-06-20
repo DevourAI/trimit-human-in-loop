@@ -60,6 +60,7 @@ from trimit.export import (
     save_soundbites_videos_to_disk,
 )
 from trimit.backend.models import (
+    GetLatestState,
     PartialBackendOutput,
     PartialLLMOutput,
     FinalLLMOutput,
@@ -618,6 +619,35 @@ class CutTranscriptLinearWorkflow:
         step_order = await load_step_order(self.step_order.id)
         assert step_order is not None
         self.step_order = step_order
+
+    async def get_latest_state(
+        self, with_load_state=True, with_output=False, with_all_steps=True
+    ):
+        last_step_obj = await self.get_last_substep_with_user_feedback(
+            with_load_state=with_load_state
+        )
+        if last_step_obj is not None:
+            last_step_obj = last_step_obj.to_exportable()
+        next_step_obj = await self.get_next_substep_with_user_feedback(
+            with_load_state=with_load_state
+        )
+        if next_step_obj is not None:
+            next_step_obj = next_step_obj.to_exportable()
+        output = GetLatestState(
+            last_step=last_step_obj,
+            next_step=next_step_obj,
+            video_id=str(self.video.id),
+            user_id=str(self.user.id),
+            user_messages=self.user_messages,
+            step_history_state=self.serializable_state_step_order,
+            all_steps=None,
+            output=None,
+        )
+        if with_all_steps:
+            output.all_steps = self.steps.to_exportable()
+        if with_output:
+            output.output = await self.get_last_output(with_load_state=with_load_state)
+        return output
 
     # TODO all these methods need a major refactor
     async def get_last_step(self, with_load_state=True):
