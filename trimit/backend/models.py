@@ -1567,7 +1567,9 @@ class CutTranscriptLinearWorkflowStepResults(BaseModel):
 class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     step_name: str
     substep_name: str
-    done: bool = False
+    done: bool = Field(
+        False, description="If True, workflow has completed. This was the final step."
+    )
     user_feedback_request: str | None = Field(
         None,
         description="prompt to user for additional, optional input if the user wants to rerun the step",
@@ -1883,8 +1885,8 @@ class GetLatestState(BaseModel):
         None,
         description="detailed, ordered, information about each step/substep in this workflow",
     )
-    output: CutTranscriptLinearWorkflowStepOutput | None = Field(
-        None, description="most recent substep output"
+    outputs: list[CutTranscriptLinearWorkflowStepOutput] | None = Field(
+        None, description="ordered step outputs"
     )
 
 

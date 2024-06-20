@@ -458,7 +458,10 @@ def step_endpoint(
                     )
                 await asyncio.sleep(0)
             latest_state = await workflow.get_latest_state(
-                with_load_state=True, with_output=True, with_all_steps=True
+                with_load_state=True,
+                with_outputs=True,
+                with_all_steps=True,
+                only_last_substep_outputs=True,
             )
             if last_result is not None:
                 yield CutTranscriptLinearWorkflowStreamingOutput(
@@ -550,18 +553,26 @@ async def get_all_steps(
 )
 async def get_latest_state(
     workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
-    with_output: bool = Query(
-        False, description="if True, return the most recent step output"
+    with_outputs: bool = Query(
+        True, description="if True, include ordered list of step outputs"
     ),
     with_all_steps: bool = Query(
-        True, description="if True, return the Steps object of all the workflow's steps"
+        True,
+        description="if True, include the Steps object of all the workflow's steps",
+    ),
+    only_last_substep_outputs: bool = Query(
+        True,
+        description="If True, only return the output of the latest substep for each step",
     ),
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
     return await workflow.get_latest_state(
-        with_load_state=False, with_output=with_output, with_all_steps=with_all_steps
+        with_load_state=False,
+        with_outputs=with_outputs,
+        with_all_steps=with_all_steps,
+        only_last_substep_outputs=only_last_substep_outputs,
     )
 
 

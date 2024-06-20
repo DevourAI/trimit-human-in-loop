@@ -476,18 +476,18 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
         else:
             assert os.stat(output_files[file_key]).st_size > 0
 
-    all_outputs = await workflow.get_all_outputs(with_load_state=False)
+    all_outputs = await workflow.get_all_outputs(
+        only_last_substep=False, with_load_state=False
+    )
     assert all(
         "video_timeline" in substep_output.export_result
-        for output in all_outputs
-        for substep_output in output["substeps"]
+        for substep_output in all_outputs
         if substep_output.substep_name
         in ("remove_off_screen_speakers", "modify_transcript_holistically")
     )
     assert all(
         "video_timeline" not in substep_output.export_result
-        for output in all_outputs
-        for substep_output in output["substeps"]
+        for substep_output in all_outputs
         if substep_output.substep_name
         not in ("end", "remove_off_screen_speakers", "modify_transcript_holistically")
     )
@@ -657,18 +657,18 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
         == "3909774043_modify_transcript_holistically_video_0.mp4"
     )
 
-    all_outputs = await workflow.get_all_outputs(with_load_state=False)
+    all_outputs = await workflow.get_all_outputs(
+        only_last_substep=False, with_load_state=False
+    )
     assert all(
         "video_timeline" in substep_output.export_result
-        for output in all_outputs
-        for substep_output in output["substeps"]
+        for substep_output in all_outputs
         if substep_output.substep_name
         in ("remove_off_screen_speakers", "modify_transcript_holistically")
     )
     assert all(
         "video_timeline" not in substep_output.export_result
-        for output in all_outputs
-        for substep_output in output["substeps"]
+        for substep_output in all_outputs
         if substep_output.substep_name
         not in ("end", "remove_off_screen_speakers", "modify_transcript_holistically")
     )
