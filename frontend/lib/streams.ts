@@ -80,26 +80,6 @@ export async function decodeStreamAsJSON(
     }
     return [buffer, lastValue];
   }
-  function processChunk(text: string) {
-    if (text) {
-      let valueDecoded = null;
-      try {
-        valueDecoded = JSON.parse(text);
-      } catch (e) {
-        console.log('text with error', text);
-        console.error(e);
-        return [null, false];
-      }
-      if (valueDecoded && valueDecoded.final_step_output) {
-        return [valueDecoded.final_step_output, true];
-      } else if (valueDecoded) {
-        callback(valueDecoded);
-      } else {
-        console.log('Could not parse message', valueDecoded);
-      }
-    }
-    return [null, true];
-  }
 
   let nFailures = 0; // Counter for the number of read failures
   while (true) {
