@@ -2,6 +2,8 @@
 
 # Fetch list of staged Python files, excluding deleted ones
 STAGED_PY_FILES=$(git diff --cached --name-only --diff-filter=d | grep '\.py$')
+# Fetch list of staged Javascript/Typescript files, excluding deleted ones
+STAGED_FE_FILES=$(git diff --cached --name-only --diff-filter=d | grep -E '\.(ts|js)x?$')
 
 # Check if there are any staged Python files
 if [ -z "$STAGED_PY_FILES" ]; then
@@ -13,6 +15,19 @@ else
     # Re-stage the Python files after formatting
     echo "$STAGED_PY_FILES" | xargs -r git add
 fi
+
+# Check if there are any staged Frontend files
+if [ -z "$STAGED_FE_FILES" ]; then
+    echo "No frontend files are staged for commit."
+else
+    # Format FE files with eslint
+    cd frontend && yarn lint --fix && cd ..
+
+    echo $STAGED_FE_FILES
+    # Re-stage the FE files after formatting
+    echo "$STAGED_FE_FILES" | xargs -r git add
+fi
+
 
 # Exit with a zero status if everything is fine
 exit 0
