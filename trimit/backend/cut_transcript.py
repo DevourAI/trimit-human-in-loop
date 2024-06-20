@@ -621,7 +621,11 @@ class CutTranscriptLinearWorkflow:
         self.step_order = step_order
 
     async def get_latest_state(
-        self, with_load_state=True, with_output=False, with_all_steps=True
+        self,
+        with_load_state=True,
+        with_outputs=False,
+        with_all_steps=True,
+        only_last_substep_outputs=True,
     ):
         last_step_obj = await self.get_last_substep_with_user_feedback(
             with_load_state=with_load_state
@@ -641,12 +645,15 @@ class CutTranscriptLinearWorkflow:
             user_messages=self.user_messages,
             step_history_state=self.serializable_state_step_order,
             all_steps=None,
-            output=None,
+            outputs=None,
         )
         if with_all_steps:
             output.all_steps = self.steps.to_exportable()
-        if with_output:
-            output.output = await self.get_last_output(with_load_state=with_load_state)
+        if with_outputs:
+            output.outputs = await self.get_all_outputs(
+                only_last_substep=only_last_substep_outputs,
+                with_load_state=with_load_state,
+            )
         return output
 
     # TODO all these methods need a major refactor
@@ -787,18 +794,24 @@ class CutTranscriptLinearWorkflow:
             for name in names
         ]
 
-    async def get_all_outputs(self, with_load_state=True):
+    async def get_all_outputs(self, only_last_substep=True, with_load_state=True):
         if with_load_state:
             await self.load_state()
         assert self.state is not None
         outputs = []
         for step_key in self.state.dynamic_state_step_order:
-            step_output = {"name": step_key.name, "substeps": []}
-            for substep_name in step_key.substeps:
-                step_output["substeps"].append(
-                    self._get_output_for_name(step_key.name, substep_name)
+            if only_last_substep:
+                # TODO retries should be added to the same step output as a list. Right now just return latest one
+                outputs.append(
+                    self._get_output_for_name(
+                        step_key.name, substep_name=None, latest_retry=True
+                    )
                 )
-            outputs.append(step_output)
+            else:
+                for substep_name in step_key.substeps:
+                    outputs.append(
+                        self._get_output_for_name(step_key.name, substep_name)
+                    )
         return outputs
 
     def get_step_by_name(self, step_name: str, substep_name: str):

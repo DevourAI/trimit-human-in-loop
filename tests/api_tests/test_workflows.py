@@ -4,6 +4,7 @@ import pytest_asyncio
 from ..conftest import DAVE_EMAIL, DAVE_VIDEO_LOW_RES_HASHES
 import asyncio
 import pytest
+from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput
 
 pytestmark = pytest.mark.asyncio(scope="session")
 
@@ -36,7 +37,7 @@ async def test_get_all_steps(client, workflow_15557970_with_transcript):
     assert len(response.json()) == 5
 
 
-async def test_get_latest_state(client, workflow_15557970_with_transcript):
+async def test_get_latest_state_init(client, workflow_15557970_with_transcript):
     from trimit.models import MONGO_INITIALIZED
 
     MONGO_INITIALIZED[0] = False
@@ -64,6 +65,7 @@ async def test_get_latest_state(client, workflow_15557970_with_transcript):
     assert data["user_id"] is not None
     assert data["user_messages"] == []
     assert data["step_history_state"] == []
+    assert data["outputs"] == []
 
 
 async def test_get_latest_state_after_step(client, workflow_15557970_after_first_step):
@@ -103,6 +105,33 @@ async def test_get_latest_state_after_step(client, workflow_15557970_after_first
             "name": "preprocess_video",
             "substeps": ["init_state", "remove_off_screen_speakers"],
         }
+    ]
+    assert len(data["outputs"]) == 1
+    output = data["outputs"][0]
+    parsed = CutTranscriptLinearWorkflowStepOutput(**output)
+    assert parsed.step_name == "preprocess_video"
+    assert parsed.substep_name == "remove_off_screen_speakers"
+    assert not parsed.done
+    assert (
+        parsed.user_feedback_request
+        == "I identified these speakers as being on-screen: ['speaker_01']. \nDo you agree? Do you have modifications to make?"
+    )
+    assert parsed.step_outputs and list(parsed.step_outputs.keys()) == [
+        "current_transcript_text",
+        "current_transcript_state",
+        "on_screen_speakers",
+        "on_screen_transcript_text",
+        "on_screen_transcript_state",
+    ]
+    assert parsed.export_result and list(parsed.export_result.keys()) == [
+        "transcript",
+        "transcript_text",
+        "video_timeline",
+        "speaker_tagging_clips",
+    ]
+    assert list(parsed.export_result["speaker_tagging_clips"].keys()) == [
+        "SPEAKER_01",
+        "SPEAKER_00",
     ]
 
 
