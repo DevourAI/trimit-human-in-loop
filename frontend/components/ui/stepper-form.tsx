@@ -27,7 +27,6 @@ export const FormSchema = z.object({
 
 interface StepperFormProps {
   systemPrompt: string;
-  backendMessage: string;
   isLoading: boolean;
   stepIndex: number;
   userParams: any;
@@ -36,7 +35,6 @@ interface StepperFormProps {
   onRetry: (stepIndex: number, data: z.infer<typeof FormSchema>) => void;
   onCancelStep?: () => void;
 }
-
 export function StepperForm({
   systemPrompt,
   isLoading,
@@ -47,16 +45,15 @@ export function StepperForm({
   onRetry,
   onCancelStep,
 }: StepperFormProps) {
-  console.log({
-    systemPrompt,
-    isLoading,
-    stepIndex,
-    userParams,
-    step,
-    prompt,
-    onSubmit,
-    onCancelStep,
-  });
+  // console.log('systemPrompt:', systemPrompt);
+  // console.log('isLoading:', isLoading);
+  // console.log('stepIndex:', stepIndex);
+  // console.log('userParams:', userParams);
+  // console.log('step:', step);
+  // console.log('prompt:', prompt);
+  // console.log('onRetry:', onRetry);
+  // console.log('onCancelStep:', onCancelStep);
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
   });
