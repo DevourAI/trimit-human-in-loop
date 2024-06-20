@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/button';
 import { useStepper } from '@/components/ui/stepper';
 
 export interface FooterProps {
-  prevStepWrapper: () => void;
-  nextStepWrapper: () => void;
+  onPrevStep: () => void;
+  onNextStep: () => void;
   undoLastStep: () => void;
   currentStepIndex: number;
   trueStepIndex: number;
@@ -20,8 +20,8 @@ export interface FooterProps {
 }
 
 export const Footer = ({
-  prevStepWrapper,
-  nextStepWrapper,
+  onPrevStep: onPrevStep,
+  onNextStep,
   undoLastStep,
   currentStepIndex,
   trueStepIndex,
@@ -55,7 +55,7 @@ export const Footer = ({
         <div className="flex gap-2">
           <Button
             disabled={currentStepIndex === 0}
-            onClick={prevStepWrapper}
+            onClick={onPrevStep}
             size="sm"
             variant="secondary"
           >
@@ -74,7 +74,7 @@ export const Footer = ({
         </div>
         <Button
           size="sm"
-          onClick={nextStepWrapper}
+          onClick={onNextStep}
           disabled={trueStepIndex >= totalNSteps - 1}
         >
           Next

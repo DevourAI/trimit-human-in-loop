@@ -8,7 +8,7 @@ const MAX_READ_FAILURES = 10;
 // Function to create a chunk decoder using TextDecoder
 export function createChunkDecoder() {
   const decoder = new TextDecoder();
-  return (chunk: Uint8Array): string => decoder.decode(chunk, {stream: true});
+  return (chunk: Uint8Array): string => decoder.decode(chunk, { stream: true });
 }
 
 // Function to decode a stream as JSON and process the data using a callback
@@ -52,18 +52,18 @@ export async function decodeStreamAsJSON(
       value = res.value ? res.value : value;
     } catch (error) {
       console.error(error);
-      return {done: false, success: false};
+      return { done: false, success: false };
     }
     if (done) {
       if (buffer.length > 0) {
         [buffer, lastValue] = splitAndProcessBuffer(buffer);
       }
-      return {done, success: true};
+      return { done, success: true };
     }
     const chunk = new TextDecoder('utf-8').decode(value);
     buffer += chunk;
     [buffer, lastValue] = splitAndProcessBuffer(buffer);
-    return {done: false, success: true};
+    return { done: false, success: true };
   }
   function splitAndProcessBuffer(buffer: string) {
     const parts = buffer.split(/(?<=})(?={)/);
@@ -79,26 +79,6 @@ export async function decodeStreamAsJSON(
       buffer = '';
     }
     return [buffer, lastValue];
-  }
-  function processChunk(text: string) {
-    if (text) {
-      let valueDecoded = null;
-      try {
-        valueDecoded = JSON.parse(text);
-      } catch (e) {
-        console.log('text with error', text);
-        console.error(e);
-        return [null, false];
-      }
-      if (valueDecoded && valueDecoded.final_step_output) {
-        return [valueDecoded.final_step_output, true];
-      } else if (valueDecoded) {
-        callback(valueDecoded);
-      } else {
-        console.log('Could not parse message', valueDecoded);
-      }
-    }
-    return [null, true];
   }
 
   let nFailures = 0; // Counter for the number of read failures
