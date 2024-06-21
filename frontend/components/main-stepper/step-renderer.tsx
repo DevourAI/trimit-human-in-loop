@@ -4,14 +4,18 @@ import Chat from '@/components/chat/chat';
 import StepOutput from '@/components/main-stepper/step-output';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
-import { ExportableStepWrapper } from '@/gen/openapi';
+import {
+  CutTranscriptLinearWorkflowStepOutput,
+  ExportableStepWrapper,
+} from '@/gen/openapi';
 
 interface StepRendererProps {
   step: ExportableStepWrapper;
+  stepOutput: CutTranscriptLinearWorkflowStepOutput | null;
   footer?: ReactNode;
 }
 
-function StepRenderer({ step, footer }: StepRendererProps) {
+function StepRenderer({ step, stepOutput, footer }: StepRendererProps) {
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
@@ -25,7 +29,7 @@ function StepRenderer({ step, footer }: StepRendererProps) {
           <Heading className="mb-3" size="sm">
             Outputs
           </Heading>
-          <StepOutput outputs={[]} />
+          <StepOutput outputs={stepOutput ? [stepOutput] : []} />
         </div>
       </CardContent>
       {footer && <CardFooter>{footer}</CardFooter>}
