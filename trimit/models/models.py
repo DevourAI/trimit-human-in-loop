@@ -928,23 +928,20 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         if not self._already_in_dynamic_state_step_order(step_name, substep_name):
             raise ValueError(f"have not reached step {step_name}.{substep_name} yet")
         state_key = get_dynamic_state_key(step_name, substep_name)
-        latest_state_key = self.get_latest_dynamic_key_with_retry()
+        latest_state_key = self.get_latest_dynamic_key()
         while latest_state_key != state_key:
             await self._revert_step()
-            latest_state_key = self.get_latest_dynamic_key_with_retry()
+            latest_state_key = self.get_latest_dynamic_key()
         await self._revert_step()
         if save:
             await self.save()
 
-    async def revert_step(self, before_retries: bool = False):
+    async def revert_step(self):
+        # TODO add back in option to revert just the latest retry
         if len(self.dynamic_state_step_order) == 0:
             print("no steps to revert")
             return
-        if before_retries and "retry" in self.dynamic_state_step_order[-1].substeps[-1]:
-            while "retry" in self.dynamic_state_step_order[-1].substeps[-1]:
-                await self._revert_step()
-        else:
-            await self._revert_step()
+        await self._revert_step()
         await self.save()
 
     async def _revert_step(self):
@@ -1048,7 +1045,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         print("recreated")
         return obj
 
-    def get_latest_dynamic_key_with_retry(self):
+    def get_latest_dynamic_key(self):
         if len(self.dynamic_state_step_order) == 0:
             return None
         step = self.dynamic_state_step_order[-1]
@@ -1056,40 +1053,31 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         substep_name = step.substeps[-1]
         return get_dynamic_state_key(step_name, substep_name)
 
-    def get_latest_dynamic_key_with_retry_from(self, step_name, substep_name):
-        from trimit.backend.utils import remove_retry_suffix
-
-        substep_name = remove_retry_suffix(substep_name)
-
+    def get_latest_dynamic_key_from(self, step_name, substep_name):
         key = get_dynamic_state_key(step_name, substep_name)
         for step_key in self.dynamic_state_step_order[::-1]:
             if step_key != step_name:
                 continue
             for substep_key in step_key.substeps:
-                if remove_retry_suffix(substep_key) == substep_name:
+                if substep_key == substep_name:
                     key = get_dynamic_state_key(step_key, substep_key)
                     break
             if key:
                 break
         return key
 
-    def get_new_dynamic_key_with_retry(self, step_name, substep_name):
-        from trimit.backend.utils import add_retry_suffix
-        from trimit.backend.utils import remove_retry_suffix
-
-        substep_name = remove_retry_suffix(substep_name)
-        retry_name = substep_name
+    def get_new_dynamic_key_with_retry_num(self, step_name, substep_name):
         dynamic_key = get_dynamic_state_key(step_name, substep_name)
-        if dynamic_key in self.dynamic_state_step_order:
-            i = 1
-            while True:
-                retry_name = add_retry_suffix(substep_name, i)
-                dynamic_key = get_dynamic_state_key(step_name, retry_name)
-                if dynamic_key in self.dynamic_state_step_order:
-                    i += 1
-                else:
-                    break
-        return dynamic_key
+        current_results = self.dynamic_state.get(dynamic_key, None)
+        if not current_results:
+            return dynamic_key, 0
+        if isinstance(current_results, dict):
+            retry_num = current_results.get("retry_num", 0)
+        elif hasattr(current_results, "retry_num"):
+            retry_num = current_results.retry_num
+        else:
+            retry_num = 0
+        return dynamic_key, retry_num + 1
 
     @retry(stop=stop_after_attempt(10), wait=wait_fixed(0.1) + wait_random(0, 1))
     async def set_current_step_output_atomic(
@@ -1099,14 +1087,12 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         save_to_db: bool = True,
         use_session: bool = True,
     ):
-        from trimit.backend.utils import remove_retry_suffix
         from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput
         from trimit.models import start_transaction
 
         step_name, substep_name = get_step_substep_names_from_dynamic_state_key(
             dynamic_key
         )
-        substep_name = remove_retry_suffix(substep_name)
         try:
             retry = results.retry
         except AttributeError:
@@ -1143,7 +1129,13 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                     updated_results = CutTranscriptLinearWorkflowStepOutput(
                         **updated_results
                     )
-                updated_results.merge(results)
+                if updated_results.retry_num == results.retry_num:
+                    updated_results.merge(results)
+                else:
+                    results.prior_outputs = updated_results.prior_outputs[:]
+                    updated_results.prior_outputs = []
+                    results.prior_outputs.append(updated_results)
+                    updated_results = results
             updated_self.dynamic_state[dynamic_key] = updated_results
             copied_self.dynamic_state = {
                 **copied_self.dynamic_state,

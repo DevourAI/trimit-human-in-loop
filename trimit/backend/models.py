@@ -1,4 +1,5 @@
 import json
+from enum import StrEnum
 from IPython.display import Video
 from fastapi.encoders import jsonable_encoder
 from trimit.models.models import StepKey
@@ -7,6 +8,16 @@ from typing import Callable, Optional, Union
 import pickle
 from trimit.utils.misc import union_list_of_intervals
 import copy
+
+
+class Role(StrEnum):
+    AI = "AI"
+    Human = "Human"
+
+
+class Message(BaseModel):
+    role: Role = Field(..., description="Either AI or Human")
+    value: str = Field(..., description="The message content")
 
 
 class WordInfo(BaseModel):
@@ -1562,6 +1573,9 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
     is_retry: bool = Field(False, description="whether the current run is a retry")
     step_name: str | None = None
     substep_name: str | None = None
+    conversation: list[Message] = Field(
+        [], description="list of previous messages for this step"
+    )
 
 
 class CutTranscriptLinearWorkflowStepResults(BaseModel):
@@ -1576,6 +1590,7 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     done: bool = Field(
         False, description="If True, workflow has completed. This was the final step."
     )
+
     user_feedback_request: str | None = Field(
         None,
         description="prompt to user for additional, optional input if the user wants to rerun the step",
@@ -1602,6 +1617,47 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
         False,
         description="frontend should ignore this. backend may choose to retry the current step before asking the user for feedback, in which case this will be true",
     )
+    retry_num: int = Field(
+        0,
+        description="current number of retries, zero-indexed. First time step runs this will be saved as 0. Equivalent to len(self.prior_outputs)",
+    )
+    prior_outputs: list["CutTranscriptLinearWorkflowStepOutput"] = Field(
+        [],
+        description="Previous outputs for this step. If nonempty, user has request one or more retries",
+    )
+
+    @property
+    def conversation(self):
+        _conversation = []
+        for prior_output in self.prior_outputs:
+            _conversation.append(
+                Message(
+                    role=Role.Human,
+                    value=(
+                        prior_output.step_inputs.user_prompt or ""
+                        if prior_output.step_inputs
+                        else ""
+                    ),
+                )
+            )
+            _conversation.append(
+                Message(role=Role.AI, value=prior_output.user_feedback_request or "")
+            )
+        _conversation.append(
+            Message(
+                role=Role.Human,
+                value=self.step_inputs.user_prompt or "" if self.step_inputs else "",
+            )
+        )
+        _conversation.append(
+            Message(role=Role.AI, value=self.user_feedback_request or "")
+        )
+        return _conversation
+
+    def model_dump(self, *args, **kwargs):
+        res = super().model_dump(*args, **kwargs)
+        res["conversation"] = [m.model_dump() for m in self.conversation]
+        return res
 
     def merge(self, other: "CutTranscriptLinearWorkflowStepOutput"):
         if self.step_name == "" and other.step_name:
@@ -1864,9 +1920,6 @@ class Steps(BaseModel):
 
 
 class GetLatestState(BaseModel):
-    user_messages: list[str] = Field(
-        [], description="list of all messages user has provided"
-    )
     step_history_state: list[StepKey] = Field(
         [],
         description="list of every step and substeps run so far, including retry_{i} prefixes on substeps when a step was retried",

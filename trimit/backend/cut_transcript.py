@@ -25,8 +25,6 @@ from trimit.backend.utils import (
     parse_partials_to_redo_from_agent_output,
     parse_relevant_user_feedback_list_from_agent_output,
     add_complete_format,
-    remove_retry_suffix,
-    Message,
     parse_stage_num_from_step_name,
     stage_key_for_step_name,
     get_agent_output_modal_or_local,
@@ -60,6 +58,7 @@ from trimit.export import (
     save_soundbites_videos_to_disk,
 )
 from trimit.backend.models import (
+    Message,
     GetLatestState,
     PartialBackendOutput,
     PartialLLMOutput,
@@ -767,32 +766,22 @@ class CutTranscriptLinearWorkflow:
             return None
         return self._get_output_for_key(key)
 
-    async def get_output_for_keys(
-        self, keys: list[str], with_load_state=True, latest_retry=False
-    ):
+    async def get_output_for_keys(self, keys: list[str], with_load_state=True):
         if with_load_state:
             await self.load_state()
         assert self.state is not None
         return [
             self._get_output_for_name(
-                *get_step_substep_names_from_dynamic_state_key(key),
-                latest_retry=latest_retry,
+                *get_step_substep_names_from_dynamic_state_key(key)
             )
             for key in keys
         ]
 
-    async def get_output_for_names(
-        self, names: list[str], with_load_state=True, latest_retry=False
-    ):
+    async def get_output_for_names(self, names: list[str], with_load_state=True):
         if with_load_state:
             await self.load_state()
         assert self.state is not None
-        return [
-            self._get_output_for_name(
-                name, substep_name=None, latest_retry=latest_retry
-            )
-            for name in names
-        ]
+        return [self._get_output_for_name(name, substep_name=None) for name in names]
 
     async def get_all_outputs(self, only_last_substep=True, with_load_state=True):
         if with_load_state:
@@ -803,9 +792,7 @@ class CutTranscriptLinearWorkflow:
             if only_last_substep:
                 # TODO retries should be added to the same step output as a list. Right now just return latest one
                 outputs.append(
-                    self._get_output_for_name(
-                        step_key.name, substep_name=None, latest_retry=True
-                    )
+                    self._get_output_for_name(step_key.name, substep_name=None)
                 )
             else:
                 for substep_name in step_key.substeps:
@@ -815,7 +802,6 @@ class CutTranscriptLinearWorkflow:
         return outputs
 
     def get_step_by_name(self, step_name: str, substep_name: str):
-        substep_name = remove_retry_suffix(substep_name)
         for step in self.steps:
             if step.name == step_name:
                 for substep in step.substeps:
@@ -861,7 +847,7 @@ class CutTranscriptLinearWorkflow:
         # because we pass the version of workflow/workflow.state that has it to the method
         await self._save_raw_step_result(result)
 
-        state_save_key = self.state.get_new_dynamic_key_with_retry(
+        state_save_key, retry_num = self.state.get_new_dynamic_key_with_retry_num(
             current_step.name, current_substep.name
         )
         export_result = {}
@@ -869,7 +855,9 @@ class CutTranscriptLinearWorkflow:
         export_call_id = None
         if is_local() and async_export:
             task = asyncio.create_task(
-                export_results_wrapper.local(self, state_save_key, current_substep)
+                export_results_wrapper.local(
+                    self, state_save_key, current_substep, retry_num
+                )
             )
         elif not async_export:
             export_result, is_last = None, False
@@ -879,13 +867,16 @@ class CutTranscriptLinearWorkflow:
                 continue
             assert export_result is not None and is_last
         else:
-            call = export_results_wrapper.spawn(self, state_save_key, current_substep)
+            call = export_results_wrapper.spawn(
+                self, state_save_key, current_substep, retry_num
+            )
             export_call_id = call.object_id
 
         step_output_parsed = await self._parse_step_output_from_step_result(
             current_step,
             current_substep_index,
             result,
+            retry_num=retry_num,
             export_result=export_result,
             export_call_id=export_call_id,
         )
@@ -921,7 +912,7 @@ class CutTranscriptLinearWorkflow:
             step_result = CutTranscriptLinearWorkflowStepOutput(
                 step_name=END_STEP_NAME, substep_name=END_STEP_NAME, done=True
             )
-            state_save_key = self.state.get_new_dynamic_key_with_retry(
+            state_save_key, _ = self.state.get_new_dynamic_key_with_retry_num(
                 END_STEP_NAME, END_STEP_NAME
             )
 
@@ -1506,12 +1497,11 @@ class CutTranscriptLinearWorkflow:
         key = self.step_order.get_current_step_key_atomic()
         if key is None:
             return -1, None, -1
-        last_step_name, last_substep_name_with_retry = (
+        last_step_name, last_substep_name = (
             get_step_substep_names_from_dynamic_state_key(key)
         )
 
-        assert last_substep_name_with_retry is not None
-        last_substep_name = remove_retry_suffix(last_substep_name_with_retry)
+        assert last_substep_name is not None
         if last_step_name == END_STEP_NAME:
             return len(self.steps), self.steps[-1], len(self.steps[-1].substeps)
         last_steps_list = [
@@ -1522,10 +1512,10 @@ class CutTranscriptLinearWorkflow:
         ]
         if len(last_steps_list) == 0:
             raise ValueError(
-                f"Last step {last_step_name}.{last_substep_name_with_retry} not found in steps"
+                f"Last step {last_step_name}.{last_substep_name} not found in steps"
             )
         last_step_index, last_step, last_substep_index = last_steps_list[0]
-        last_step.substeps[last_substep_index].name = last_substep_name_with_retry
+        last_step.substeps[last_substep_index].name = last_substep_name
         return last_step_index, last_step, last_substep_index
 
     def _get_next_step_with_index(self):
@@ -1545,6 +1535,7 @@ class CutTranscriptLinearWorkflow:
     async def _get_next_step_with_user_feedback(
         self, user_feedback: str | None = None, retry_step: bool = False
     ):
+
         # TODO use get_step_by_name
         last_step_index, last_step, last_substep_index = (
             self._get_last_step_with_index()
@@ -1629,6 +1620,7 @@ class CutTranscriptLinearWorkflow:
         current_step,
         current_substep_index,
         result,
+        retry_num,
         export_result=None,
         export_call_id=None,
     ):
@@ -1663,17 +1655,18 @@ class CutTranscriptLinearWorkflow:
             export_result=export_result or {},
             export_call_id=export_call_id,
             retry=result.retry,
+            retry_num=retry_num,
         )
 
-    async def _save_export_result_to_step_output(self, state_save_key, export_result):
+    async def _save_export_result_to_step_output(
+        self, state_save_key, export_result, retry_num
+    ):
         assert self.state is not None
-        output = self._get_output_for_key(state_save_key)
+        output = self._get_output_for_key(state_save_key, default_retry_num=retry_num)
         output.export_result = export_result
         await self.state.set_current_step_output_atomic(state_save_key, output)
 
-    def _get_output_for_name(
-        self, step_name: str, substep_name: str | None = None, latest_retry=False
-    ):
+    def _get_output_for_name(self, step_name: str, substep_name: str | None = None):
         assert self.state is not None
         if substep_name is None:
             matching = [step for step in self.steps if step.name == step_name]
@@ -1682,22 +1675,20 @@ class CutTranscriptLinearWorkflow:
             step = matching[0]
             substep_name = step.substeps[-1].name
         key = get_dynamic_state_key(step_name, substep_name)
-        if latest_retry:
-            key = self.state.get_latest_dynamic_key_with_retry_from(
-                step_name, substep_name
-            )
         return self._get_output_for_key(key)
 
-    def _get_output_for_key(self, key: str):
+    def _get_output_for_key(self, key: str, default_retry_num: int = 0):
         assert self.state is not None
         results = self.state.dynamic_state.get(key, None)
+        step_name, substep_name = get_step_substep_names_from_dynamic_state_key(key)
         if results is None:
             return CutTranscriptLinearWorkflowStepOutput(
-                step_name="",
-                substep_name="",
+                step_name=step_name,
+                substep_name=substep_name,
                 done=False,
                 user_feedback_request="",
                 step_outputs={},
+                retry_num=default_retry_num,
             )
 
         if not isinstance(results, CutTranscriptLinearWorkflowStepOutput):
@@ -1716,9 +1707,7 @@ class CutTranscriptLinearWorkflow:
 
         assert self.state is not None
         _, substep = self.get_step_by_name(step_name, substep_name)
-        dynamic_key = self.state.get_latest_dynamic_key_with_retry_from(
-            step_name, substep_name
-        )
+        dynamic_key = self.state.get_latest_dynamic_key_from(step_name, substep_name)
         if self.state.dynamic_state_retries.get(dynamic_key):
             print("Latest state was retry")
             return True, CutTranscriptLinearWorkflowStepInput(
