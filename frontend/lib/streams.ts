@@ -25,8 +25,6 @@ export async function decodeStreamAsJSON(
       try {
         valueDecoded = JSON.parse(text);
       } catch (e) {
-        console.log('text with error', text);
-        console.error(e);
         return [null, false];
       }
       if (valueDecoded && valueDecoded.final_state) {

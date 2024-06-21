@@ -33,6 +33,7 @@ interface StepperFormProps {
   step: ExportableStepWrapper;
   prompt: string;
   onRetry: (stepIndex: number, data: z.infer<typeof FormSchema>) => void;
+  onSubmit: (stepIndex: number) => void;
   onCancelStep?: () => void;
 }
 export function StepperForm({
@@ -43,6 +44,7 @@ export function StepperForm({
   step,
   prompt,
   onRetry,
+  onSubmit,
   onCancelStep,
 }: StepperFormProps) {
   // console.log('systemPrompt:', systemPrompt);
@@ -60,10 +62,26 @@ export function StepperForm({
   const [textAreaValue, setTextAreaValue] = useState<string>('');
   const [prevUserMessage, setPrevUserMessage] = useState<string>('');
 
-  const onSubmit = (data: z.infer<typeof FormSchema>) => {
+  const onSubmitInternal = (
+    retry: boolean,
+    data: z.infer<typeof FormSchema> | undefined
+  ) => {
     setPrevUserMessage(textAreaValue);
     setTextAreaValue('');
-    onRetry(stepIndex, data);
+    if (retry) {
+      if (!data) {
+        console.error('form data must be provided for retry');
+      } else {
+        onRetry(stepIndex, data);
+      }
+    } else {
+      onSubmit(stepIndex + 1);
+    }
+  };
+
+  const onRetryClick = () => {
+    const formData = form.getValues();
+    onSubmitInternal(true, formData);
   };
 
   const handleTextAreaChange = (event: ChangeEvent<HTMLTextAreaElement>) => {
@@ -77,7 +95,7 @@ export function StepperForm({
       <Form {...form}>
         <p>{systemPrompt}</p>
         <form
-          onSubmit={form.handleSubmit((data) => onSubmit(data))}
+          onSubmit={form.handleSubmit((data) => onSubmitInternal(false, data))}
           className="w-2/3 space-y-6"
         >
           <FormField
@@ -118,11 +136,21 @@ export function StepperForm({
               <Button
                 size="sm"
                 disabled={isLoading}
-                type="submit"
+                type="button"
+                onClick={onRetryClick}
                 variant="secondary"
               >
                 <ReloadIcon className="mr-2" />
                 Retry
+              </Button>
+              <Button
+                size="sm"
+                disabled={isLoading}
+                type="submit"
+                variant="secondary"
+              >
+                <ReloadIcon className="mr-2" />
+                Submit
               </Button>
               <ExportStepMenu
                 userParams={userParams}
