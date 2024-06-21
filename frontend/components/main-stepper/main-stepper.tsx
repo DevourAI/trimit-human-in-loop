@@ -1,6 +1,6 @@
 'use client';
 import { DownloadIcon, ReloadIcon } from '@radix-ui/react-icons';
-import React, { useEffect, useMemo, useReducer, useState } from 'react';
+import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { z } from 'zod';
 
 import { Footer } from '@/components/main-stepper/main-stepper-footer';
@@ -120,17 +120,27 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     }),
     [userData.email, timelineName, lengthSeconds, videoHash]
   );
+  const fetchedInitialState = useRef(false);
+  const allowRunningFromCurrentStepIndexChange = useRef(false);
+  const prevExportResult = useRef();
+  const prevExportCallId = useRef();
 
   useEffect(() => {
     async function fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput() {
-      const data = await getLatestState(userParams as GetLatestStateParams);
-      let firstStateLoad = false;
-      if (!latestState) {
-        firstStateLoad = true;
+      // since we include currentStepIndex as a dependency
+      // but set its value in the first successful call to this effect hook,
+      // the 2nd call to this hook should be a noop
+      if (
+        fetchedInitialState.current &&
+        !allowRunningFromCurrentStepIndexChange.current
+      ) {
+        allowRunningFromCurrentStepIndexChange.current = true;
+        return;
       }
-      setLatestState(data);
+      const data = await getLatestState(userParams as GetLatestStateParams);
+      if (!data || Object.keys(data).length === 0) return;
       console.log('data', data);
-      if (firstStateLoad) {
+      if (!fetchedInitialState.current) {
         let stepIndex = 0;
         try {
           stepIndex = stepIndexFromState(data);
@@ -148,19 +158,15 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
           setStepOutput(data.outputs[data.outputs.length - 1]);
         }
       }
+      setLatestState(data);
+      fetchedInitialState.current = true;
     }
     fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput();
-  }, [userData, userParams, videoHash]);
-
-  useEffect(() => {
-    async function fetchLatestState() {
-      setLatestState(await getLatestState(userParams as GetLatestStateParams));
-    }
-    fetchLatestState();
-  }, [currentStepIndex]);
+  }, [userData, userParams, videoHash, currentStepIndex]);
 
   useEffect(() => {
     if (!latestState || !latestState.all_steps) return;
+
     const stepIndex = stepIndexFromState(latestState);
     if (stepIndex !== -1) {
       setTrueStepIndex(stepIndex);
@@ -173,14 +179,16 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     const lastOutput = latestState.outputs[latestState.outputs.length - 1];
     if (
       lastOutput.export_result &&
-      lastOutput.export_result != latestExportResult
+      lastOutput.export_result != prevExportResult.current
     ) {
       setLatestExportResult(lastOutput.export_result);
+      prevExportResult.current = lastOutput.export_result;
     } else if (
       lastOutput.export_call_id &&
-      lastOutput.export_call_id != latestExportCallId
+      lastOutput.export_call_id != prevExportCallId.current
     ) {
       setLatestExportCallId(lastOutput.export_call_id);
+      prevExportCallId.current = lastOutput.export_call_id;
     }
   }, [latestState]);
 
