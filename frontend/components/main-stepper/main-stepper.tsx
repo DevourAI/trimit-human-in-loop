@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 import { z } from 'zod';
 
 import { Footer } from '@/components/main-stepper/main-stepper-footer';
+import StepRenderer from '@/components/main-stepper/step-renderer';
 import { Button } from '@/components/ui/button';
 import { Step, Stepper } from '@/components/ui/stepper';
 import { FormSchema, StepperForm } from '@/components/ui/stepper-form';
@@ -478,22 +479,27 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
                     }}
                   />
 
-                  {/* <StepRenderer
-                  step={step}
-                  footer={
-                    <Footer
-                      currentStepIndex={currentStepIndex}
-                      trueStepIndex={trueStepIndex}
-                      onPrevStep={onPrevStep}
-                      onNextStep={onNextStep}
-                      undoLastStep={undoLastStep}
-                      hasCompletedAllSteps={hasCompletedAllSteps}
-                      totalNSteps={latestState.all_steps!.length}
-                    />
-                  }
-                /> */}
+                  <StepRenderer
+                    step={step}
+                    stepOutput={
+                      latestState?.outputs?.length > index
+                        ? latestState.outputs[index]
+                        : null
+                    }
+                    footer={
+                      <Footer
+                        currentStepIndex={currentStepIndex}
+                        trueStepIndex={trueStepIndex}
+                        onPrevStep={onPrevStep}
+                        onNextStep={onNextStep}
+                        undoLastStep={undoLastStep}
+                        hasCompletedAllSteps={hasCompletedAllSteps}
+                        totalNSteps={latestState.all_steps!.length}
+                      />
+                    }
+                  />
                 </div>
-                <Footer
+                {/* <Footer
                   currentStepIndex={currentStepIndex}
                   trueStepIndex={trueStepIndex}
                   onPrevStep={onPrevStep}
@@ -501,7 +507,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
                   undoLastStep={undoLastStep}
                   hasCompletedAllSteps={hasCompletedAllSteps}
                   totalNSteps={latestState.all_steps!.length}
-                />
+                /> */}
               </Step>
             )
           )}
