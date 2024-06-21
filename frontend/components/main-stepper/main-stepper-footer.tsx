@@ -75,7 +75,10 @@ export const Footer = ({
         <Button
           size="sm"
           onClick={onNextStep}
-          disabled={trueStepIndex >= totalNSteps - 1}
+          disabled={
+            trueStepIndex >= totalNSteps - 1 ||
+            currentStepIndex >= trueStepIndex
+          }
         >
           Next
           <ArrowRightIcon className="ml-2" />

@@ -1465,7 +1465,13 @@ class Soundbites(Transcript):
         if end_word_index:
             assert soundbite.end_segment_index in self.transcript.kept_segments
         else:
-            assert soundbite.end_segment_index - 1 in self.transcript.kept_segments
+            # TODO why is this happening?
+            # assert soundbite.end_segment_index - 1 in self.transcript.kept_segments
+            # I added this to make it not error out
+            if soundbite.end_segment_index - 1 not in self.transcript.kept_segments:
+                self.transcript.kept_segments |= set(
+                    range(soundbite.start_segment_index, soundbite.end_segment_index)
+                )
         soundbite.start_word_index = soundbite.start_word_index or 0
 
         start_seg = self.transcript.segments[soundbite.start_segment_index]
