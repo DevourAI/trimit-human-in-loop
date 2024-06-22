@@ -91,3 +91,4 @@ asyncio_mode = "auto"
 markers = [
     "long: marks tests as long-running (deselect with '-m \"not long\"')",
 ]
+filterwarnings = "ignore::DeprecationWarning:pydantic.main:1265"

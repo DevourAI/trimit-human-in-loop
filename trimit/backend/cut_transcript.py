@@ -1481,17 +1481,6 @@ class CutTranscriptLinearWorkflow:
             speaker_tagging_clips[speaker].append(path)
         return speaker_tagging_clips
 
-    def _step_output_val_for_stage(self, stage_num, step_output_key):
-        assert self.state is not None
-        for step_name in self.state.dynamic_state_step_order[::-1]:
-            if f"stage_{stage_num}" in step_name.substeps[-1]:
-                step_state = self.state.dynamic_state.get(step_name, {})
-                step_outputs = step_state.get("step_outputs", {})
-                if step_outputs:
-                    output = step_outputs.get(step_output_key)
-                    if output:
-                        return output
-
     def _get_last_step_with_index(self):
         # TODO use get_step_by_name
         key = self.step_order.get_current_step_key_atomic()
@@ -1662,7 +1651,7 @@ class CutTranscriptLinearWorkflow:
         self, state_save_key, export_result, retry_num
     ):
         assert self.state is not None
-        output = self._get_output_for_key(state_save_key, default_retry_num=retry_num)
+        output = self._get_output_for_key(state_save_key, retry_num=retry_num)
         output.export_result = export_result
         await self.state.set_current_step_output_atomic(state_save_key, output)
 
@@ -1677,19 +1666,20 @@ class CutTranscriptLinearWorkflow:
         key = get_dynamic_state_key(step_name, substep_name)
         return self._get_output_for_key(key)
 
-    def _get_output_for_key(self, key: str, default_retry_num: int = 0):
+    def _get_output_for_key(self, key: str, retry_num: int = -1):
         assert self.state is not None
-        results = self.state.dynamic_state.get(key, None)
+        outputs = self.state.dynamic_state.get(key, [])
         step_name, substep_name = get_step_substep_names_from_dynamic_state_key(key)
-        if results is None:
+        if len(outputs) == 0 or retry_num >= len(outputs):
             return CutTranscriptLinearWorkflowStepOutput(
                 step_name=step_name,
                 substep_name=substep_name,
                 done=False,
                 user_feedback_request="",
                 step_outputs={},
-                retry_num=default_retry_num,
+                retry_num=retry_num,
             )
+        results = outputs[retry_num]
 
         if not isinstance(results, CutTranscriptLinearWorkflowStepOutput):
             results = CutTranscriptLinearWorkflowStepOutput(**results)

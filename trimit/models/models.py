@@ -967,7 +967,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             new_last_step_wrapper.name, new_last_substep
         )
         print("new last step", new_dynamic_state_key)
-        new_last_step_outputs = self.dynamic_state[new_dynamic_state_key]
+        new_last_step_outputs = self.dynamic_state[new_dynamic_state_key][-1]
         if "current_transcript_state" in new_last_step_outputs:
             print("revert current transcript state")
             self.current_transcript_state = new_last_step_outputs[
@@ -1068,16 +1068,9 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     def get_new_dynamic_key_with_retry_num(self, step_name, substep_name):
         dynamic_key = get_dynamic_state_key(step_name, substep_name)
-        current_results = self.dynamic_state.get(dynamic_key, None)
-        if not current_results:
-            return dynamic_key, 0
-        if isinstance(current_results, dict):
-            retry_num = current_results.get("retry_num", 0)
-        elif hasattr(current_results, "retry_num"):
-            retry_num = current_results.retry_num
-        else:
-            retry_num = 0
-        return dynamic_key, retry_num + 1
+        current_results = self.dynamic_state.get(dynamic_key, [])
+        retry_num = len(current_results)
+        return dynamic_key, retry_num
 
     @retry(stop=stop_after_attempt(10), wait=wait_fixed(0.1) + wait_random(0, 1))
     async def set_current_step_output_atomic(
@@ -1098,6 +1091,10 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         except AttributeError:
             retry = results.get("retry", False)
 
+        retry_num = results.retry_num
+
+        # TODO outputs for steps should be saved in a more specific data structure in State than dynamic_state should
+
         # This copy is necessary because beanie overwrite self's attributes when we call .get()
         copied_self_dict = copy.deepcopy(self).model_dump()
 
@@ -1109,19 +1106,34 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                 )
             copied_self = CutTranscriptLinearWorkflowState(**copied_self_dict)
             for k, v in copied_self.dynamic_state.items():
-                if isinstance(v, dict):
-                    try:
-                        copied_self.dynamic_state[k] = (
-                            CutTranscriptLinearWorkflowStepOutput(**v)
-                        )
-                    except:
-                        continue
+                if hasattr(v, "__iter__"):
+                    for _retry_num, output in enumerate(v):
+                        if isinstance(output, dict):
+                            try:
+                                copied_self.dynamic_state[k][_retry_num] = (
+                                    CutTranscriptLinearWorkflowStepOutput(**output)
+                                )
+                            except:
+                                continue
 
             if updated_self is None:
                 updated_self = copied_self
             updated_results = results
-            if dynamic_key in updated_self.dynamic_state:
-                updated_results = updated_self.dynamic_state[dynamic_key]
+            new_step_outputs_list = updated_self.dynamic_state.get(dynamic_key, [])
+            existing_length = len(new_step_outputs_list)
+            #  if retry_num == 1:
+            #  breakpoint()
+            if retry_num >= existing_length:
+                new_step_outputs_list.extend(
+                    [None for _ in range(1 + retry_num - existing_length)]
+                )
+            if (
+                existing_length > retry_num
+                and updated_self.dynamic_state[dynamic_key][retry_num]
+            ):
+                #  if dynamic_key =="stage_1_generate_transcript.modify_transcript_holistically":
+                #  breakpoint()
+                updated_results = updated_self.dynamic_state[dynamic_key][retry_num]
                 if not isinstance(
                     updated_results, CutTranscriptLinearWorkflowStepOutput
                 ):
@@ -1129,14 +1141,16 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                     updated_results = CutTranscriptLinearWorkflowStepOutput(
                         **updated_results
                     )
-                if updated_results.retry_num == results.retry_num:
-                    updated_results.merge(results)
-                else:
-                    results.prior_outputs = updated_results.prior_outputs[:]
-                    updated_results.prior_outputs = []
-                    results.prior_outputs.append(updated_results)
-                    updated_results = results
-            updated_self.dynamic_state[dynamic_key] = updated_results
+                updated_results.merge(results)
+                new_step_outputs_list[retry_num] = updated_results
+                #  else:
+                #  results.prior_outputs = updated_results.prior_outputs[:]
+                #  updated_results.prior_outputs = []
+                #  results.prior_outputs.append(updated_results)
+                #  updated_results = results
+            else:
+                new_step_outputs_list[retry_num] = results
+            updated_self.dynamic_state[dynamic_key] = new_step_outputs_list
             copied_self.dynamic_state = {
                 **copied_self.dynamic_state,
                 **updated_self.dynamic_state,

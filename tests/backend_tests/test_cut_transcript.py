@@ -255,24 +255,54 @@ async def test_retry_partial_transcript_step(
     assert output.step_name == "stage_0_generate_transcript"
     assert output.substep_name == substep_name
     assert output.retry_num == 1
-    assert len(output.conversation) == 4
-    assert [Role.Human, Role.AI, Role.Human, Role.AI] == [
-        m.role for m in output.conversation
+
+    assert len(output.conversation) == 2
+    assert output.conversation[0].role == Role.Human
+    assert output.conversation[1].role == Role.AI
+    assert (
+        output.conversation[0].value
+        == "drop everything from the third chunk, even the text that aligns with the narrative story"
+    )
+    assert (
+        "Do you have any feedback to provide the AI assistant?"
+        in output.conversation[1].value
+    )
+
+    saved_outputs = [
+        CutTranscriptLinearWorkflowStepOutput(**o)
+        for o in workflow.state.dynamic_state[
+            "stage_0_generate_transcript.modify_transcript_holistically"
+        ]
     ]
-    assert [
-        "",
-        "drop everything from the third chunk, even the text that aligns with the narrative story",
-    ] == [m.value for m in output.conversation if m.role == Role.Human]
-    for m in output.conversation:
-        if m.role == Role.AI:
-            assert "Do you have any feedback to provide the AI assistant?" in m.value
-    assert len(output.prior_outputs) == 1
-    assert output.prior_outputs[0].retry_num == 0
-    assert output.prior_outputs[0].step_outputs
+    assert len(saved_outputs) == 2
+    assert saved_outputs[0].retry_num == 0
+    assert saved_outputs[1].retry_num == 1
     prior_output_transcript = Transcript.load_from_state(
-        output.prior_outputs[0].step_outputs["current_transcript_state"]
+        saved_outputs[0].step_outputs["current_transcript_state"]
     )
     assert prior_output_transcript.chunks[-1].text == chunks_before[-1].text
+
+    assert len(saved_outputs[0].conversation) == 2
+    assert len(saved_outputs[1].conversation) == 2
+
+    assert saved_outputs[0].conversation[0].role == Role.Human
+    assert saved_outputs[0].conversation[1].role == Role.AI
+    assert saved_outputs[0].conversation[0].value == ""
+    assert (
+        "Do you have any feedback to provide the AI assistant?"
+        in saved_outputs[0].conversation[1].value
+    )
+
+    assert saved_outputs[1].conversation[0].role == Role.Human
+    assert saved_outputs[1].conversation[1].role == Role.AI
+    assert (
+        saved_outputs[1].conversation[0].value
+        == "drop everything from the third chunk, even the text that aligns with the narrative story"
+    )
+    assert (
+        "Do you have any feedback to provide the AI assistant?"
+        in saved_outputs[1].conversation[1].value
+    )
 
 
 def assert_under_word_count_threshold(workflow, transcript, stage):
@@ -455,6 +485,7 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
     assert result is not None
     assert result.step_name == "stage_1_generate_transcript"
     assert result.substep_name == "modify_transcript_holistically"
+    step_outputs.append(result)
 
     speaker_tagging_output = (
         await workflow.get_output_for_keys(
@@ -556,14 +587,25 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
             step_outputs[output_idx].step_outputs["current_soundbites_state"]
         )
         assert [
-            Soundbite.from_dict_with_parent_obj(parent_obj=parent_obj, **sb)
-            for sb in workflow.state.dynamic_state[step_key].step_outputs[
+            (
+                Soundbite.from_dict_with_parent_obj(parent_obj=parent_obj, **sb)
+                if isinstance(sb, dict)
+                else Soundbite.from_dict_with_parent_obj(
+                    parent_obj=parent_obj,
+                    start_segment_index=sb.start_segment_index,
+                    start_word_index=sb.start_word_index,
+                    end_segment_index=sb.end_segment_index,
+                    end_word_index=sb.end_word_index,
+                )
+            )
+            for sb in workflow.state.dynamic_state[step_key][-1].step_outputs[
                 "current_soundbites_state"
             ]["soundbites"]
         ] == parent_obj.soundbites
 
-    for output_idx, step_key in zip(
-        [5, 7],
+    for output_idx, retry_num, step_key in zip(
+        [5, 7, 9],
+        [-1, 0, -1],
         [
             "stage_0_generate_transcript.modify_transcript_holistically",
             "stage_1_generate_transcript.modify_transcript_holistically",
@@ -571,7 +613,7 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
     ):
         assert (
             Transcript.load_from_state(
-                workflow.state.dynamic_state[step_key].step_outputs[
+                workflow.state.dynamic_state[step_key][retry_num].step_outputs[
                     "current_transcript_state"
                 ]
             ).kept_word_count
@@ -652,6 +694,7 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
     assert result is not None
     assert result.step_name == "stage_1_generate_transcript"
     assert result.substep_name == "modify_transcript_holistically"
+    step_outputs.append(result)
 
     soundbites_output = (
         await workflow.get_output_for_keys(
@@ -672,8 +715,6 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
         else:
             assert os.stat(output_files[file_key]).st_size > 0
 
-    output = await workflow.get_last_output_before_end()
-    output_files = output.export_result
     for file_key in ["video_timeline", "video", "transcript", "transcript_text"]:
         assert file_key in output_files
         if isinstance(output_files[file_key], list):
@@ -683,7 +724,7 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
             assert os.stat(output_files[file_key]).st_size > 0
     assert (
         Path(output_files["video"]).name
-        == "3909774043_modify_transcript_holistically_video_0.mp4"
+        == "3909774043_modify_transcript_holistically_video_1.mp4"
     )
 
     all_outputs = await workflow.get_all_outputs(
@@ -738,13 +779,14 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
         )
         assert [
             Soundbite.from_dict_with_parent_obj(parent_obj=parent_obj, **sb)
-            for sb in workflow.state.dynamic_state[step_key]["step_outputs"][
+            for sb in workflow.state.dynamic_state[step_key][-1]["step_outputs"][
                 "current_soundbites_state"
             ]["soundbites"]
         ] == parent_obj.soundbites
 
-    for output_idx, step_key in zip(
-        [5, 7],
+    for output_idx, retry_num, step_key in zip(
+        [5, 7, 9],
+        [-1, 0, -1],
         [
             "stage_0_generate_transcript.modify_transcript_holistically",
             "stage_1_generate_transcript.modify_transcript_holistically",
@@ -752,7 +794,7 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
     ):
         assert (
             Transcript.load_from_state(
-                workflow.state.dynamic_state[step_key]["step_outputs"][
+                workflow.state.dynamic_state[step_key][retry_num]["step_outputs"][
                     "current_transcript_state"
                 ]
             ).kept_word_count
