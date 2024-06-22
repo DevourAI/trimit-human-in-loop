@@ -421,11 +421,6 @@ class CutTranscriptLinearWorkflow:
         return self.state.user_prompt
 
     @property
-    def user_messages(self):
-        assert self.state is not None
-        return self.state.user_messages
-
-    @property
     def serializable_state_step_order(self):
         assert self.state is not None
         return self.state.dynamic_state_step_order
@@ -641,7 +636,6 @@ class CutTranscriptLinearWorkflow:
             next_step=next_step_obj,
             video_id=str(self.video.id),
             user_id=str(self.user.id),
-            user_messages=self.user_messages,
             step_history_state=self.serializable_state_step_order,
             all_steps=None,
             outputs=None,
@@ -971,7 +965,6 @@ class CutTranscriptLinearWorkflow:
             current_transcript = Transcript.load_from_state(
                 self.state.raw_transcript_state
             )
-        self.state.user_messages = [step_input.user_prompt or ""]
 
         run_output_dir = get_new_integer_file_name_in_dir(
             self.output_dir, ext="", prefix="run_"
@@ -985,7 +978,7 @@ class CutTranscriptLinearWorkflow:
         ), True
 
     async def remove_off_screen_speakers(
-        self, step_input: CutTranscriptLinearWorkflowStepInput | None
+        self, step_input: CutTranscriptLinearWorkflowStepInput
     ):
         user_prompt = step_input.user_prompt if step_input else ""
 
@@ -1034,27 +1027,20 @@ class CutTranscriptLinearWorkflow:
             user_feedback_request=f"I identified these speakers as being on-screen: {on_screen_speakers}. \nDo you agree? Do you have modifications to make?",
         ), True
 
-    async def generate_story(
-        self, user_feedback: CutTranscriptLinearWorkflowStepInput | None
-    ):
+    async def generate_story(self, step_input: CutTranscriptLinearWorkflowStepInput):
         assert self.state is not None
         assert isinstance(self.on_screen_transcript, Transcript), "Transcript not set"
 
         prompt = load_prompt_template_as_string("linear_workflow_story")
-        user_messages = self.state.user_messages[:]
-        # TODO llm_modified_prompt?
-        if user_feedback and user_feedback.user_prompt:
-            user_messages.append(user_feedback.user_prompt)
-
         output = ""
         async for output, is_last in get_agent_output_modal_or_local(
             prompt,
             transcript=self.on_screen_transcript.text,
             length_seconds=self.length_seconds,
             total_words=desired_words_from_length(self.length_seconds),
-            user_prompt=user_messages[0],
+            user_prompt=self.state.user_prompt,
             from_cache=self.use_agent_output_cache,
-            user_feedback_messages=user_messages[1:],
+            user_feedback_messages=step_input.prior_user_messages,
         ):
             if not is_last:
                 yield output, is_last
@@ -1070,7 +1056,7 @@ class CutTranscriptLinearWorkflow:
         ), True
 
     async def identify_key_soundbites(
-        self, step_input: CutTranscriptLinearWorkflowStepInput | None
+        self, step_input: CutTranscriptLinearWorkflowStepInput
     ):
         assert self.state is not None
         # figure out how to load from file if need be for testing
@@ -1325,7 +1311,7 @@ class CutTranscriptLinearWorkflow:
                 if not self._word_count_excess(
                     modified_transcript, self._desired_words_for_stage(stage_num)
                 ):
-                    output.outputs["retries"] = i
+                    output.internal_retry_num = i
                     yield output, True
                     return
             else:
@@ -1537,6 +1523,7 @@ class CutTranscriptLinearWorkflow:
                 is_retry=False,
                 step_name=first_step.name,
                 substep_name=first_step.substeps[0].name,
+                prior_conversation=[],
             )
             return first_step, 0
 
@@ -1556,9 +1543,17 @@ class CutTranscriptLinearWorkflow:
         )
         if retry:
             print("retrying", retry_input)
+            step_key = get_dynamic_state_key(last_step.name, last_substep.name)
+            assert len(
+                self.state.outputs.get(step_key, [])
+            ), "attempt to retry when no previous output exists"
+            prior_outputs = self.state.outputs[step_key]
             last_substep.input = retry_input or CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_feedback, is_retry=True
             )
+            last_substep.input.prior_conversation = [
+                m for o in prior_outputs for m in o.conversation
+            ]
             last_substep.input.step_name = last_step.name
             last_substep.input.substep_name = last_substep.name
             return last_step, last_substep_index
@@ -1582,6 +1577,7 @@ class CutTranscriptLinearWorkflow:
             is_retry=False,
             step_name=next_step.name,
             substep_name=next_substep.name,
+            prior_conversation=[],
         )
         # TODO next_substep should reference next_step so we can just return next_substep
         # instead of needing both of these
@@ -1645,6 +1641,7 @@ class CutTranscriptLinearWorkflow:
             export_call_id=export_call_id,
             retry=result.retry,
             retry_num=retry_num,
+            internal_retry_num=result.internal_retry_num,
         )
 
     async def _save_export_result_to_step_output(
@@ -1668,7 +1665,7 @@ class CutTranscriptLinearWorkflow:
 
     def _get_output_for_key(self, key: str, retry_num: int = -1):
         assert self.state is not None
-        outputs = self.state.dynamic_state.get(key, [])
+        outputs = self.state.outputs.get(key, [])
         step_name, substep_name = get_step_substep_names_from_dynamic_state_key(key)
         if len(outputs) == 0 or retry_num >= len(outputs):
             return CutTranscriptLinearWorkflowStepOutput(

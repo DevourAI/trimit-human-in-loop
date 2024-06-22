@@ -88,7 +88,7 @@ async def test_decide_retry_speaker_id_false(
     step_name = "remove_off_screen_speakers"
     workflow.state.on_screen_speakers = ["speaker_01"]
     workflow.state.dynamic_state_step_order = [step_name]
-    workflow.state.dynamic_state[step_name] = CutTranscriptLinearWorkflowStepOutput(
+    workflow.state.outputs[step_name] = CutTranscriptLinearWorkflowStepOutput(
         step_name=step_name, done=False, user_feedback_request=""
     )
     retry, _ = await workflow._decide_retry(step_name, user_prompt="Good job")
@@ -102,7 +102,7 @@ async def test_decide_retry_speaker_id_true(
     step_name = "remove_off_screen_speakers"
     workflow.state.on_screen_speakers = ["speaker_01", "speaker_02"]
     workflow.state.dynamic_state_step_order = [step_name]
-    workflow.state.dynamic_state[step_name] = CutTranscriptLinearWorkflowStepOutput(
+    workflow.state.outputs[step_name] = CutTranscriptLinearWorkflowStepOutput(
         step_name=step_name, done=False, user_feedback_request=""
     )
     retry, _ = await workflow._decide_retry(
@@ -118,7 +118,7 @@ async def test_decide_retry_story_true(
     step_name = "generate_story"
     workflow.state.on_screen_speakers = ["speaker_01"]
     workflow.state.dynamic_state_step_order = [step_name]
-    workflow.state.dynamic_state[step_name] = CutTranscriptLinearWorkflowStepOutput(
+    workflow.state.outputs[step_name] = CutTranscriptLinearWorkflowStepOutput(
         step_name=step_name, done=False, user_feedback_request=""
     )
     workflow.state.story = story_3909774043
@@ -135,7 +135,7 @@ async def test_decide_retry_story_false(
     step_name = "generate_story"
     workflow.state.on_screen_speakers = ["speaker_01"]
     workflow.state.dynamic_state_step_order = [step_name]
-    workflow.state.dynamic_state[step_name] = CutTranscriptLinearWorkflowStepOutput(
+    workflow.state.outputs[step_name] = CutTranscriptLinearWorkflowStepOutput(
         step_name=step_name, done=False, user_feedback_request=""
     )
     workflow.state.story = story_3909774043
@@ -153,7 +153,7 @@ async def test_decide_retry_soundbites(
     workflow.state.current_soundbites_state = soundbites_3909774043.state
     step_name = "identify_key_soundbites"
     workflow.state.dynamic_state_step_order = [step_name]
-    workflow.state.dynamic_state[step_name] = CutTranscriptLinearWorkflowStepOutput(
+    workflow.state.outputs[step_name] = CutTranscriptLinearWorkflowStepOutput(
         step_name=step_name, done=False, user_feedback_request=""
     )
     retry, step_input = await workflow._decide_retry(
@@ -201,7 +201,7 @@ async def test_decide_retry_transcript_chunks(
     workflow.state.current_transcript_state = transcript.state
     step_name = "stage_0_cut_partial_transcripts_with_critiques"
     workflow.state.dynamic_state_step_order = [step_name]
-    workflow.state.dynamic_state[step_name] = CutTranscriptLinearWorkflowStepOutput(
+    workflow.state.outputs[step_name] = CutTranscriptLinearWorkflowStepOutput(
         step_name=step_name, done=False, user_feedback_request=""
     )
     retry, step_input = await workflow._decide_retry(
@@ -269,8 +269,8 @@ async def test_retry_partial_transcript_step(
     )
 
     saved_outputs = [
-        CutTranscriptLinearWorkflowStepOutput(**o)
-        for o in workflow.state.dynamic_state[
+        o
+        for o in workflow.state.outputs[
             "stage_0_generate_transcript.modify_transcript_holistically"
         ]
     ]
@@ -292,6 +292,7 @@ async def test_retry_partial_transcript_step(
         "Do you have any feedback to provide the AI assistant?"
         in saved_outputs[0].conversation[1].value
     )
+    assert saved_outputs[0].step_inputs.prior_conversation == []
 
     assert saved_outputs[1].conversation[0].role == Role.Human
     assert saved_outputs[1].conversation[1].role == Role.AI
@@ -302,6 +303,9 @@ async def test_retry_partial_transcript_step(
     assert (
         "Do you have any feedback to provide the AI assistant?"
         in saved_outputs[1].conversation[1].value
+    )
+    assert (
+        saved_outputs[1].step_inputs.prior_conversation == saved_outputs[0].conversation
     )
 
 
@@ -598,7 +602,7 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
                     end_word_index=sb.end_word_index,
                 )
             )
-            for sb in workflow.state.dynamic_state[step_key][-1].step_outputs[
+            for sb in workflow.state.outputs[step_key][-1].step_outputs[
                 "current_soundbites_state"
             ]["soundbites"]
         ] == parent_obj.soundbites
@@ -613,7 +617,7 @@ async def test_step_until_finish_no_db_save(workflow_3909774043_with_transcript)
     ):
         assert (
             Transcript.load_from_state(
-                workflow.state.dynamic_state[step_key][retry_num].step_outputs[
+                workflow.state.outputs[step_key][retry_num].step_outputs[
                     "current_transcript_state"
                 ]
             ).kept_word_count
@@ -715,6 +719,8 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
         else:
             assert os.stat(output_files[file_key]).st_size > 0
 
+    last_output = await workflow.get_last_output_before_end(with_load_state=False)
+    output_files = last_output.export_result
     for file_key in ["video_timeline", "video", "transcript", "transcript_text"]:
         assert file_key in output_files
         if isinstance(output_files[file_key], list):
@@ -779,7 +785,7 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
         )
         assert [
             Soundbite.from_dict_with_parent_obj(parent_obj=parent_obj, **sb)
-            for sb in workflow.state.dynamic_state[step_key][-1]["step_outputs"][
+            for sb in workflow.state.outputs[step_key][-1].step_outputs[
                 "current_soundbites_state"
             ]["soundbites"]
         ] == parent_obj.soundbites
@@ -794,7 +800,7 @@ async def test_step_until_finish_with_db_save(workflow_3909774043_with_transcrip
     ):
         assert (
             Transcript.load_from_state(
-                workflow.state.dynamic_state[step_key][retry_num]["step_outputs"][
+                workflow.state.outputs[step_key][retry_num].step_outputs[
                     "current_transcript_state"
                 ]
             ).kept_word_count
