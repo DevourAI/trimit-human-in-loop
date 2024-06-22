@@ -2,7 +2,6 @@ import json
 from enum import StrEnum
 from IPython.display import Video
 from fastapi.encoders import jsonable_encoder
-from trimit.models.models import StepKey
 from pydantic import BaseModel, Field, model_serializer
 from typing import Callable, Optional, Union
 import pickle
@@ -1573,15 +1572,23 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
     is_retry: bool = Field(False, description="whether the current run is a retry")
     step_name: str | None = None
     substep_name: str | None = None
-    conversation: list[Message] = Field(
-        [], description="list of previous messages for this step"
+    prior_conversation: list[Message] = Field(
+        [], description="Prior user and system messages for previous calls to this step"
     )
+
+    @property
+    def prior_user_messages(self):
+        return [m for m in self.prior_conversation if m.role == Role.Human]
 
 
 class CutTranscriptLinearWorkflowStepResults(BaseModel):
     user_feedback_request: str | None = None
     retry: bool = False
     outputs: dict | None = None
+    internal_retry_num: int = Field(
+        0,
+        description="Number of times this step was rerun internally before yielding to user for feedback",
+    )
 
 
 class CutTranscriptLinearWorkflowStepOutput(BaseModel):
@@ -1619,40 +1626,22 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     )
     retry_num: int = Field(
         0,
-        description="current number of retries, zero-indexed. First time step runs this will be saved as 0. Equivalent to len(self.prior_outputs)",
+        description="current number of retries, zero-indexed. First time step runs this will be saved as 0.",
     )
-    prior_outputs: list["CutTranscriptLinearWorkflowStepOutput"] = Field(
-        [],
-        description="Previous outputs for this step. If nonempty, user has request one or more retries",
+    internal_retry_num: int = Field(
+        0,
+        description="Number of times this step was rerun internally before yielding to user for feedback",
     )
 
     @property
     def conversation(self):
-        _conversation = []
-        for prior_output in self.prior_outputs:
-            _conversation.append(
-                Message(
-                    role=Role.Human,
-                    value=(
-                        prior_output.step_inputs.user_prompt or ""
-                        if prior_output.step_inputs
-                        else ""
-                    ),
-                )
-            )
-            _conversation.append(
-                Message(role=Role.AI, value=prior_output.user_feedback_request or "")
-            )
-        _conversation.append(
+        return [
             Message(
                 role=Role.Human,
                 value=self.step_inputs.user_prompt or "" if self.step_inputs else "",
-            )
-        )
-        _conversation.append(
-            Message(role=Role.AI, value=self.user_feedback_request or "")
-        )
-        return _conversation
+            ),
+            Message(role=Role.AI, value=self.user_feedback_request or ""),
+        ]
 
     def model_dump(self, *args, **kwargs):
         res = super().model_dump(*args, **kwargs)
@@ -1917,6 +1906,11 @@ class Steps(BaseModel):
             if step_index < 0:
                 return None, None
         return step_index, substep_index
+
+
+class StepKey(BaseModel):
+    name: str
+    substeps: list[str]
 
 
 class GetLatestState(BaseModel):

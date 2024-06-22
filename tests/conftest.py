@@ -419,7 +419,7 @@ async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
     async for output, _ in workflow.step("make me a video"):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert workflow.user_messages == ["make me a video"]
+    assert workflow.user_prompt == "make me a video"
     return workflow
 
 
@@ -433,7 +433,7 @@ async def workflow_15557970_with_state_init_no_export(
     async for output, _ in workflow.step("make me a video"):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert workflow.user_messages == ["make me a video"]
+    assert workflow.user_prompt == "make me a video"
     return workflow
 
 
@@ -525,7 +525,7 @@ async def workflow_3909774043_with_state_init(workflow_3909774043_with_transcrip
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert len(workflow.raw_transcript.text) == 22855
-    assert workflow.user_messages == ["make me a video"]
+    assert workflow.user_prompt == "make me a video"
     return workflow
 
 
@@ -539,5 +539,5 @@ async def workflow_3909774043_with_state_init_no_export(
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert len(workflow.raw_transcript.text) == 22855
-    assert workflow.user_messages == ["make me a video"]
+    assert workflow.user_prompt == "make me a video"
     return workflow
