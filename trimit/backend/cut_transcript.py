@@ -60,7 +60,6 @@ from trimit.export import (
 )
 from trimit.backend.models import (
     Message,
-    GetLatestState,
     PartialBackendOutput,
     PartialLLMOutput,
     FinalLLMOutput,

@@ -19,6 +19,9 @@ from trimit.backend.models import (
     StepKey,
     Message,
     ExportableStepWrapper,
+    PartialLLMOutput,
+    FinalLLMOutput,
+    PartialBackendOutput,
 )
 from trimit.utils.model_utils import (
     filename_from_hash,
@@ -1229,6 +1232,26 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
             ),
             **backend_state.model_dump(exclude=["static_state", "outputs"]),
         )
+
+
+class CutTranscriptLinearWorkflowStreamingOutput(BaseModel):
+    partial_llm_output: PartialLLMOutput | None = Field(
+        None, description="Chunk of output from the LLM"
+    )
+    final_llm_output: FinalLLMOutput | None = Field(
+        None, description="Full output from the LLM, not currently send to frontend"
+    )
+    partial_backend_output: PartialBackendOutput | None = Field(
+        None, description="Text output with metadata from the backend"
+    )
+    partial_step_output: CutTranscriptLinearWorkflowStepOutput | None = Field(
+        None,
+        description="An output of an intermediary substep that did not require user feedback",
+    )
+    final_state: FrontendWorkflowState | None = Field(
+        None,
+        description="The full final state, same as calling /get_latest_state. This will always be the last item returned.",
+    )
 
 
 class TimelineClip(BaseModel):

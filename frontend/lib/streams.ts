@@ -1,6 +1,6 @@
 import {
   CutTranscriptLinearWorkflowStreamingOutput,
-  GetLatestState,
+  FrontendWorkflowState,
 } from '@/gen/openapi/api';
 
 const MAX_READ_FAILURES = 10;
@@ -15,7 +15,7 @@ export function createChunkDecoder() {
 export async function decodeStreamAsJSON(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   callback: (output: CutTranscriptLinearWorkflowStreamingOutput) => void
-): Promise<GetLatestState | null> {
+): Promise<FrontendWorkflowState | null> {
   let buffer = ''; // Buffer to accumulate chunks of data
   let lastValue = null; // Variable to store the last processed value
   // Function to process a chunk of text and parse it as JSON

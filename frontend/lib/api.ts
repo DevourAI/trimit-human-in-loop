@@ -3,7 +3,6 @@ import axios, { AxiosResponse } from 'axios';
 import {
   CheckFunctionCallResults,
   CutTranscriptLinearWorkflowStepOutput,
-  GetLatestState,
   UploadedVideo,
   UploadVideo,
   UploadVideoApi,
@@ -11,6 +10,7 @@ import {
 } from '@/gen/openapi/api';
 import {
   DownloadFileParams,
+  FrontendWorkflowState,
   GetLatestStateParams,
   GetUploadedVideoParams,
   ResetWorkflowParams,
@@ -131,7 +131,7 @@ export async function revertStepToInBackend(
 
 export async function getLatestState(
   params: GetLatestStateParams
-): Promise<GetLatestState> {
+): Promise<FrontendWorkflowState> {
   if (
     !params.user_email ||
     !params.video_hash ||
@@ -148,9 +148,9 @@ export async function getLatestState(
     console.error(data.error);
     return { success: false, error: data.error };
   } else if (data) {
-    return data as GetLatestState;
+    return data as FrontendWorkflowState;
   }
-  return {} as GetLatestState;
+  return {} as FrontendWorkflowState;
 }
 
 export async function getStepOutput(

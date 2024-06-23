@@ -4,18 +4,27 @@ import Chat from '@/components/chat/chat';
 import StepOutput from '@/components/main-stepper/step-output';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Heading } from '@/components/ui/heading';
-import {
-  CutTranscriptLinearWorkflowStepOutput,
-  ExportableStepWrapper,
-} from '@/gen/openapi';
+import { ExportableStepWrapper, FrontendStepOutput } from '@/gen/openapi';
 
 interface StepRendererProps {
   step: ExportableStepWrapper;
-  stepOutput: CutTranscriptLinearWorkflowStepOutput | null;
+  stepOutput: FrontendStepOutput | null;
   footer?: ReactNode;
+  onRetry: (
+    stepIndex: number,
+    userMessage: string,
+    callback: (aiMessage: string) => void
+  ) => Promise<void>;
+  stepIndex: number;
 }
 
-function StepRenderer({ step, stepOutput, footer }: StepRendererProps) {
+function StepRenderer({
+  step,
+  stepOutput,
+  footer,
+  onRetry,
+  stepIndex,
+}: StepRendererProps) {
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
@@ -23,7 +32,16 @@ function StepRenderer({ step, stepOutput, footer }: StepRendererProps) {
           <Heading className="mb-3" size="sm">
             Chat
           </Heading>
-          <Chat />
+          <Chat
+            onNewMessage={(msg, callback) => onRetry(stepIndex, msg, callback)}
+            initialMessages={
+              stepOutput?.full_conversation
+                ? stepOutput.full_conversation.map((msg) => {
+                    return { sender: msg.role, text: msg.value };
+                  })
+                : []
+            }
+          />
         </div>
         <div className="w-1/2 border-l p-4">
           <Heading className="mb-3" size="sm">
