@@ -1006,7 +1006,6 @@ class CutTranscriptLinearWorkflow:
                     structured_user_input
                 )
             )
-            breakpoint()
             self.video.speakers_in_frame = on_screen_speakers
             await self.video.save()
             yield CutTranscriptLinearWorkflowStepResults(
@@ -1017,6 +1016,7 @@ class CutTranscriptLinearWorkflow:
                 },
                 user_feedback_request=None,
             ), True
+            return
 
         on_screen_transcript = self.raw_transcript
         if self.video.speakers_in_frame:
@@ -1501,11 +1501,13 @@ class CutTranscriptLinearWorkflow:
         new_transcript.kept_segments = set(
             [s.index for s in structured_user_input.segments if s.on_screen]
         )
+        input_segments = [mod.index for mod in structured_user_input.segments]
         for i in self.on_screen_transcript.kept_segments:
             speaker = self.on_screen_transcript.segments[i].speaker
             if speaker not in new_speaker_map:
-                new_transcript.kept_segments.add(i)
                 new_on_screen_speakers.add(speaker)
+            if i not in input_segments:
+                new_transcript.kept_segments.add(i)
         return new_on_screen_speakers, new_transcript
 
     async def _export_speaker_tagging_samples(self, output_dir, prefix):

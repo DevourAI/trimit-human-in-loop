@@ -360,7 +360,7 @@ async def check_function_call_results(modal_call_ids: list[str], timeout: float 
     return CheckFunctionCallResults(statuses=statuses)
 
 
-@web_app.get(
+@web_app.post(
     "/step",
     response_model=CutTranscriptLinearWorkflowStreamingOutput,
     tags=["Steps"],
@@ -383,26 +383,26 @@ The last output this method produces is always `final_step_output`, which includ
 )
 def step_endpoint(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    user_input: str | None = Query(
+    user_input: str | None = Form(
         None,
         description="string conversational input from the user that will be provided to the underlying LLM",
     ),
-    streaming: bool = Query(
+    streaming: bool = Form(
         True,
         description="If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran",
     ),
-    ignore_running_workflows: bool = Query(
+    ignore_running_workflows: bool = Form(
         False,
         description="If True, run this workflow's step even if it is already running. May lead to race conditions in underlying database",
     ),
-    retry_step: bool = Query(
+    retry_step: bool = Form(
         False,
         description="If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output",
     ),
-    structured_user_input: dict | None = Query(
+    structured_user_input: dict | None = Form(
         None,
-        description="structured dict that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step"
-    )
+        description="structured dict that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step",
+    ),
 ):
     step_params = {
         "workflow": workflow,
