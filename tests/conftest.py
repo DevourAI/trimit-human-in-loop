@@ -381,13 +381,59 @@ async def workflow_15557970_with_transcript(
 
 
 @pytest.fixture(scope="function")
+async def workflow_15557970_with_transcript_no_export(
+    video_15557970_with_speakers_in_frame,
+    test_videos_output_dir,
+    test_videos_volume_dir,
+):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await CutTranscriptLinearWorkflow.from_video(
+        video=video_15557970_with_speakers_in_frame,
+        timeline_name="15557970_testimonial_test",
+        output_folder=test_videos_output_dir,
+        volume_dir=test_videos_volume_dir,
+        new_state=True,
+        length_seconds=120,
+        nstages=2,
+        first_pass_length=6 * 60,
+        max_partial_transcript_words=800,
+        max_word_extra_threshold=50,
+        max_iterations=3,
+        api_call_delay=0.5,
+        with_provided_user_feedback=[],
+        export_transcript_text=False,
+        export_transcript=False,
+        export_soundbites=False,
+        export_soundbites_text=False,
+        export_timeline=False,
+        export_video=False,
+        export_speaker_tagging=False,
+    )
+
+
+@pytest.fixture(scope="function")
 async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
     workflow = workflow_15557970_with_transcript
     output = None
     async for output, _ in workflow.step("make me a video"):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert workflow.user_messages == ["make me a video"]
+    assert workflow.user_prompt == "make me a video"
+    return workflow
+
+
+@pytest.fixture(scope="function")
+async def workflow_15557970_with_state_init_no_export(
+    workflow_15557970_with_transcript_no_export,
+):
+    workflow = workflow_15557970_with_transcript_no_export
+
+    output = None
+    async for output, _ in workflow.step("make me a video"):
+        pass
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    assert workflow.user_prompt == "make me a video"
     return workflow
 
 
@@ -403,6 +449,19 @@ async def workflow_15557970_after_first_step(workflow_15557970_with_state_init):
 
 
 @pytest.fixture(scope="function")
+async def workflow_15557970_after_first_step_with_retry(
+    workflow_15557970_after_first_step,
+):
+    workflow = workflow_15557970_after_first_step
+    output = None
+    async for output, _ in workflow.step("Just try again", retry_step=True):
+        pass
+
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    return workflow
+
+
+@pytest.fixture(scope="function")
 async def workflow_15557970_after_second_step(workflow_15557970_after_first_step):
     workflow = workflow_15557970_after_first_step
     output = None
@@ -410,4 +469,88 @@ async def workflow_15557970_after_second_step(workflow_15557970_after_first_step
         pass
 
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    return workflow
+
+
+@pytest.fixture(scope="function")
+async def workflow_3909774043_with_transcript(
+    video_3909774043_with_speakers_in_frame,
+    test_videos_output_dir,
+    test_videos_volume_dir,
+):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await CutTranscriptLinearWorkflow.from_video(
+        video=video_3909774043_with_speakers_in_frame,
+        timeline_name="3909774043_testimonial_test",
+        output_folder=test_videos_output_dir,
+        volume_dir=test_videos_volume_dir,
+        new_state=True,
+        length_seconds=120,
+        nstages=2,
+        first_pass_length=6 * 60,
+        max_partial_transcript_words=800,
+        max_word_extra_threshold=50,
+        max_iterations=3,
+        api_call_delay=0.5,
+        with_provided_user_feedback=[],
+        export_video=False,
+    )
+
+
+@pytest.fixture(scope="function")
+async def workflow_3909774043_with_transcript_no_export(
+    video_3909774043_with_speakers_in_frame,
+    test_videos_output_dir,
+    test_videos_volume_dir,
+):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await CutTranscriptLinearWorkflow.from_video(
+        video=video_3909774043_with_speakers_in_frame,
+        timeline_name="3909774043_testimonial_test",
+        output_folder=test_videos_output_dir,
+        volume_dir=test_videos_volume_dir,
+        new_state=True,
+        length_seconds=120,
+        nstages=2,
+        first_pass_length=6 * 60,
+        max_partial_transcript_words=800,
+        max_word_extra_threshold=50,
+        max_iterations=3,
+        api_call_delay=0.5,
+        with_provided_user_feedback=[],
+        export_transcript_text=False,
+        export_transcript=False,
+        export_soundbites=False,
+        export_soundbites_text=False,
+        export_timeline=False,
+        export_video=False,
+        export_speaker_tagging=False,
+    )
+
+
+@pytest.fixture(scope="function")
+async def workflow_3909774043_with_state_init(workflow_3909774043_with_transcript):
+    workflow = workflow_3909774043_with_transcript
+    output = None
+    async for output, _ in workflow.step("make me a video", async_export=False):
+        pass
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    assert len(workflow.raw_transcript.text) == 22855
+    assert workflow.user_prompt == "make me a video"
+    return workflow
+
+
+@pytest.fixture(scope="function")
+async def workflow_3909774043_with_state_init_no_export(
+    workflow_3909774043_with_transcript_no_export,
+):
+    workflow = workflow_3909774043_with_transcript_no_export
+    output = None
+    async for output, _ in workflow.step("make me a video", async_export=False):
+        pass
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    assert len(workflow.raw_transcript.text) == 22855
+    assert workflow.user_prompt == "make me a video"
     return workflow

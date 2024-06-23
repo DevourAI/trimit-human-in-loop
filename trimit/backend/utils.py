@@ -17,6 +17,7 @@ from trimit.backend.models import (
     FinalLLMOutput,
 )
 from trimit.backend.image import image
+from trimit.backend.models import Message
 from trimit.backend.memory import load_memory
 from trimit.utils.prompt_engineering import load_prompt_template_as_string
 from trimit.utils.rate_limit import rate_limited
@@ -47,11 +48,6 @@ else:
 
 global AGENT_OUTPUT_CACHE
 AGENT_OUTPUT_CACHE = dc.Cache(agent_output_cache_dir)
-
-
-class Message(BaseModel):
-    role: str
-    message: str
 
 
 ANSI_CODES = {
@@ -96,7 +92,7 @@ def agent_output_cache_key_from_args(
     prompt_key = "prompt"
     if conversation is not None:
         assert prompt is None, "Cannot provide both prompt and conversation"
-        prompt = "\n".join([f"{m.role}: {m.message}" for m in conversation])
+        prompt = "\n".join([f"{m.role}: {m.value}" for m in conversation])
         prompt_key = "conversation"
     return (
         f"model-{model}",
@@ -1170,7 +1166,7 @@ class CustomConversationPromptTask(PromptTask):
     def prompt_stack(self) -> PromptStack:
         stack = PromptStack()
         for message in self.conversation:
-            stack.add_input(message.message, message.role)
+            stack.add_input(message.value, message.role)
         return stack
 
 
@@ -1237,18 +1233,18 @@ def stage_key_for_step_name(step_name, stage_num):
     image=image,
     container_idle_timeout=30,
 )
-async def export_results_wrapper(workflow, state_save_key, current_substep):
+async def export_results_wrapper(workflow, state_save_key, current_substep, retry_num):
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
     print(f"Exporting results for step {state_save_key}")
     export_result = None
-    async for export_result, is_last in workflow.export_results(current_substep.input):
+    async for export_result, _ in workflow.export_results(current_substep.input):
         continue
-        #  if not is_last:
-        #  yield export_result, False
     assert export_result is not None
-    await workflow._save_export_result_to_step_output(state_save_key, export_result)
+    await workflow._save_export_result_to_step_output(
+        state_save_key, export_result, retry_num
+    )
     return {"result": export_result}
 
 

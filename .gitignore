@@ -39,3 +39,5 @@ scripts/outputs
 tests/video_outputs
 tests/timeline_outputs
 server.pid
+frontend/docs/openapi.yaml
+frontend/gen

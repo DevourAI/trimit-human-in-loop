@@ -1,7 +1,16 @@
 import axios, { AxiosResponse } from 'axios';
 
 import {
+  CheckFunctionCallResults,
+  CutTranscriptLinearWorkflowStepOutput,
+  UploadedVideo,
+  UploadVideo,
+  UploadVideoApi,
+  VideosApi,
+} from '@/gen/openapi/api';
+import {
   DownloadFileParams,
+  FrontendWorkflowState,
   GetLatestStateParams,
   GetUploadedVideoParams,
   ResetWorkflowParams,
@@ -11,17 +20,7 @@ import {
   StepParams,
   UploadVideoParams,
   UserState,
-} from './types';
-import {
-  CheckFunctionCallResults,
-  CutTranscriptLinearWorkflowStepOutput,
-  GetLatestState,
-  UploadedVideo,
-  UploadVideo,
-  UploadVideoApi,
-  VideosApi,
-} from '@/gen/openapi/api';
-
+} from '@/lib/types';
 
 let API_URL = process.env.NEXT_PUBLIC_API_BASE_URL_REMOTE;
 if (process.env.BACKEND === 'local') {
@@ -132,7 +131,7 @@ export async function revertStepToInBackend(
 
 export async function getLatestState(
   params: GetLatestStateParams
-): Promise<GetLatestState> {
+): Promise<FrontendWorkflowState> {
   if (
     !params.user_email ||
     !params.video_hash ||
@@ -149,9 +148,9 @@ export async function getLatestState(
     console.error(data.error);
     return { success: false, error: data.error };
   } else if (data) {
-    return data as GetLatestState;
+    return data as FrontendWorkflowState;
   }
-  return {} as GetLatestState;
+  return {} as FrontendWorkflowState;
 }
 
 export async function getStepOutput(
@@ -201,22 +200,23 @@ export async function step(
     console.error(err);
   }
 }
-
 export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
   if (params.userEmail === '' || !params.videoFile) return {};
+  let data: UploadVideo;
   try {
-    const data: UploadVideo =
-      await uploadVideosApi.uploadMultipleFilesUploadPost(
-        [params.videoFile],
-        [params.videoFile.name],
-        params.timelineName,
-        params.userEmail,
-        true,
-        false,
-        true
-      );
+    const response = await uploadVideosApi.uploadMultipleFilesUploadPost(
+      [params.videoFile],
+      [params.videoFile.name],
+      params.timelineName,
+      params.userEmail,
+      true,
+      false,
+      true
+    );
+    // TODO test this- do we need to take the data field or it already extracted?
+    data = response.data;
   } catch (error) {
-    console.error(data);
+    console.error(error);
     return;
   }
 

@@ -36,6 +36,7 @@ export default function RootLayout({
           ) ?? ''
         }
       >
+        <Toaster />
         <GoogleOAuthProvider clientId={clientId ?? ''}>
           <UserProvider>
             <ThemeProvider
