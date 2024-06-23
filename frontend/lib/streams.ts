@@ -1,6 +1,6 @@
 import {
-  CutTranscriptLinearWorkflowStepOutput,
   CutTranscriptLinearWorkflowStreamingOutput,
+  FrontendWorkflowState,
 } from '@/gen/openapi/api';
 
 const MAX_READ_FAILURES = 10;
@@ -15,10 +15,9 @@ export function createChunkDecoder() {
 export async function decodeStreamAsJSON(
   reader: ReadableStreamDefaultReader<Uint8Array>,
   callback: (output: CutTranscriptLinearWorkflowStreamingOutput) => void
-): Promise<CutTranscriptLinearWorkflowStepOutput | null> {
+): Promise<FrontendWorkflowState | null> {
   let buffer = ''; // Buffer to accumulate chunks of data
   let lastValue = null; // Variable to store the last processed value
-
   // Function to process a chunk of text and parse it as JSON
   function processChunk(text: string) {
     if (text) {
@@ -26,12 +25,10 @@ export async function decodeStreamAsJSON(
       try {
         valueDecoded = JSON.parse(text);
       } catch (e) {
-        console.log('text with error', text);
-        console.error(e);
         return [null, false];
       }
-      if (valueDecoded && valueDecoded.final_step_output) {
-        return [valueDecoded.final_step_output, true];
+      if (valueDecoded && valueDecoded.final_state) {
+        return [valueDecoded.final_state, true];
       } else if (valueDecoded) {
         console.log('valueDecoded, passing to callback', valueDecoded);
         callback(valueDecoded);
@@ -80,7 +77,6 @@ export async function decodeStreamAsJSON(
     }
     return [buffer, lastValue];
   }
-
   let nFailures = 0; // Counter for the number of read failures
   while (true) {
     const result = await read();

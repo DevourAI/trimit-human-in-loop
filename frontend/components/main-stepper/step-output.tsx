@@ -9,15 +9,15 @@ import {
 } from '@/components/ui/accordion';
 import CodeBlock from '@/components/ui/code-block';
 import { Label } from '@/components/ui/label';
-import { CutTranscriptLinearWorkflowStepOutput } from '@/gen/openapi';
+import { FrontendStepOutput } from '@/gen/openapi';
 import { cn } from '@/lib/utils';
 
 interface StepOutputProps {
-  outputs: CutTranscriptLinearWorkflowStepOutput[];
+  outputs: FrontendStepOutput[];
 }
 
 const StepOutputItem: FC<{
-  output: CutTranscriptLinearWorkflowStepOutput;
+  output: FrontendStepOutput;
   index: number;
 }> = ({ output, index }) => (
   <AccordionItem

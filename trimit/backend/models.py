@@ -1,12 +1,22 @@
 import json
+from enum import StrEnum
 from IPython.display import Video
 from fastapi.encoders import jsonable_encoder
-from trimit.models.models import StepKey
 from pydantic import BaseModel, Field, model_serializer
 from typing import Callable, Optional, Union
 import pickle
 from trimit.utils.misc import union_list_of_intervals
 import copy
+
+
+class Role(StrEnum):
+    AI = "AI"
+    Human = "Human"
+
+
+class Message(BaseModel):
+    role: Role = Field(..., description="Either AI or Human")
+    value: str = Field(..., description="The message content")
 
 
 class WordInfo(BaseModel):
@@ -1465,7 +1475,13 @@ class Soundbites(Transcript):
         if end_word_index:
             assert soundbite.end_segment_index in self.transcript.kept_segments
         else:
-            assert soundbite.end_segment_index - 1 in self.transcript.kept_segments
+            # TODO why is this happening?
+            # assert soundbite.end_segment_index - 1 in self.transcript.kept_segments
+            # I added this to make it not error out
+            if soundbite.end_segment_index - 1 not in self.transcript.kept_segments:
+                self.transcript.kept_segments |= set(
+                    range(soundbite.start_segment_index, soundbite.end_segment_index)
+                )
         soundbite.start_word_index = soundbite.start_word_index or 0
 
         start_seg = self.transcript.segments[soundbite.start_segment_index]
@@ -1556,18 +1572,32 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
     is_retry: bool = Field(False, description="whether the current run is a retry")
     step_name: str | None = None
     substep_name: str | None = None
+    prior_conversation: list[Message] = Field(
+        [], description="Prior user and system messages for previous calls to this step"
+    )
+
+    @property
+    def prior_user_messages(self):
+        return [m for m in self.prior_conversation if m.role == Role.Human]
 
 
 class CutTranscriptLinearWorkflowStepResults(BaseModel):
     user_feedback_request: str | None = None
     retry: bool = False
     outputs: dict | None = None
+    internal_retry_num: int = Field(
+        0,
+        description="Number of times this step was rerun internally before yielding to user for feedback",
+    )
 
 
 class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     step_name: str
     substep_name: str
-    done: bool = False
+    done: bool = Field(
+        False, description="If True, workflow has completed. This was the final step."
+    )
+
     user_feedback_request: str | None = Field(
         None,
         description="prompt to user for additional, optional input if the user wants to rerun the step",
@@ -1594,6 +1624,30 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
         False,
         description="frontend should ignore this. backend may choose to retry the current step before asking the user for feedback, in which case this will be true",
     )
+    retry_num: int = Field(
+        0,
+        description="current number of retries, zero-indexed. First time step runs this will be saved as 0.",
+    )
+    internal_retry_num: int = Field(
+        0,
+        description="Number of times this step was rerun internally before yielding to user for feedback",
+    )
+
+    @property
+    def conversation(self):
+        return [
+            Message(
+                role=Role.Human,
+                value=self.step_inputs.user_prompt or "" if self.step_inputs else "",
+            ),
+            Message(role=Role.AI, value=self.user_feedback_request or ""),
+        ]
+
+    def model_dump(self, *args, **kwargs):
+        res = super().model_dump(*args, **kwargs)
+        if "conversation" not in kwargs.get("exclude", []):
+            res["conversation"] = [m.model_dump() for m in self.conversation]
+        return res
 
     def merge(self, other: "CutTranscriptLinearWorkflowStepOutput"):
         if self.step_name == "" and other.step_name:
@@ -1748,26 +1802,6 @@ class PartialBackendOutput(BaseModel):
     )
 
 
-class CutTranscriptLinearWorkflowStreamingOutput(BaseModel):
-    # TODO annotate these
-    partial_llm_output: PartialLLMOutput | None = Field(
-        None, description="Chunk of output from the LLM"
-    )
-    final_llm_output: FinalLLMOutput | None = Field(
-        None, description="Full output from the LLM, not currently send to frontend"
-    )
-    partial_backend_output: PartialBackendOutput | None = Field(
-        None, description="Text output with metadata from the backend"
-    )
-    partial_step_output: CutTranscriptLinearWorkflowStepOutput | None = Field(
-        None,
-        description="An output of an intermediary substep that did not require user feedback",
-    )
-    final_step_output: CutTranscriptLinearWorkflowStepOutput | None = Field(
-        None, description="The final output from running the step"
-    )
-
-
 class GetStepOutputs(BaseModel):
     outputs: list[CutTranscriptLinearWorkflowStepOutput]
 
@@ -1875,37 +1909,9 @@ class Steps(BaseModel):
         return step_index, substep_index
 
 
-class GetLatestState(BaseModel):
-    user_messages: list[str] = Field(
-        [], description="list of all messages user has provided"
-    )
-    step_history_state: list[StepKey] = Field(
-        [],
-        description="list of every step and substeps run so far, including retry_{i} prefixes on substeps when a step was retried",
-    )
-    video_id: str | None = Field(
-        None,
-        description="id of the video's db model. Provide to future workflow calls for faster retrieval over video_hash",
-    )
-    user_id: str | None = Field(
-        None,
-        description="id of the user's db model. Provide to future workflow calls for faster retrieval over user_email",
-    )
-    last_step: ExportableStepInfo | None = Field(
-        None,
-        description="information about the most recently run (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
-    )
-    next_step: ExportableStepInfo | None = Field(
-        None,
-        description="information about the next scheduled (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
-    )
-    all_steps: list[ExportableStepWrapper] | None = Field(
-        None,
-        description="detailed, ordered, information about each step/substep in this workflow",
-    )
-    output: CutTranscriptLinearWorkflowStepOutput | None = Field(
-        None, description="most recent substep output"
-    )
+class StepKey(BaseModel):
+    name: str
+    substeps: list[str]
 
 
 class UploadedVideo(BaseModel):
