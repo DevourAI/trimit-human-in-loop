@@ -1557,7 +1557,7 @@ class SpeakerTaggingSegmentModification(BaseModel):
     on_screen: bool
 
 
-class SpeakerTaggingInput(BaseModel):
+class RemoveOffScreenSpeakersInput(BaseModel):
     segments: list[SpeakerTaggingSegmentModification]
 
 
@@ -1574,7 +1574,7 @@ class PartialFeedback(BaseModel):
 class StructuredUserInput(BaseModel):
     """only one of these fields should be defined"""
 
-    speaker_tagging_input: SpeakerTaggingInput | None = None
+    remove_off_screen_speakers: RemoveOffScreenSpeakersInput | None = None
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):

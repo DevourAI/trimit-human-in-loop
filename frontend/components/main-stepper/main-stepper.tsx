@@ -309,7 +309,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
         return;
       }
     }
-    const data: StepData = {
+    const stepData: StepData = {
       user_input:
         data.feedback !== undefined && data.feedback !== null
           ? data.feedback
@@ -320,7 +320,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       retry_step: true,
     };
     try {
-      await step(userParams, data, handleStepStream);
+      await step(userParams, stepData, handleStepStream);
     } catch (error) {
       console.error('error in step', error);
     }
@@ -340,7 +340,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
         return;
       }
     }
-    const data: StepData = {
+    const stepData: StepData = {
       user_input: userMessage,
       streaming: true,
       force_restart: false,
@@ -348,7 +348,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       retry_step: true,
     };
     try {
-      await step(userParams, data, async (reader) => {
+      await step(userParams, stepData, async (reader) => {
         const finalState = await handleStepStream(reader);
         const stepOutput = finalState?.outputs?.length
           ? finalState.outputs[finalState.outputs.length - 1]

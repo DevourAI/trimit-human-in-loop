@@ -177,7 +177,7 @@ export async function step(
 ): Promise<void> {
   const url = new URL(`${API_URL}/step`);
   Object.keys(queryParams).forEach((key) => {
-    if (queryParams[key] !== undefined && qyerParams[key] !== null) {
+    if (queryParams[key] !== undefined && queryParams[key] !== null) {
       url.searchParams.append(key, queryParams[key]);
     }
   });

@@ -63,6 +63,7 @@ from trimit.backend.models import (
     PartialBackendOutput,
     PartialLLMOutput,
     FinalLLMOutput,
+    RemoveOffScreenSpeakersInput,
     StructuredUserInput,
     Transcript,
     TranscriptChunk,
@@ -75,7 +76,6 @@ from trimit.backend.models import (
     CurrentStepInfo,
     CutTranscriptLinearWorkflowStepResults,
     Steps,
-    SpeakerTaggingInput,
 )
 
 
@@ -993,19 +993,19 @@ class CutTranscriptLinearWorkflow:
         self, step_input: CutTranscriptLinearWorkflowStepInput
     ):
         user_prompt = step_input.user_prompt if step_input else ""
-        speaker_tagging_input = None
+        structured_input = None
         if (
             step_input
             and step_input.structured_user_input
-            and step_input.structured_user_input.speaker_tagging_input
+            and step_input.structured_user_input.remove_off_screen_speakers
         ):
-            speaker_tagging_input = (
-                step_input.structured_user_input.speaker_tagging_input
+            structured_input = (
+                step_input.structured_user_input.remove_off_screen_speakers
             )
-        if speaker_tagging_input and self.on_screen_transcript:
+        if structured_input and self.on_screen_transcript:
             on_screen_speakers, on_screen_transcript = (
                 await self._modify_on_screen_transcript_with_user_input(
-                    speaker_tagging_input
+                    structured_input
                 )
             )
             self.video.speakers_in_frame = on_screen_speakers
@@ -1474,7 +1474,7 @@ class CutTranscriptLinearWorkflow:
     #### HELPER FUNCTIONS ####
 
     async def _modify_on_screen_transcript_with_user_input(
-        self, structured_user_input: SpeakerTaggingInput
+        self, structured_user_input: RemoveOffScreenSpeakersInput
     ):
         assert self.on_screen_transcript is not None
         new_transcript = self.raw_transcript.copy()

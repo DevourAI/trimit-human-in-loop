@@ -16,7 +16,7 @@ from trimit.backend.models import (
     FinalLLMOutput,
     PartialLLMOutput,
     StructuredUserInput,
-    SpeakerTaggingInput,
+    RemoveOffScreenSpeakersInput,
     SpeakerTaggingSegmentModification,
 )
 
@@ -205,7 +205,7 @@ async def test_retry_remove_off_screen_speakers_with_structured_user_input(
         ):
             pass
     structured_user_input = StructuredUserInput(
-        speaker_tagging_input=SpeakerTaggingInput(
+        remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
             segments=[
                 SpeakerTaggingSegmentModification(
                     index=1, speaker="Ruta Gupta", on_screen=True
