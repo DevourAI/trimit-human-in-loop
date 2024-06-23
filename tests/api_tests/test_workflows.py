@@ -4,7 +4,8 @@ import pytest_asyncio
 from ..conftest import DAVE_EMAIL, DAVE_VIDEO_LOW_RES_HASHES
 import asyncio
 import pytest
-from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput
+from trimit.backend.models import Message, Role
+from trimit.models import FrontendStepOutput
 
 pytestmark = pytest.mark.asyncio(scope="session")
 
@@ -59,17 +60,19 @@ async def test_get_latest_state_init(client, workflow_15557970_with_transcript):
         data["all_steps"][-1]["substeps"][-1]["substep_name"]
         == "modify_transcript_holistically"
     )
-    assert data["last_step"] is None
-    assert data["next_step"]["substep_name"] == "remove_off_screen_speakers"
-    assert data["video_id"] is not None
-    assert data["user_id"] is not None
-    assert data["user_messages"] == []
-    assert data["step_history_state"] == []
+    #  assert data["last_step"] is None
+    #  assert data["next_step"]["substep_name"] == "remove_off_screen_speakers"
+    assert data["static_state"]["video_id"] is not None
+    assert data["static_state"]["user_id"] is not None
+    # assert data["user_messages"] == []
+    # assert data["step_history_state"] == []
     assert data["outputs"] == []
 
 
-async def test_get_latest_state_after_step(client, workflow_15557970_after_first_step):
-    workflow = workflow_15557970_after_first_step
+async def test_get_latest_state_after_step_with_retry(
+    client, workflow_15557970_after_first_step_with_retry
+):
+    workflow = workflow_15557970_after_first_step_with_retry
     from trimit.models import MONGO_INITIALIZED
 
     MONGO_INITIALIZED[0] = False
@@ -95,23 +98,42 @@ async def test_get_latest_state_after_step(client, workflow_15557970_after_first
         data["all_steps"][-1]["substeps"][-1]["substep_name"]
         == "modify_transcript_holistically"
     )
-    assert data["last_step"]["substep_name"] == "remove_off_screen_speakers"
-    assert data["next_step"]["substep_name"] == "generate_story"
-    assert data["video_id"] is not None
-    assert data["user_id"] is not None
-    assert data["user_messages"] == ["make me a video"]
-    assert data["step_history_state"] == [
-        {
-            "name": "preprocess_video",
-            "substeps": ["init_state", "remove_off_screen_speakers"],
-        }
-    ]
+    #  assert data["last_step"]["substep_name"] == "remove_off_screen_speakers"
+    #  assert data["next_step"]["substep_name"] == "generate_story"
+    assert data["static_state"]["video_id"] is not None
+    assert data["static_state"]["user_id"] is not None
+    #  assert data["step_history_state"] == [
+    #  {
+    #  "name": "preprocess_video",
+    #  "substeps": ["init_state", "remove_off_screen_speakers"],
+    #  }
+    #  ]
     assert len(data["outputs"]) == 1
     output = data["outputs"][0]
-    parsed = CutTranscriptLinearWorkflowStepOutput(**output)
+    parsed = FrontendStepOutput(**output)
     assert parsed.step_name == "preprocess_video"
     assert parsed.substep_name == "remove_off_screen_speakers"
     assert not parsed.done
+    assert parsed.full_conversation == [
+        Message(role=Role.Human, value=""),
+        Message(
+            role=Role.AI,
+            value="I identified these speakers as being on-screen: ['speaker_01']. \nDo you agree? Do you have modifications to make?",
+        ),
+        Message(role=Role.Human, value="Just try again"),
+        Message(
+            role=Role.AI,
+            value="I identified these speakers as being on-screen: ['speaker_01']. \nDo you agree? Do you have modifications to make?",
+        ),
+    ]
+    assert parsed.conversation == [
+        Message(role=Role.Human, value="Just try again"),
+        Message(
+            role=Role.AI,
+            value="I identified these speakers as being on-screen: ['speaker_01']. \nDo you agree? Do you have modifications to make?",
+        ),
+    ]
+
     assert (
         parsed.user_feedback_request
         == "I identified these speakers as being on-screen: ['speaker_01']. \nDo you agree? Do you have modifications to make?"

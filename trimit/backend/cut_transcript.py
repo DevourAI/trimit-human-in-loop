@@ -50,6 +50,7 @@ from trimit.models import (
     StepOrderMixin,
     maybe_init_mongo,
     CutTranscriptLinearWorkflowStaticState,
+    FrontendWorkflowState,
 )
 from trimit.export import (
     create_cut_video_from_transcript,
@@ -614,40 +615,45 @@ class CutTranscriptLinearWorkflow:
         assert step_order is not None
         self.step_order = step_order
 
-    async def get_latest_state(
+    async def get_latest_frontend_state(
         self,
         with_load_state=True,
-        with_outputs=False,
-        with_all_steps=True,
-        only_last_substep_outputs=True,
+        #  with_outputs=False,
+        #  with_all_steps=True,
+        #  only_last_substep_outputs=True,
     ):
-        last_step_obj = await self.get_last_substep_with_user_feedback(
-            with_load_state=with_load_state
-        )
-        if last_step_obj is not None:
-            last_step_obj = last_step_obj.to_exportable()
-        next_step_obj = await self.get_next_substep_with_user_feedback(
-            with_load_state=with_load_state
-        )
-        if next_step_obj is not None:
-            next_step_obj = next_step_obj.to_exportable()
-        output = GetLatestState(
-            last_step=last_step_obj,
-            next_step=next_step_obj,
-            video_id=str(self.video.id),
-            user_id=str(self.user.id),
-            step_history_state=self.serializable_state_step_order,
-            all_steps=None,
-            outputs=None,
-        )
-        if with_all_steps:
-            output.all_steps = self.steps.to_exportable()
-        if with_outputs:
-            output.outputs = await self.get_all_outputs(
-                only_last_substep=only_last_substep_outputs,
-                with_load_state=with_load_state,
-            )
-        return output
+        if with_load_state:
+            await self.load_state()
+        if self.state is None:
+            raise ValueError("state is None")
+        return FrontendWorkflowState.from_workflow(self)
+        #  last_step_obj = await self.get_last_substep_with_user_feedback(
+        #  with_load_state=with_load_state
+        #  )
+        #  if last_step_obj is not None:
+        #  last_step_obj = last_step_obj.to_exportable()
+        #  next_step_obj = await self.get_next_substep_with_user_feedback(
+        #  with_load_state=with_load_state
+        #  )
+        #  if next_step_obj is not None:
+        #  next_step_obj = next_step_obj.to_exportable()
+        #  output = GetLatestState(
+        #  last_step=last_step_obj,
+        #  next_step=next_step_obj,
+        #  video_id=str(self.video.id),
+        #  user_id=str(self.user.id),
+        #  step_history_state=self.serializable_state_step_order,
+        #  all_steps=None,
+        #  outputs=None,
+        #  )
+        #  if with_all_steps:
+        #  output.all_steps = self.steps.to_exportable()
+        #  if with_outputs:
+        #  output.outputs = await self.get_all_outputs(
+        #  only_last_substep=only_last_substep_outputs,
+        #  with_load_state=with_load_state,
+        #  )
+        #  return output
 
     # TODO all these methods need a major refactor
     async def get_last_step(self, with_load_state=True):

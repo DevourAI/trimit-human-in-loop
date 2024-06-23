@@ -449,6 +449,19 @@ async def workflow_15557970_after_first_step(workflow_15557970_with_state_init):
 
 
 @pytest.fixture(scope="function")
+async def workflow_15557970_after_first_step_with_retry(
+    workflow_15557970_after_first_step,
+):
+    workflow = workflow_15557970_after_first_step
+    output = None
+    async for output, _ in workflow.step("Just try again", retry_step=True):
+        pass
+
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    return workflow
+
+
+@pytest.fixture(scope="function")
 async def workflow_15557970_after_second_step(workflow_15557970_after_first_step):
     workflow = workflow_15557970_after_first_step
     output = None
