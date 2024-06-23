@@ -1571,6 +1571,12 @@ class PartialFeedback(BaseModel):
     )
 
 
+class StructuredUserInput(BaseModel):
+    """only one of these fields should be defined"""
+
+    speaker_tagging_input: SpeakerTaggingInput | None = None
+
+
 class CutTranscriptLinearWorkflowStepInput(BaseModel):
     user_prompt: str | None = Field(
         None, description="prompt provided by user to this step"
@@ -1580,9 +1586,9 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
         description="feedback provided by LLM after processing the raw user_prompt",
     )
     is_retry: bool = Field(False, description="whether the current run is a retry")
-    structured_user_input: dict | None = Field(
+    structured_user_input: StructuredUserInput | None = Field(
         None,
-        description="structured dict that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step"
+        description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
     )
     step_name: str | None = None
     substep_name: str | None = None

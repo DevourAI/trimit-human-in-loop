@@ -40,6 +40,7 @@ from trimit.backend.models import (
     PartialBackendOutput,
     PartialLLMOutput,
     ExportableStepWrapper,
+    StructuredUserInput,
 )
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
@@ -399,9 +400,9 @@ def step_endpoint(
         False,
         description="If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output",
     ),
-    structured_user_input: dict | None = Form(
+    structured_user_input: StructuredUserInput | None = Form(
         None,
-        description="structured dict that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step",
+        description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
     ),
 ):
     step_params = {

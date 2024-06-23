@@ -7,7 +7,6 @@ from trimit.backend.cut_transcript import (
     CutTranscriptLinearWorkflowStepOutput,
 )
 from trimit.backend.models import (
-    Message,
     Role,
     PartialBackendOutput,
     Soundbite,
@@ -16,6 +15,9 @@ from trimit.backend.models import (
     Transcript,
     FinalLLMOutput,
     PartialLLMOutput,
+    StructuredUserInput,
+    SpeakerTaggingInput,
+    SpeakerTaggingSegmentModification,
 )
 
 from trimit.backend.serve import step_workflow_until_feedback_request
@@ -192,9 +194,9 @@ async def test_retry_soundbites_step(workflow_3909774043_with_state_init):
 
 
 async def test_retry_remove_off_screen_speakers_with_structured_user_input(
-    workflow_3909774043_with_state_init,
+    workflow_3909774043_with_state_init_no_export,
 ):
-    workflow = workflow_3909774043_with_state_init
+    workflow = workflow_3909774043_with_state_init_no_export
     step_name = "remove_off_screen_speakers"
     output = None
     while (await workflow.get_last_substep(with_load_state=False)).name != step_name:
@@ -202,13 +204,21 @@ async def test_retry_remove_off_screen_speakers_with_structured_user_input(
             load_state=False, save_state_to_db=False, async_export=False
         ):
             pass
-    structured_user_input = {
-        "segments": [
-            {"index": 1, "speaker": "Ruta Gupta", "on_screen": True},
-            {"index": 4, "speaker": "Interviewer", "on_screen": False},
-            {"index": 18, "speaker": "Interviewer", "on_screen": False},
-        ]
-    }
+    structured_user_input = StructuredUserInput(
+        speaker_tagging_input=SpeakerTaggingInput(
+            segments=[
+                SpeakerTaggingSegmentModification(
+                    index=1, speaker="Ruta Gupta", on_screen=True
+                ),
+                SpeakerTaggingSegmentModification(
+                    index=4, speaker="Interviewer", on_screen=False
+                ),
+                SpeakerTaggingSegmentModification(
+                    index=18, speaker="Interviewer", on_screen=False
+                ),
+            ]
+        )
+    )
     old_transcript = workflow.on_screen_transcript.copy()
     async for output, _ in workflow.step(
         load_state=False,

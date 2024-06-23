@@ -63,6 +63,7 @@ from trimit.backend.models import (
     PartialBackendOutput,
     PartialLLMOutput,
     FinalLLMOutput,
+    StructuredUserInput,
     Transcript,
     TranscriptChunk,
     SoundbitesChunk,
@@ -897,7 +898,7 @@ class CutTranscriptLinearWorkflow:
     async def step(
         self,
         user_feedback: str = "",
-        structured_user_input: dict | None = None,
+        structured_user_input: StructuredUserInput | None = None,
         load_state=True,
         save_state_to_db=True,
         async_export=True,
@@ -992,18 +993,19 @@ class CutTranscriptLinearWorkflow:
         self, step_input: CutTranscriptLinearWorkflowStepInput
     ):
         user_prompt = step_input.user_prompt if step_input else ""
-        structured_user_input = None
-        if step_input and step_input.structured_user_input:
-            try:
-                structured_user_input = SpeakerTaggingInput(
-                    **step_input.structured_user_input
-                )
-            except Exception as e:
-                print("Could not parse structured user input, ignoring")
-        if structured_user_input and self.on_screen_transcript:
+        speaker_tagging_input = None
+        if (
+            step_input
+            and step_input.structured_user_input
+            and step_input.structured_user_input.speaker_tagging_input
+        ):
+            speaker_tagging_input = (
+                step_input.structured_user_input.speaker_tagging_input
+            )
+        if speaker_tagging_input and self.on_screen_transcript:
             on_screen_speakers, on_screen_transcript = (
                 await self._modify_on_screen_transcript_with_user_input(
-                    structured_user_input
+                    speaker_tagging_input
                 )
             )
             self.video.speakers_in_frame = on_screen_speakers
@@ -1585,7 +1587,7 @@ class CutTranscriptLinearWorkflow:
     async def _get_next_step_with_user_feedback(
         self,
         user_feedback: str | None = None,
-        structured_user_input: dict | None = None,
+        structured_user_input: StructuredUserInput | None = None,
         retry_step: bool = False,
     ):
 
@@ -1769,7 +1771,7 @@ class CutTranscriptLinearWorkflow:
         step_name: str,
         substep_name: str,
         user_prompt: str | None,
-        structured_user_input: dict | None = None,
+        structured_user_input: StructuredUserInput | None = None,
         force_retry=False,
     ):
         if (
