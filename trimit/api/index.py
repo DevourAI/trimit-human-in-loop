@@ -64,6 +64,7 @@ from trimit.models import (
     VideoHighResPathProjection,
     User,
     VideoFileProjection,
+    FrontendWorkflowState,
 )
 from .image import image
 from trimit.backend.conf import VIDEO_PROCESSING_CALL_IDS_DICT_NAME
@@ -547,33 +548,32 @@ async def get_all_steps(
 @web_app.get(
     "/get_latest_state",
     tags=["Workflows"],
-    response_model=GetLatestState,
+    response_model=FrontendWorkflowState,
     summary="Get the latest state of a workflow",
     description="TODO",
 )
 async def get_latest_state(
     workflow: CutTranscriptLinearWorkflow = Depends(get_current_workflow),
-    with_outputs: bool = Query(
-        True, description="if True, include ordered list of step outputs"
-    ),
-    with_all_steps: bool = Query(
-        True,
-        description="if True, include the Steps object of all the workflow's steps",
-    ),
-    only_last_substep_outputs: bool = Query(
-        True,
-        description="If True, only return the output of the latest substep for each step",
-    ),
+    #  with_outputs: bool = Query(
+    #  True, description="if True, include ordered list of step outputs"
+    #  ),
+    #  with_all_steps: bool = Query(
+    #  True,
+    #  description="if True, include the Steps object of all the workflow's steps",
+    #  ),
+    #  only_last_substep_outputs: bool = Query(
+    #  True,
+    #  description="If True, only return the output of the latest substep for each step",
+    #  ),
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
-    return await workflow.get_latest_state(
-        with_load_state=False,
-        with_outputs=with_outputs,
-        with_all_steps=with_all_steps,
-        only_last_substep_outputs=only_last_substep_outputs,
-    )
+    return await workflow.get_latest_frontend_state(with_load_state=False)
+    #  with_outputs=with_outputs,
+    #  with_all_steps=with_all_steps,
+    #  only_last_substep_outputs=only_last_substep_outputs,
+    #  )
 
 
 @web_app.get("/download_transcript_text")

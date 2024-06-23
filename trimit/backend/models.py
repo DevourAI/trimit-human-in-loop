@@ -1645,7 +1645,8 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
 
     def model_dump(self, *args, **kwargs):
         res = super().model_dump(*args, **kwargs)
-        res["conversation"] = [m.model_dump() for m in self.conversation]
+        if "conversation" not in kwargs.get("exclude", []):
+            res["conversation"] = [m.model_dump() for m in self.conversation]
         return res
 
     def merge(self, other: "CutTranscriptLinearWorkflowStepOutput"):

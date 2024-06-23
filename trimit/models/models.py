@@ -14,7 +14,12 @@ from beanie import Document, Link, PydanticObjectId
 from beanie.operators import In
 from pydantic import Field, BaseModel, field_validator
 
-from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput, StepKey
+from trimit.backend.models import (
+    CutTranscriptLinearWorkflowStepOutput,
+    StepKey,
+    Message,
+    ExportableStepWrapper,
+)
 from trimit.utils.model_utils import (
     filename_from_hash,
     get_upload_folder,
@@ -689,6 +694,25 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
         return PydanticObjectId(md5_hash[:24])
 
 
+class FrontendWorkflowStaticState(CutTranscriptLinearWorkflowStaticState):
+    user: Link[User] | None = None
+    video: Link[Video] | None = None
+    user_id: PydanticObjectId
+    video_id: PydanticObjectId
+    user_email: str
+    video_hash: str
+
+    @classmethod
+    def from_backend_static_state(cls, backend_state):
+        return cls(
+            video_id=backend_state.video.id,
+            user_id=backend_state.user.id,
+            video_hash=backend_state.video.md5_hash,
+            user_email=backend_state.user.email,
+            **backend_state.model_dump(exclude=["video", "user"]),
+        )
+
+
 class StepOrderMixin(BaseModel):
     _id: PydanticObjectId
     static_state: CutTranscriptLinearWorkflowStaticState
@@ -1166,6 +1190,45 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                 if existing_step.name == step_name and existing_substep == substep_name:
                     return True
         return False
+
+
+class FrontendStepOutput(CutTranscriptLinearWorkflowStepOutput):
+    full_conversation: list[Message] = Field(default_factory=list)
+
+    @classmethod
+    def from_backend_outputs(cls, backend_outputs):
+        return cls(
+            full_conversation=[m for o in backend_outputs for m in o.conversation],
+            **backend_outputs[-1].model_dump(),
+        )
+
+
+class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
+    outputs: list[FrontendStepOutput] = Field(
+        [],
+        description="list of step outputs, which have already ran, and that yield to the user.",
+    )
+    all_steps: list[ExportableStepWrapper]
+    static_state: FrontendWorkflowStaticState
+
+    @classmethod
+    def from_workflow(cls, workflow):
+        backend_state = workflow.state
+        frontend_outputs = []
+        for step in backend_state.dynamic_state_step_order:
+            substep = step.substeps[-1]
+            step_key = get_dynamic_state_key(step.name, substep)
+            outputs = backend_state.outputs[step_key]
+            frontend_output = FrontendStepOutput.from_backend_outputs(outputs)
+            frontend_outputs.append(frontend_output)
+        return cls(
+            outputs=frontend_outputs,
+            all_steps=workflow.steps.to_exportable(),
+            static_state=FrontendWorkflowStaticState.from_backend_static_state(
+                backend_state.static_state
+            ),
+            **backend_state.model_dump(exclude=["static_state", "outputs"]),
+        )
 
 
 class TimelineClip(BaseModel):
