@@ -13,9 +13,11 @@ import { useStepperForm } from '@/contexts/stepper-form-context';
 import { useUser } from '@/contexts/user-context';
 import {
   CutTranscriptLinearWorkflowStepOutput,
+  CutTranscriptLinearWorkflowStepOutputExportResultValue,
   CutTranscriptLinearWorkflowStreamingOutput,
   ExportableStepWrapper,
-  GetLatestState,
+  FrontendStepOutput,
+  FrontendWorkflowState,
 } from '@/gen/openapi/api';
 import {
   getLatestState,
@@ -35,12 +37,15 @@ import {
 
 const BASE_PROMPT = 'What do you want to create?';
 
-function stepIndexFromState(state: GetLatestState): number {
+function stepIndexFromState(state: FrontendWorkflowState): number {
   if (!state.all_steps) {
     throw new Error('state does not contain all_steps');
   }
-  if (state && state.last_step) {
-    return stepIndexFromName(state.last_step.step_name, state.all_steps);
+  if (state && state.outputs && state.outputs.length) {
+    return stepIndexFromName(
+      state.outputs[state.outputs.length - 1].step_name,
+      state.all_steps
+    );
   }
   return 0;
 }
@@ -66,7 +71,7 @@ function stepNameFromIndex(
 
 function stepOutputFromIndex(
   stepIndex: number,
-  state: GetLatestState
+  state: FrontendWorkflowState
 ): CutTranscriptLinearWorkflowStepOutput {
   if (!state.all_steps) {
     throw new Error('state does not contain all_steps');
@@ -91,7 +96,9 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   const { userData } = useUser();
   const { stepperFormValues } = useStepperForm();
   const { toast } = useToast();
-  const [latestState, setLatestState] = useState<GetLatestState | null>(null);
+  const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
+    null
+  );
   const [userFeedbackRequest, setUserFeedbackRequest] = useState<string>('');
   const [trueStepIndex, setTrueStepIndex] = useState<number>(0);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
@@ -99,8 +106,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     Record<string, any>
   >({});
   const [latestExportCallId, setLatestExportCallId] = useState<string>('');
-  const [stepOutput, setStepOutput] =
-    useState<CutTranscriptLinearWorkflowStepOutput | null>(null);
+  const [stepOutput, setStepOutput] = useState<FrontendStepOutput | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [backendMessage, setBackendMessage] = useState<string>('');
   const [currentStepFormValues, setCurrentStepFormValues] = useState<
@@ -123,8 +129,10 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   );
   const fetchedInitialState = useRef(false);
   const allowRunningFromCurrentStepIndexChange = useRef(false);
-  const prevExportResult = useRef();
-  const prevExportCallId = useRef();
+  const prevExportResult = useRef<{
+    [key: string]: CutTranscriptLinearWorkflowStepOutputExportResultValue;
+  }>();
+  const prevExportCallId = useRef<string>();
 
   useEffect(() => {
     async function fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput() {
@@ -183,6 +191,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       lastOutput.export_result != prevExportResult.current
     ) {
       setLatestExportResult(lastOutput.export_result);
+
       prevExportResult.current = lastOutput.export_result;
     } else if (
       lastOutput.export_call_id &&
@@ -217,29 +226,33 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
 
   async function handleStepStream(reader: ReadableStreamDefaultReader) {
     activePromptDispatch({ type: 'restart', value: '' });
-    const finalState: CutTranscriptLinearWorkflowStepOutput | null =
-      await decodeStreamAsJSON(
-        reader,
-        (value: CutTranscriptLinearWorkflowStreamingOutput) => {
-          if (value?.partial_step_output) {
-            // we can log this maybe
-          } else if (value?.partial_backend_output) {
-            let output = value.partial_backend_output;
-            if (output.chunk === null || output.chunk == 0) {
-              setBackendMessage(output.value || '');
-            }
-          } else if (value?.partial_llm_output) {
-            let output = value.partial_llm_output;
-            if (output.chunk === null || output.chunk == 0) {
-              activePromptDispatch({ type: 'append', value: output.value });
-              //  TODO: for some reason this is not triggering StepperForm+systemPrompt to reload
-            }
+    const finalState: FrontendWorkflowState | null = await decodeStreamAsJSON(
+      reader,
+      (value: CutTranscriptLinearWorkflowStreamingOutput) => {
+        if (value?.partial_step_output) {
+          // we can log this maybe
+        } else if (value?.partial_backend_output) {
+          let output = value.partial_backend_output;
+          if (output.chunk === null || output.chunk == 0) {
+            setBackendMessage(output.value || '');
+          }
+        } else if (value?.partial_llm_output) {
+          let output = value.partial_llm_output;
+          if (output.chunk === null || output.chunk == 0) {
+            activePromptDispatch({ type: 'append', value: output.value });
+            //  TODO: for some reason this is not triggering StepperForm+systemPrompt to reload
           }
         }
-      );
+      }
+    );
     setLatestState(finalState);
-    setStepOutput(finalState.outputs[finalState.outputs.length - 1]);
+    setStepOutput(
+      finalState?.outputs?.length
+        ? finalState.outputs[finalState.outputs.length - 1]
+        : null
+    );
     setIsLoading(false);
+    return finalState;
   }
 
   async function advanceStep(stepIndex: number) {
@@ -315,6 +328,46 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       console.error('error in step', error);
     }
   }
+  // TODO combine this method with the form once we have structured input
+  async function retryStepNoForm(
+    stepIndex: number,
+    userMessage: string,
+    callback: (aiMessage: string) => void
+  ) {
+    // TODO: stepperFormValues.feedback is cut off- doesn't include last character
+    setIsLoading(true);
+    if (trueStepIndex > stepIndex) {
+      const success = await revertStepTo(stepIndex + 1);
+      if (!success) {
+        setIsLoading(false);
+        return;
+      }
+    }
+    const params: StepParams = {
+      user_input: userMessage,
+      streaming: true,
+      force_restart: false,
+      ignore_running_workflows: true,
+      retry_step: true,
+      ...userParams,
+    };
+    try {
+      await step(params, async (reader) => {
+        const finalState = await handleStepStream(reader);
+        const stepOutput = finalState?.outputs?.length
+          ? finalState.outputs[finalState.outputs.length - 1]
+          : null;
+        const aiMessage = stepOutput?.full_conversation?.length
+          ? stepOutput.full_conversation[
+              stepOutput.full_conversation.length - 1
+            ].value
+          : '';
+        callback(aiMessage);
+      });
+    } catch (error) {
+      console.error('error in step', error);
+    }
+  }
 
   async function restart() {
     setIsLoading(true);
@@ -371,8 +424,8 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     await revertStep(false);
   }
 
-  function updateStepOutput(stepIndex: number, state: GetLatestState) {
-    let stepOutput: CutTranscriptLinearWorkflowStepOutput | null = null;
+  function updateStepOutput(stepIndex: number, state: FrontendWorkflowState) {
+    let stepOutput: FrontendStepOutput | null = null;
     try {
       stepOutput = stepOutputFromIndex(stepIndex, state);
     } catch (error) {
@@ -481,11 +534,14 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
 
                   <StepRenderer
                     step={step}
+                    stepIndex={index}
                     stepOutput={
-                      latestState?.outputs?.length > index
+                      latestState?.outputs?.length &&
+                      latestState.outputs.length > index
                         ? latestState.outputs[index]
                         : null
                     }
+                    onRetry={retryStepNoForm}
                     footer={
                       <Footer
                         currentStepIndex={currentStepIndex}

@@ -31,18 +31,14 @@ from fastapi.responses import StreamingResponse, FileResponse
 from trimit.backend.models import (
     CallStatus,
     VideoProcessingStatus,
-    ExportableStepInfo,
     UploadVideo,
     UploadedVideo,
-    GetLatestState,
     GetStepOutputs,
     GetVideoProcessingStatus,
     CheckFunctionCallResults,
     CutTranscriptLinearWorkflowStepOutput,
     PartialBackendOutput,
     PartialLLMOutput,
-    CutTranscriptLinearWorkflowStreamingOutput,
-    Steps,
     ExportableStepWrapper,
 )
 from trimit.utils import conf
@@ -65,6 +61,7 @@ from trimit.models import (
     User,
     VideoFileProjection,
     FrontendWorkflowState,
+    CutTranscriptLinearWorkflowStreamingOutput,
 )
 from .image import image
 from trimit.backend.conf import VIDEO_PROCESSING_CALL_IDS_DICT_NAME
@@ -458,11 +455,11 @@ def step_endpoint(
                         detail=f"Unparseable response from internal step function: {partial_result}",
                     )
                 await asyncio.sleep(0)
-            latest_state = await workflow.get_latest_state(
+            latest_state = await workflow.get_latest_frontend_state(
                 with_load_state=True,
-                with_outputs=True,
-                with_all_steps=True,
-                only_last_substep_outputs=True,
+                #  with_outputs=True,
+                #  with_all_steps=True,
+                #  only_last_substep_outputs=True,
             )
             if last_result is not None:
                 yield CutTranscriptLinearWorkflowStreamingOutput(

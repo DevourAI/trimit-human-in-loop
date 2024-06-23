@@ -1914,56 +1914,6 @@ class StepKey(BaseModel):
     substeps: list[str]
 
 
-class GetLatestState(BaseModel):
-    step_history_state: list[StepKey] = Field(
-        [],
-        description="list of every step and substeps run so far, including retry_{i} prefixes on substeps when a step was retried",
-    )
-    video_id: str | None = Field(
-        None,
-        description="id of the video's db model. Provide to future workflow calls for faster retrieval over video_hash",
-    )
-    user_id: str | None = Field(
-        None,
-        description="id of the user's db model. Provide to future workflow calls for faster retrieval over user_email",
-    )
-    last_step: ExportableStepInfo | None = Field(
-        None,
-        description="information about the most recently run (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
-    )
-    next_step: ExportableStepInfo | None = Field(
-        None,
-        description="information about the next scheduled (sub)step. provides additional information over what's is provided in step_history_state, like whether the state includes concurrent chunked responses from the LLM",
-    )
-    all_steps: list[ExportableStepWrapper] | None = Field(
-        None,
-        description="detailed, ordered, information about each step/substep in this workflow",
-    )
-    outputs: list[CutTranscriptLinearWorkflowStepOutput] | None = Field(
-        None, description="ordered step outputs"
-    )
-
-
-class CutTranscriptLinearWorkflowStreamingOutput(BaseModel):
-    partial_llm_output: PartialLLMOutput | None = Field(
-        None, description="Chunk of output from the LLM"
-    )
-    final_llm_output: FinalLLMOutput | None = Field(
-        None, description="Full output from the LLM, not currently send to frontend"
-    )
-    partial_backend_output: PartialBackendOutput | None = Field(
-        None, description="Text output with metadata from the backend"
-    )
-    partial_step_output: CutTranscriptLinearWorkflowStepOutput | None = Field(
-        None,
-        description="An output of an intermediary substep that did not require user feedback",
-    )
-    final_state: GetLatestState | None = Field(
-        None,
-        description="The full final state, same as calling /get_latest_state. This will always be the last item returned.",
-    )
-
-
 class UploadedVideo(BaseModel):
     filename: str
     video_hash: str
