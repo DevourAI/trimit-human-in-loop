@@ -7,7 +7,8 @@ export interface CommonAPIParams {
   video_hash: string;
 }
 
-export interface StepParams extends CommonAPIParams {
+export interface StepQueryParams extends CommonAPIParams {}
+export interface StepData {
   user_input: string;
   streaming: boolean;
   force_restart: boolean;

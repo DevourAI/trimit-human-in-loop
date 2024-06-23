@@ -7,7 +7,6 @@ from trimit.backend.cut_transcript import (
     CutTranscriptLinearWorkflowStepOutput,
 )
 from trimit.backend.models import (
-    Message,
     Role,
     PartialBackendOutput,
     Soundbite,
@@ -16,6 +15,9 @@ from trimit.backend.models import (
     Transcript,
     FinalLLMOutput,
     PartialLLMOutput,
+    StructuredUserInput,
+    RemoveOffScreenSpeakersInput,
+    SpeakerTaggingSegmentModification,
 )
 
 from trimit.backend.serve import step_workflow_until_feedback_request
@@ -189,6 +191,59 @@ async def test_retry_soundbites_step(workflow_3909774043_with_state_init):
     assert n_soundbites_after == n_soundbites_before - 1
     assert [sb for _, sb in workflow.current_soundbites.iter_text()] == all_other_sbs
     assert output.step_name == step_name
+
+
+async def test_retry_remove_off_screen_speakers_with_structured_user_input(
+    workflow_3909774043_with_state_init_no_export,
+):
+    workflow = workflow_3909774043_with_state_init_no_export
+    step_name = "remove_off_screen_speakers"
+    output = None
+    while (await workflow.get_last_substep(with_load_state=False)).name != step_name:
+        async for output, _ in workflow.step(
+            load_state=False, save_state_to_db=False, async_export=False
+        ):
+            pass
+    structured_user_input = StructuredUserInput(
+        remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+            segments=[
+                SpeakerTaggingSegmentModification(
+                    index=1, speaker="Ruta Gupta", on_screen=True
+                ),
+                SpeakerTaggingSegmentModification(
+                    index=4, speaker="Interviewer", on_screen=False
+                ),
+                SpeakerTaggingSegmentModification(
+                    index=18, speaker="Interviewer", on_screen=False
+                ),
+            ]
+        )
+    )
+    old_transcript = workflow.on_screen_transcript.copy()
+    async for output, _ in workflow.step(
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+        user_feedback="",
+        structured_user_input=structured_user_input,
+        retry_step=True,
+    ):
+        pass
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    assert workflow.video.speakers_in_frame == ["Ruta Gupta"]
+    new_transcript = workflow.on_screen_transcript
+    assert new_transcript.kept_segments == old_transcript.kept_segments - {18}
+    for i, (old_segment, new_segment) in enumerate(
+        zip(old_transcript.segments, new_transcript.segments)
+    ):
+        if i == 18:
+            assert new_segment.speaker == "Interviewer"
+        elif old_segment.speaker == "SPEAKER_00":
+            assert new_segment.speaker == "Ruta Gupta"
+        elif old_segment.speaker == "SPEAKER_01":
+            assert new_segment.speaker == "Interviewer"
+        else:
+            assert False
 
 
 async def test_decide_retry_transcript_chunks(

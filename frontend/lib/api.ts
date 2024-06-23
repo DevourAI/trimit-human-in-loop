@@ -16,8 +16,9 @@ import {
   ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
+  StepData,
   StepOutputParams,
-  StepParams,
+  StepQueryParams,
   UploadVideoParams,
   UserState,
 } from '@/lib/types';
@@ -170,18 +171,20 @@ export async function getStepOutput(
 }
 
 export async function step(
-  params: StepParams,
+  queryParams: StepQueryParams,
+  data: StepData,
   streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
 ): Promise<void> {
   const url = new URL(`${API_URL}/step`);
-  Object.keys(params).forEach((key) => {
-    if (params[key] !== undefined && params[key] !== null) {
-      url.searchParams.append(key, params[key]);
+  Object.keys(queryParams).forEach((key) => {
+    if (queryParams[key] !== undefined && queryParams[key] !== null) {
+      url.searchParams.append(key, queryParams[key]);
     }
   });
   try {
     const res = await fetch(url.toString(), {
-      method: 'GET',
+      method: 'Post',
+      data: data,
     }).catch((err) => {
       throw err;
     });

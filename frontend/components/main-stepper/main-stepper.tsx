@@ -32,7 +32,6 @@ import {
   ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
-  StepParams,
 } from '@/lib/types';
 
 const BASE_PROMPT = 'What do you want to create?';
@@ -277,7 +276,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     }
     setCurrentStepIndex(stepIndex);
     setStepOutput(null);
-    const params: StepParams = {
+    const data: StepData = {
       user_input:
         stepperFormValues.feedback !== undefined &&
         stepperFormValues.feedback !== null
@@ -287,10 +286,9 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       force_restart: false,
       ignore_running_workflows: true,
       retry_step: false,
-      ...userParams,
     };
     try {
-      await step(params, handleStepStream);
+      await step(userParams, data, handleStepStream);
     } catch (error) {
       console.error('error in step', error);
     }
@@ -311,7 +309,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
         return;
       }
     }
-    const params: StepParams = {
+    const stepData: StepData = {
       user_input:
         data.feedback !== undefined && data.feedback !== null
           ? data.feedback
@@ -320,10 +318,9 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       force_restart: false,
       ignore_running_workflows: true,
       retry_step: true,
-      ...userParams,
     };
     try {
-      await step(params, handleStepStream);
+      await step(userParams, stepData, handleStepStream);
     } catch (error) {
       console.error('error in step', error);
     }
@@ -343,16 +340,15 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
         return;
       }
     }
-    const params: StepParams = {
+    const stepData: StepData = {
       user_input: userMessage,
       streaming: true,
       force_restart: false,
       ignore_running_workflows: true,
       retry_step: true,
-      ...userParams,
     };
     try {
-      await step(params, async (reader) => {
+      await step(userParams, stepData, async (reader) => {
         const finalState = await handleStepStream(reader);
         const stepOutput = finalState?.outputs?.length
           ? finalState.outputs[finalState.outputs.length - 1]

@@ -5,6 +5,7 @@ from trimit.backend.conf import (
     WORKFLOWS_DICT_NAME,
     RUNNING_WORKFLOWS_DICT_NAME,
 )
+from trimit.backend.models import StructuredUserInput
 from .image import image
 from modal import Dict
 import asyncio
@@ -27,6 +28,7 @@ running_workflows = Dict.from_name(RUNNING_WORKFLOWS_DICT_NAME, create_if_missin
 async def step_workflow_until_feedback_request(
     workflow: "CutTranscriptLinearWorkflow",
     user_input: str | None = None,
+    structured_user_input: StructuredUserInput | None = None,
     load_state=True,
     save_state_to_db=True,
     async_export=True,
@@ -44,6 +46,7 @@ async def step_workflow_until_feedback_request(
         result = None
         async for result, is_last in workflow.step(
             user_input or "",
+            structured_user_input=structured_user_input,
             load_state=load_state,
             save_state_to_db=save_state_to_db,
             async_export=async_export,
@@ -69,6 +72,7 @@ async def step_workflow_until_feedback_request(
 async def step(
     workflow: "trimit.backend.cut_transcript.CutTranscriptLinearWorkflow",
     user_input: str | None = None,
+    structured_user_input: StructuredUserInput | None = None,
     ignore_running_workflows: bool = False,
     timeout: float = 120,
     async_export: bool = True,
@@ -102,7 +106,11 @@ async def step(
             workflows[id] = workflow
     running_workflows[id] = True
     gen = step_workflow_until_feedback_request(
-        workflow, user_input, async_export=async_export, retry_step=retry_step
+        workflow=workflow,
+        user_input=user_input,
+        structured_user_input=structured_user_input,
+        async_export=async_export,
+        retry_step=retry_step,
     )
     try:
         while True:
@@ -125,6 +133,7 @@ async def cut_transcript_cli(
     video_hash: str,
     length_seconds: int,
     user_input: str | None = None,
+    structured_user_input: StructuredUserInput | None = None,
     force_restart: bool = False,
     ignore_running_workflows: bool = False,
     timeout: float = 120,
@@ -153,6 +162,7 @@ async def cut_transcript_cli(
         async for partial_output, is_last in step.remote_gen.aio(
             workflow=workflow,
             user_input=user_input,
+            structured_user_input=structured_user_input,
             ignore_running_workflows=ignore_running_workflows,
             timeout=timeout,
         ):

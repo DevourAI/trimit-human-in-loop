@@ -1551,6 +1551,16 @@ class Soundbites(Transcript):
         return cls(transcript=transcript, soundbites=state["soundbites"])
 
 
+class SpeakerTaggingSegmentModification(BaseModel):
+    index: int
+    speaker: str
+    on_screen: bool
+
+
+class RemoveOffScreenSpeakersInput(BaseModel):
+    segments: list[SpeakerTaggingSegmentModification]
+
+
 class PartialFeedback(BaseModel):
     partials_to_redo: list[bool] = Field(
         ...,
@@ -1559,6 +1569,12 @@ class PartialFeedback(BaseModel):
     relevant_user_feedback_list: list[str | None] | list[str] = Field(
         ..., description="specific feedback provided by LLM to each individual chunk"
     )
+
+
+class StructuredUserInput(BaseModel):
+    """only one of these fields should be defined"""
+
+    remove_off_screen_speakers: RemoveOffScreenSpeakersInput | None = None
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):
@@ -1570,6 +1586,10 @@ class CutTranscriptLinearWorkflowStepInput(BaseModel):
         description="feedback provided by LLM after processing the raw user_prompt",
     )
     is_retry: bool = Field(False, description="whether the current run is a retry")
+    structured_user_input: StructuredUserInput | None = Field(
+        None,
+        description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
+    )
     step_name: str | None = None
     substep_name: str | None = None
     prior_conversation: list[Message] = Field(
