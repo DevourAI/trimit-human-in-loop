@@ -14,7 +14,6 @@ import {
   FrontendWorkflowState,
   GetUploadedVideoParams,
   ListWorkflowParams,
-  ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
   StepData,
@@ -105,9 +104,11 @@ export async function createNewWorkflow(
 }
 
 export async function resetWorkflow(
-  params: ResetWorkflowParams
+  workflowId: string
 ): Promise<UserState | boolean> {
-  const result = await fetcherWithParams('reset_workflow', params);
+  const result = await fetcherWithParams('reset_workflow', {
+    workflow_id: workflowId,
+  });
   if (result && result.success === false) {
     return false;
   }

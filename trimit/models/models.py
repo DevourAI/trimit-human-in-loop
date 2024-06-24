@@ -38,6 +38,10 @@ from trimit.utils.model_utils import (
 )
 
 
+class StepNotYetReachedError(ValueError):
+    pass
+
+
 class DocumentWithSaveRetry(Document):
     #  @retry(
     #  stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=1, max=60)
@@ -953,7 +957,9 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     async def revert_step_to_before(self, step_name: str, substep_name: str, save=True):
         if not self._already_in_dynamic_state_step_order(step_name, substep_name):
-            raise ValueError(f"have not reached step {step_name}.{substep_name} yet")
+            raise StepNotYetReachedError(
+                f"have not reached step {step_name}.{substep_name} yet"
+            )
         state_key = get_dynamic_state_key(step_name, substep_name)
         latest_state_key = self.get_latest_dynamic_key()
         while latest_state_key != state_key:

@@ -833,10 +833,15 @@ class CutTranscriptLinearWorkflow:
         if self.state is not None:
             await self.state.revert_step(before_retries=before_retries)
 
-    async def revert_step_to_before(self, step_name: str, substep_name: str):
-        await self.load_state()
+    async def revert_step_to_before(
+        self, step_name: str, substep_name: str, with_load_state: bool = True
+    ):
+        if with_load_state:
+            await self.load_state()
         if self.state is not None:
-            await self.state.revert_step_to_before(step_name, substep_name)
+            await self.state.revert_step_to_before(
+                step_name, substep_name, save=with_load_state
+            )
 
     async def delete(self):
         if self.state is not None:
@@ -1666,9 +1671,7 @@ class CutTranscriptLinearWorkflow:
         next_step = self.steps[next_step_index]
         next_substep = next_step.substeps[next_substep_index]
         next_substep.input = CutTranscriptLinearWorkflowStepInput(
-            # We don't want to pass the user_feedback to the next step,
-            # user feedback is currently only for retry (and the first step)
-            user_prompt=None,
+            user_prompt=user_feedback,
             is_retry=False,
             step_name=next_step.name,
             substep_name=next_substep.name,

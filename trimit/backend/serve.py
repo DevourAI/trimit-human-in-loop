@@ -1,4 +1,6 @@
 import time
+
+from torch import save
 from trimit.app import app, VOLUME_DIR
 from trimit.backend.conf import (
     LINEAR_WORKFLOW_OUTPUT_FOLDER,
@@ -6,6 +8,8 @@ from trimit.backend.conf import (
     RUNNING_WORKFLOWS_DICT_NAME,
 )
 from trimit.backend.models import StructuredUserInput
+from trimit.models.models import StepNotYetReachedError
+from trimit.utils.model_utils import get_dynamic_state_key
 from .image import image
 from modal import Dict
 import asyncio
@@ -33,16 +37,27 @@ async def step_workflow_until_feedback_request(
     save_state_to_db=True,
     async_export=True,
     retry_step=False,
+    advance_until: str | None = None,
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
+    if load_state:
+        await workflow.load_state()
 
     user_feedback_request = None
     first_time = True
     done = False
-    while first_time or not user_feedback_request:
+
+    def get_existing_step_keys(workflow):
+        return [
+            get_dynamic_state_key(o.name, s)
+            for o in workflow.state.dynamic_state_step_order
+            for s in o.substeps
+        ]
+
+    while True:
         result = None
         async for result, is_last in workflow.step(
             user_input or "",
@@ -66,6 +81,10 @@ async def step_workflow_until_feedback_request(
             break
         user_feedback_request = result.user_feedback_request
         first_time = False
+        if user_feedback_request and (
+            not advance_until or advance_until in get_existing_step_keys(workflow)
+        ):
+            break
 
 
 @app.function(**app_kwargs)
@@ -79,16 +98,29 @@ async def step(
     retry_step: bool = False,
     step_name: str | None = None,
     substep_name: str | None = None,
+    advance_until: int | None = None,
+    load_state: bool = True,
+    save_state_to_db=True,
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
+    if advance_until is not None and substep_name is None and step_name is None:
+        step = workflow.steps[advance_until]
+        step_name = step.name
+        substep_name = step.substeps[-1].name
+
+    step_workflow_advance_until = None
     if step_name is not None:
         if substep_name is None:
             raise ValueError("substep_name must be provided if step_name is provided")
-        await workflow.revert_state_to_before(step_name, substep_name)
-    else:
+        try:
+            await workflow.revert_step_to_before(step_name, substep_name)
+        except StepNotYetReachedError:
+            step_workflow_advance_until = get_dynamic_state_key(step_name, substep_name)
+
+    elif load_state:
         await workflow.load_state()
     id = str(workflow.id)
 
@@ -111,19 +143,28 @@ async def step(
         structured_user_input=structured_user_input,
         async_export=async_export,
         retry_step=retry_step,
+        advance_until=step_workflow_advance_until,
+        load_state=load_state,
+        save_state_to_db=save_state_to_db,
     )
-    try:
-        while True:
-            output = await asyncio.wait_for(gen.__anext__(), timeout)
-            running_workflows[id] = False
-            yield output
-    except asyncio.TimeoutError:
-        running_workflows[id] = False
-        yield CutTranscriptLinearWorkflowStepOutput(
-            step_name="", substep_name="", done=False, error="Timeout"
-        ), True
-    except StopAsyncIteration:
-        return
+
+    async for output in gen:
+        yield output
+    running_workflows[id] = False
+
+    # TODO this adds a timeout but is incredibly slow
+    #  try:
+    #  while True:
+    #  output = await asyncio.wait_for(gen.__anext__(), timeout)
+    #  running_workflows[id] = False
+    #  yield output
+    #  except asyncio.TimeoutError:
+    #  running_workflows[id] = False
+    #  yield CutTranscriptLinearWorkflowStepOutput(
+    #  step_name="", substep_name="", done=False, error="Timeout"
+    #  ), True
+    #  except StopAsyncIteration:
+    #  return
 
 
 @app.local_entrypoint()
