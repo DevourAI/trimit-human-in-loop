@@ -531,6 +531,7 @@ class CutTranscriptLinearWorkflow:
                         export_video=False,
                         export_timeline=False,
                         export_speaker_tagging=False,
+                        input_prompt="Describe in whatever level of detail you want the video you want to create",
                     )
                 ],
             ),

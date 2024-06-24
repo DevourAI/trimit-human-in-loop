@@ -184,7 +184,7 @@ export async function step(
   try {
     const res = await fetch(url.toString(), {
       method: 'Post',
-      data: data,
+      body: JSON.stringify(data),
     }).catch((err) => {
       throw err;
     });

@@ -23,6 +23,7 @@ else:
 async def load_or_create_workflow(
     timeline_name: str,
     length_seconds: int,
+    nstages: int | None = None,
     user_email: str | None = None,
     video_hash: str | None = None,
     user_id: str | None = None,
@@ -48,6 +49,7 @@ async def load_or_create_workflow(
         "timeline_name": timeline_name,
         "user_email": user_email,
         "length_seconds": length_seconds,
+        "nstages": nstages,
         "output_folder": output_folder or LINEAR_WORKFLOW_OUTPUT_FOLDER,
         "volume_dir": volume_dir or VOLUME_DIR,
         "export_video": export_video,
@@ -99,34 +101,4 @@ async def load_or_create_workflow(
             await workflow.load_step_order()
             print("loaded workflow step order")
 
-    workflow_state = workflow.state.static_state.model_dump(exclude={"video", "user"})
-    test_state = {
-        "id": None,
-        "timeline_name": "15557970_testimonial_test",
-        "volume_dir": "tests/fixtures/volume",
-        "output_folder": "tests/video_outputs/linear",
-        "length_seconds": 120,
-        "nstages": 2,
-        "first_pass_length": 360,
-        "max_partial_transcript_words": 800,
-        "max_word_extra_threshold": 50,
-        "clip_extra_trim_seconds": 0.1,
-        "use_agent_output_cache": True,
-        "max_iterations": 3,
-        "ask_user_for_feedback_every_iteration": False,
-        "max_total_soundbites": 15,
-        "num_speaker_tagging_samples": 3,
-        "export_transcript_text": True,
-        "export_transcript": True,
-        "export_soundbites": True,
-        "export_soundbites_text": True,
-        "export_timeline": True,
-        "export_video": False,
-        "export_speaker_tagging": True,
-    }
-    for k, v in workflow_state.items():
-        if k not in test_state:
-            print(f"{k} not in test_state")
-        elif test_state[k] != v:
-            print(f"{k} different, test_state={test_state[k]}, ws_state={v}")
     return workflow

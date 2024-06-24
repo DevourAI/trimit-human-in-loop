@@ -9,6 +9,10 @@ import { Button } from '@/components/ui/button';
 import { Step, Stepper } from '@/components/ui/stepper';
 import { FormSchema, StepperForm } from '@/components/ui/stepper-form';
 import { useToast } from '@/components/ui/use-toast';
+import {
+  WorkflowCreationForm,
+  WorkflowCreationFormSchema,
+} from '@/components/ui/workflow-creation-form';
 import { useStepperForm } from '@/contexts/stepper-form-context';
 import { useUser } from '@/contexts/user-context';
 import {
@@ -34,8 +38,6 @@ import {
   RevertStepToParams,
 } from '@/lib/types';
 
-const BASE_PROMPT = 'What do you want to create?';
-
 function stepIndexFromState(state: FrontendWorkflowState): number {
   if (!state.all_steps) {
     throw new Error('state does not contain all_steps');
@@ -46,7 +48,7 @@ function stepIndexFromState(state: FrontendWorkflowState): number {
       state.all_steps
     );
   }
-  return 0;
+  return -1;
 }
 
 function stepIndexFromName(
@@ -56,7 +58,7 @@ function stepIndexFromName(
   const currentStepIndex = allSteps.findIndex((step) => step.name === stepName);
   if (currentStepIndex === -1) {
     console.error(`Could not find step ${stepName} in steps array`, allSteps);
-    return 0;
+    return -1;
   }
   return currentStepIndex;
 }
@@ -99,8 +101,9 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     null
   );
   const [userFeedbackRequest, setUserFeedbackRequest] = useState<string>('');
-  const [trueStepIndex, setTrueStepIndex] = useState<number>(0);
-  const [currentStepIndex, setCurrentStepIndex] = useState<number>(0);
+  const [stepInputPrompt, setStepInputPrompt] = useState<string>('');
+  const [trueStepIndex, setTrueStepIndex] = useState<number>(-1);
+  const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1);
   const [latestExportResult, setLatestExportResult] = useState<
     Record<string, any>
   >({});
@@ -114,18 +117,18 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   const [hasCompletedAllSteps, setHasCompletedAllSteps] =
     useState<boolean>(false);
 
-  const timelineName = 'timelineName';
-  const lengthSeconds = 60;
-
   const userParams = useMemo(
     () => ({
       user_email: userData.email,
-      timeline_name: timelineName,
-      length_seconds: lengthSeconds,
       video_hash: videoHash,
     }),
-    [userData.email, timelineName, lengthSeconds, videoHash]
+    [userData.email, videoHash]
   );
+  const [workflowParams, setWorkflowParams] = useState<
+    z.infer<typeof WorkflowCreationFormSchema>
+  >({});
+  // TODO stepParams should be renamed workflowParams, and workflowParams should be renamed something else like workflowCreationOptions
+  const stepParams = { ...userParams, ...workflowParams };
   const fetchedInitialState = useRef(false);
   const allowRunningFromCurrentStepIndexChange = useRef(false);
   const prevExportResult = useRef<{
@@ -149,7 +152,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       if (!data || Object.keys(data).length === 0) return;
       console.log('data', data);
       if (!fetchedInitialState.current) {
-        let stepIndex = 0;
+        let stepIndex = -1;
         try {
           stepIndex = stepIndexFromState(data);
           console.log('stepIndex', stepIndex);
@@ -157,9 +160,6 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
           console.log(error);
         }
 
-        if (stepIndex === -1) {
-          stepIndex = data.all_steps ? data.all_steps.length - 1 : 0;
-        }
         setCurrentStepIndex(stepIndex);
 
         if (data.outputs && data.outputs.length) {
@@ -176,12 +176,17 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     if (!latestState || !latestState.all_steps) return;
 
     const stepIndex = stepIndexFromState(latestState);
-    if (stepIndex !== -1) {
+    let latestStep = null;
+    if (trueStepIndex != stepIndex) {
       setTrueStepIndex(stepIndex);
-    } else {
-      setTrueStepIndex(latestState.all_steps.length - 1);
-      setHasCompletedAllSteps(true);
     }
+    if (stepIndex === latestState.all_steps.length - 1) {
+      setHasCompletedAllSteps(true);
+      latestStep = latestState.all_steps[latestState.all_steps.length - 1];
+    } else {
+      latestStep = latestState.all_steps[stepIndex];
+    }
+    setStepInputPrompt(latestStep?.input_prompt || '');
 
     if (!latestState.outputs || !latestState.outputs.length) return;
     const lastOutput = latestState.outputs[latestState.outputs.length - 1];
@@ -202,7 +207,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   }, [latestState]);
 
   useEffect(() => {
-    setUserFeedbackRequest(stepOutput?.user_feedback_request || BASE_PROMPT);
+    setUserFeedbackRequest(stepOutput?.user_feedback_request || '');
   }, [stepOutput]);
 
   type ActivePromptAction =
@@ -254,7 +259,22 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     return finalState;
   }
 
-  async function advanceStep(stepIndex: number) {
+  async function beginWorkflow(
+    data: z.infer<typeof WorkflowCreationFormSchema>
+  ) {
+    setWorkflowParams(data);
+    advanceStep(0, data);
+  }
+  async function advanceStep(
+    stepIndex: number,
+    overrideWorkflowParams?: z.infer<typeof WorkflowCreationFormSchema> | null
+  ) {
+    if (
+      overrideWorkflowParams === null ||
+      overrideWorkflowParams === undefined
+    ) {
+      overrideWorkflowParams = workflowParams;
+    }
     setIsLoading(true);
     console.log(
       'advanceStep stepIndex',
@@ -287,8 +307,9 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       ignore_running_workflows: true,
       retry_step: false,
     };
+    const stepParams = { ...overrideWorkflowParams, ...userParams };
     try {
-      await step(userParams, data, handleStepStream);
+      await step(stepParams, data, handleStepStream);
     } catch (error) {
       console.error('error in step', error);
     }
@@ -320,7 +341,11 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       retry_step: true,
     };
     try {
-      await step(userParams, stepData, handleStepStream);
+      await step(
+        { ...userParams, ...workflowParams },
+        stepData,
+        handleStepStream
+      );
     } catch (error) {
       console.error('error in step', error);
     }
@@ -348,7 +373,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       retry_step: true,
     };
     try {
-      await step(userParams, stepData, async (reader) => {
+      await step(stepParams, stepData, async (reader) => {
         const finalState = await handleStepStream(reader);
         const stepOutput = finalState?.outputs?.length
           ? finalState.outputs[finalState.outputs.length - 1]
@@ -369,10 +394,10 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     setIsLoading(true);
     activePromptDispatch({ type: 'restart', value: '' });
     setStepOutput(null);
-    await resetWorkflow(userParams as ResetWorkflowParams);
-    const newState = await getLatestState(userParams as GetLatestStateParams);
+    await resetWorkflow(stepParams as ResetWorkflowParams);
+    const newState = await getLatestState(stepParams as GetLatestStateParams);
     setLatestState(newState);
-    setCurrentStepIndex(0);
+    setCurrentStepIndex(-1);
     setIsLoading(false);
   }
 
@@ -382,10 +407,10 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     setStepOutput(null);
     await revertStepInBackend({
       to_before_retries: toBeforeRetries,
-      ...userParams,
+      ...stepParams,
     } as RevertStepParams);
     const latestState = await getLatestState(
-      userParams as GetLatestStateParams
+      stepParams as GetLatestStateParams
     );
     setLatestState(latestState);
     setCurrentStepIndex(stepIndexFromState(latestState));
@@ -401,13 +426,13 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     console.log('stepName', stepName);
     const success = await revertStepToInBackend({
       step_name: stepName,
-      ...userParams,
+      ...stepParams,
     } as RevertStepToParams);
     console.log('in revertStepTo success', success);
     if (success) {
       activePromptDispatch({ type: 'restart', value: '' });
       const latestState = await getLatestState(
-        userParams as GetLatestStateParams
+        stepParams as GetLatestStateParams
       );
       setLatestState(latestState);
       setCurrentStepIndex(stepIndexFromState(latestState));
@@ -437,7 +462,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       'currentStepIndex',
       currentStepIndex
     );
-    if (currentStepIndex === 0 || isLoading || !latestState?.all_steps) {
+    if (currentStepIndex === -1 || isLoading || !latestState?.all_steps) {
       return;
     }
     setCurrentStepIndex(currentStepIndex - 1);
@@ -484,22 +509,26 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     });
   }, [backendMessage, toast]);
 
+  const workflowInitialized =
+    latestState?.all_steps !== undefined && currentStepIndex > -1;
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
         Video: {videoHash}
-        <div className="flex gap-3 items-center">
-          <Button variant="outline" onClick={restart} disabled={isLoading}>
-            <ReloadIcon className="mr-2" />
-            Restart
-          </Button>
-          <Button disabled={isLoading}>
-            <DownloadIcon className="mr-2" />
-            Export
-          </Button>
-        </div>
+        {workflowInitialized ? (
+          <div className="flex gap-3 items-center">
+            <Button variant="outline" onClick={restart} disabled={isLoading}>
+              <ReloadIcon className="mr-2" />
+              Restart
+            </Button>
+            <Button disabled={isLoading}>
+              <DownloadIcon className="mr-2" />
+              Export
+            </Button>
+          </div>
+        ) : null}
       </div>
-      {latestState?.all_steps ? (
+      {workflowInitialized ? (
         <Stepper
           initialStep={currentStepIndex}
           steps={latestState.all_steps.map((step: ExportableStepWrapper) => {
@@ -516,6 +545,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
                 <div className="grid w-full gap-2">
                   <StepperForm
                     systemPrompt={activePrompt}
+                    isInitialized={workflowInitialized}
                     isLoading={isLoading}
                     prompt={userFeedbackRequest}
                     stepIndex={index}
@@ -531,6 +561,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
                   <StepRenderer
                     step={step}
                     stepIndex={index}
+                    prompt={stepInputPrompt}
                     stepOutput={
                       latestState?.outputs?.length &&
                       latestState.outputs.length > index
@@ -564,7 +595,16 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
             )
           )}
         </Stepper>
-      ) : null}
+      ) : (
+        <WorkflowCreationForm
+          isLoading={isLoading}
+          userParams={userParams}
+          onSubmit={beginWorkflow}
+          onCancelStep={() => {
+            throw new Error('Unimplemented');
+          }}
+        />
+      )}
     </div>
   );
 }

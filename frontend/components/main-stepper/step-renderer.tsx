@@ -9,6 +9,7 @@ import { ExportableStepWrapper, FrontendStepOutput } from '@/gen/openapi';
 interface StepRendererProps {
   step: ExportableStepWrapper;
   stepOutput: FrontendStepOutput | null;
+  stepInputPrompt: string;
   footer?: ReactNode;
   onRetry: (
     stepIndex: number,
@@ -21,10 +22,20 @@ interface StepRendererProps {
 function StepRenderer({
   step,
   stepOutput,
+  stepInputPrompt,
   footer,
   onRetry,
   stepIndex,
 }: StepRendererProps) {
+  const chatInitialMessages = stepInputPrompt
+    ? [{ sender: 'AI', text: stepInputPrompt }]
+    : [];
+  if (stepOutput?.full_conversation) {
+    stepOutput.full_conversation.forEach((msg) => {
+      chatInitialMessages.push({ sender: msg.role, text: msg.value });
+    });
+  }
+
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
@@ -34,13 +45,7 @@ function StepRenderer({
           </Heading>
           <Chat
             onNewMessage={(msg, callback) => onRetry(stepIndex, msg, callback)}
-            initialMessages={
-              stepOutput?.full_conversation
-                ? stepOutput.full_conversation.map((msg) => {
-                    return { sender: msg.role, text: msg.value };
-                  })
-                : []
-            }
+            initialMessages={chatInitialMessages}
           />
         </div>
         <div className="w-1/2 border-l p-4">

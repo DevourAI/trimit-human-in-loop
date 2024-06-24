@@ -151,6 +151,7 @@ async def get_current_workflow(
     length_seconds: int | None = Query(
         None, description="desired final length of video"
     ),
+    nstages: int | None = Query(None, description="number of stages"),
     user: User | None = Depends(maybe_user_wrapper),
     video_hash: str | None = None,
     user_id: str | None = None,
@@ -181,11 +182,15 @@ async def get_current_workflow(
     ),
 ):
     if timeline_name is None or length_seconds is None or user is None:
+        print(
+            f"missing params to get_current_workflow: timeline_name={length_seconds} length_seconds={length_seconds} user={user}"
+        )
         return None
     try:
         return await load_or_create_workflow(
             timeline_name=timeline_name,
             length_seconds=length_seconds,
+            nstages=nstages,
             user_email=user.email,
             video_hash=video_hash,
             user_id=user_id,
@@ -405,6 +410,10 @@ def step_endpoint(
         description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
     ),
 ):
+    if workflow is None:
+        raise HTTPException(
+            status_code=400, detail="necessary workflow params not provided"
+        )
     step_params = {
         "workflow": workflow,
         "user_input": user_input,
