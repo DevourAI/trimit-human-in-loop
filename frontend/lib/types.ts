@@ -8,6 +8,13 @@ export interface ListWorkflowParams {
   user_email: string;
   video_hashes?: string[];
 }
+export interface CreateNewWorkflowParams {
+  user_email: string;
+  video_hash: string;
+  timeline_name: string;
+  length_seconds: number;
+  nstages: number;
+}
 
 export interface StepQueryParams extends CommonAPIParams {}
 export interface StepData {

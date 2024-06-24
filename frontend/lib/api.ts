@@ -12,7 +12,6 @@ import {
 import {
   DownloadFileParams,
   FrontendWorkflowState,
-  GetLatestStateParams,
   GetUploadedVideoParams,
   ListWorkflowParams,
   ResetWorkflowParams,
@@ -99,6 +98,12 @@ const postFetcherWithData = async (
   }
 };
 
+export async function createNewWorkflow(
+  params: CreateNewWorkflowParams
+): Promise<string> {
+  return await postFetcherWithData('workflows/new', params);
+}
+
 export async function resetWorkflow(
   params: ResetWorkflowParams
 ): Promise<UserState | boolean> {
@@ -133,15 +138,10 @@ export async function revertStepToInBackend(
 }
 
 export async function getLatestState(
-  params: GetLatestStateParams
+  workflowId: string
 ): Promise<FrontendWorkflowState> {
-  if (
-    !params.user_email ||
-    !params.video_hash ||
-    !params.length_seconds ||
-    !params.timeline_name
-  )
-    return {};
+  if (!workflowId) return {};
+  const params = { workflow_id: workflowId };
   params.with_output = params.with_output ?? true;
   params.wait_until_done_running = params.wait_until_done_running ?? false;
   params.block_until = params.block_until ?? false;

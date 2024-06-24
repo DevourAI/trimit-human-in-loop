@@ -22,7 +22,8 @@ import { WorkflowCreationForm } from '@/components/ui/workflow-creation-form';
 import { useUser } from '@/contexts/user-context';
 import { useUserVideosData } from '@/contexts/user-videos-context';
 import { FrontendWorkflowProjection } from '@/gen/openapi/api';
-import { listWorkflows } from '@/lib/api';
+import { createNewWorkflow, listWorkflows } from '@/lib/api';
+import { CreateNewWorkflowParams } from '@/lib/types';
 
 export default function Projects() {
   const { userData, isLoggedIn, isLoading } = useUser();
@@ -57,9 +58,14 @@ export default function Projects() {
     }
   }, [userData]);
 
-  async function createNewProject(
+  async function createNewProjectWrapper(
     data: z.infer<typeof WorkflowCreationFormSchema>
-  ) {}
+  ) {
+    await createNewWorkflow({
+      email: userData.email,
+      ...data,
+    } as CreateNewWorkflowParams);
+  }
 
   return (
     <AppShell title="Projects">
@@ -71,7 +77,7 @@ export default function Projects() {
               isLoading={false}
               userEmail={userData.email}
               availableVideos={videos}
-              onSubmit={createNewProject}
+              onSubmit={createNewProjectWrapper}
             />
           </PopoverContent>
         </div>

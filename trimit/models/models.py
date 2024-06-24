@@ -862,7 +862,6 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
     class Settings:
         name = "CutTranscriptLinearWorkflowState"
-        use_revision = True
         indexes = [
             IndexModel(
                 [
@@ -1023,6 +1022,60 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             await self.save()
 
     @classmethod
+    async def find_or_create_from_video_hash(
+        cls,
+        video_hash,
+        user_email,
+        timeline_name,
+        volume_dir,
+        output_folder,
+        length_seconds,
+        **params,
+    ):
+        video = await Video.find_one(
+            Video.md5_hash == video_hash, Video.user.email == user_email
+        )
+        if video is None:
+            raise ValueError(
+                f"Video with hash {video_hash} and user_email {user_email} not found"
+            )
+        return await cls.find_or_create(
+            video=video,
+            timeline_name=timeline_name,
+            volume_dir=volume_dir,
+            output_folder=output_folder,
+            length_seconds=length_seconds,
+            **params,
+        )
+
+    @classmethod
+    async def recreate_from_video_hash(
+        cls,
+        video_hash,
+        user_email,
+        timeline_name,
+        volume_dir,
+        output_folder,
+        length_seconds,
+        **params,
+    ):
+        video = await Video.find_one(
+            Video.md5_hash == video_hash, Video.user.email == user_email
+        )
+        if video is None:
+            raise ValueError(
+                f"Video with hash {video_hash} and user_email {user_email} not found"
+            )
+        return await cls.recreate(
+            video=video,
+            timeline_name=timeline_name,
+            volume_dir=volume_dir,
+            output_folder=output_folder,
+            length_seconds=length_seconds,
+            **params,
+        )
+
+    @classmethod
     async def find_or_create(
         cls, video, timeline_name, volume_dir, output_folder, length_seconds, **params
     ):
@@ -1037,7 +1090,15 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             **params,
         )
         obj = cls(static_state=static_state)
-        existing = await cls.find_one(CutTranscriptLinearWorkflowState.id == obj.id)
+        existing = await cls.find_one(
+            CutTranscriptLinearWorkflowState.static_state.user.email
+            == video.user.email,
+            CutTranscriptLinearWorkflowState.static_state.video.md5_hash
+            == video.md5_hash,
+            CutTranscriptLinearWorkflowState.static_state.timeline_name
+            == timeline_name,
+        )
+
         if existing is not None:
             return existing
         print("did not find, creating")
@@ -1059,11 +1120,21 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             **params,
         )
         obj = cls(static_state=static_state)
-        existing = await cls.find_one(CutTranscriptLinearWorkflowState.id == obj.id)
+        existing = await cls.find_one(
+            CutTranscriptLinearWorkflowState.static_state.user.email
+            == video.user.email,
+            CutTranscriptLinearWorkflowState.static_state.video.md5_hash
+            == video.md5_hash,
+            CutTranscriptLinearWorkflowState.static_state.timeline_name
+            == timeline_name,
+        )
+
         if existing is not None:
             print("deleting")
             await existing.delete()
-        await obj.save()
+            await obj.insert()
+        else:
+            await obj.save()
         print("recreated")
         return obj
 

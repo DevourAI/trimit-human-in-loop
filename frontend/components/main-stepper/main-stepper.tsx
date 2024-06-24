@@ -1,6 +1,13 @@
 'use client';
 import { DownloadIcon, ReloadIcon } from '@radix-ui/react-icons';
-import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import { z } from 'zod';
 
 import { Footer } from '@/components/main-stepper/main-stepper-footer';
@@ -30,7 +37,6 @@ import {
 } from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
 import {
-  GetLatestStateParams,
   ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
@@ -159,8 +165,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         allowRunningFromCurrentStepIndexChange.current = true;
         return;
       }
-      const data = await getLatestState(stepParams as GetLatestStateParams);
-      console.log('stepParams', stepParams);
+      const data = await getLatestState(userParams.workflow_id);
       if (!data || Object.keys(data).length === 0) return;
       console.log('data', data);
       if (!fetchedInitialState.current) {
@@ -272,11 +277,32 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     return finalState;
   }
 
-  useEffect(() => {
-    if (project && !latestState) {
-      advanceStep(0);
-    }
-  }, [project, latestState, advanceStep]);
+  const revertStepTo = useCallback(
+    async (stepIndex: number) => {
+      setIsLoading(true);
+      if (!latestState || !latestState.all_steps) {
+        throw new Error(
+          "can't revert unless latestState.all_steps is available"
+        );
+      }
+      const stepName = stepNameFromIndex(latestState.all_steps, stepIndex);
+      console.log('stepName', stepName);
+      const success = await revertStepToInBackend({
+        step_name: stepName,
+        ...userParams,
+      } as RevertStepToParams);
+      console.log('in revertStepTo success', success);
+      if (success) {
+        activePromptDispatch({ type: 'restart', value: '' });
+        const latestState = await getLatestState(userParams.workflow_id);
+        setLatestState(latestState);
+        setCurrentStepIndex(stepIndexFromState(latestState));
+      }
+      setIsLoading(false);
+      return success;
+    },
+    [latestState, userParams]
+  );
 
   const advanceStep = useCallback(
     async (stepIndex: number) => {
@@ -312,6 +338,12 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     },
     [trueStepIndex, userParams, revertStepTo, stepperFormValues]
   );
+
+  useEffect(() => {
+    if (project && !latestState) {
+      advanceStep(0);
+    }
+  }, [project, latestState, advanceStep]);
 
   async function retryStep(
     stepIndex: number,
@@ -389,7 +421,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     activePromptDispatch({ type: 'restart', value: '' });
     setStepOutput(null);
     await resetWorkflow(stepParams as ResetWorkflowParams);
-    const newState = await getLatestState(stepParams as GetLatestStateParams);
+    const newState = await getLatestState(userParams.workflow_id);
     setLatestState(newState);
     setCurrentStepIndex(-1);
     setIsLoading(false);
@@ -403,42 +435,11 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       to_before_retries: toBeforeRetries,
       ...stepParams,
     } as RevertStepParams);
-    const latestState = await getLatestState(
-      stepParams as GetLatestStateParams
-    );
+    const latestState = await getLatestState(userParams.workflowId);
     setLatestState(latestState);
     setCurrentStepIndex(stepIndexFromState(latestState));
     setIsLoading(false);
   }
-
-  const revertStepTo = useCallback(
-    async (stepIndex: number) => {
-      setIsLoading(true);
-      if (!latestState || !latestState.all_steps) {
-        throw new Error(
-          "can't revert unless latestState.all_steps is available"
-        );
-      }
-      const stepName = stepNameFromIndex(latestState.all_steps, stepIndex);
-      console.log('stepName', stepName);
-      const success = await revertStepToInBackend({
-        step_name: stepName,
-        ...stepParams,
-      } as RevertStepToParams);
-      console.log('in revertStepTo success', success);
-      if (success) {
-        activePromptDispatch({ type: 'restart', value: '' });
-        const latestState = await getLatestState(
-          stepParams as GetLatestStateParams
-        );
-        setLatestState(latestState);
-        setCurrentStepIndex(stepIndexFromState(latestState));
-      }
-      setIsLoading(false);
-      return success;
-    },
-    [latestState]
-  );
 
   async function undoLastStep() {
     await revertStep(false);

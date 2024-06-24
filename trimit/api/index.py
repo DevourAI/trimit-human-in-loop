@@ -69,7 +69,10 @@ from trimit.models import (
     FrontendWorkflowProjection,
 )
 from .image import image
-from trimit.backend.conf import VIDEO_PROCESSING_CALL_IDS_DICT_NAME
+from trimit.backend.conf import (
+    VIDEO_PROCESSING_CALL_IDS_DICT_NAME,
+    LINEAR_WORKFLOW_OUTPUT_FOLDER,
+)
 from trimit.backend.background_processor import BackgroundProcessor
 from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
@@ -538,6 +541,41 @@ async def workflows(
         .project(FrontendWorkflowProjection)
         .to_list()
     )
+
+
+@web_app.post(
+    "/workflows/new",
+    tags=["Workflows"],
+    response_model=str,
+    summary="Create a new workflow, returning its id",
+    description="TODO",
+)
+async def workflows(
+    user_email: str = Form(...),
+    video_hash: str = Form(...),
+    timeline_name: str = Form(...),
+    length_seconds: int = Form(...),
+    nstages: int = Form(2),
+    recreate: bool = Form(
+        False,
+        description="If True, recreate the workflow from scratch if it already exists",
+    ),
+):
+    await maybe_init_mongo()
+    method = CutTranscriptLinearWorkflowState.find_or_create_from_video_hash
+    if recreate:
+        method = CutTranscriptLinearWorkflowState.recreate_from_video_hash
+    state = await method(
+        video_hash=video_hash,
+        user_email=user_email,
+        timeline_name=timeline_name,
+        volume_dir=get_volume_dir(),
+        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
+        length_seconds=length_seconds,
+        nstages=nstages,
+    )
+    await state.save()
+    return str(state.id)
 
 
 class WorkflowExists(BaseModel):

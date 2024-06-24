@@ -2,7 +2,10 @@ from fastapi.testclient import TestClient
 from trimit.api.index import web_app as original_web_app
 import pytest_asyncio
 
-from trimit.models.models import FrontendWorkflowProjection
+from trimit.models.models import (
+    CutTranscriptLinearWorkflowState,
+    FrontendWorkflowProjection,
+)
 from ..conftest import DAVE_EMAIL, DAVE_VIDEO_LOW_RES_HASHES
 import asyncio
 import pytest
@@ -20,6 +23,86 @@ async def client():
     loop = asyncio.get_running_loop()
     with TestClient(original_web_app) as client:
         yield client
+
+
+def assert_state_has_equivalent_creation_params(state, creation_params):
+    assert state.static_state.user.email == creation_params["user_email"]
+    assert state.static_state.video.md5_hash == creation_params["video_hash"]
+    for k, v in creation_params.items():
+        if k not in ["user_email", "video_hash"]:
+            assert v == getattr(state.static_state, k)
+
+
+async def test_new_workflow(client):
+    from trimit.models import MONGO_INITIALIZED
+
+    MONGO_INITIALIZED[0] = False
+    workflow_creation_params = {
+        "user_email": DAVE_EMAIL,
+        "video_hash": "15557970",
+        "timeline_name": "new timeline name",
+        "length_seconds": 5000,
+        "nstages": 3,
+    }
+
+    response = client.post("/workflows/new", data=workflow_creation_params)
+    assert response.status_code == 200
+    state = await CutTranscriptLinearWorkflowState.get(response.json())
+    assert state is not None
+    assert_state_has_equivalent_creation_params(state, workflow_creation_params)
+    assert state.outputs == {}
+
+
+async def test_recreate_workflow(client, workflow_15557970_with_state_init_no_export):
+    from trimit.models import MONGO_INITIALIZED
+
+    workflow = workflow_15557970_with_state_init_no_export
+
+    MONGO_INITIALIZED[0] = False
+
+    workflow_creation_params = {
+        "user_email": workflow.state.static_state.user.email,
+        "video_hash": workflow.state.static_state.video.md5_hash,
+        "timeline_name": workflow.timeline_name,
+        "length_seconds": workflow.length_seconds,
+        "nstages": workflow.nstages,
+    }
+
+    response = client.post(
+        "/workflows/new", data={"recreate": True, **workflow_creation_params}
+    )
+    assert response.status_code == 200
+    state = await CutTranscriptLinearWorkflowState.get(response.json())
+    assert state is not None
+    assert_state_has_equivalent_creation_params(state, workflow_creation_params)
+    assert state.outputs == {}
+
+
+async def test_try_create_existing_workflow(
+    client, workflow_15557970_with_state_init_no_export
+):
+    from trimit.models import MONGO_INITIALIZED
+
+    workflow = workflow_15557970_with_state_init_no_export
+
+    MONGO_INITIALIZED[0] = False
+
+    workflow_creation_params = {
+        "user_email": workflow.state.static_state.user.email,
+        "video_hash": workflow.state.static_state.video.md5_hash,
+        "timeline_name": workflow.timeline_name,
+        "length_seconds": workflow.length_seconds,
+        "nstages": workflow.nstages,
+    }
+
+    response = client.post(
+        "/workflows/new", data={"recreate": False, **workflow_creation_params}
+    )
+    assert response.status_code == 200
+    state = await CutTranscriptLinearWorkflowState.get(response.json())
+    assert state is not None
+    assert_state_has_equivalent_creation_params(state, workflow_creation_params)
+    assert state.outputs == workflow.state.outputs
 
 
 async def test_get_workflow_details(client, workflow_15557970_with_transcript):
