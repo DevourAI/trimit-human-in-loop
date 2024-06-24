@@ -1710,6 +1710,7 @@ class CurrentStepInfo(BaseModel):
     name: str
     user_feedback: bool
     method: Callable | None = None
+    input_prompt: str | None = None
     input: CutTranscriptLinearWorkflowStepInput | None = None
     chunked_feedback: bool = False
     step: Union["StepWrapper", None] = None
@@ -1761,6 +1762,9 @@ class ExportableStepInfo(BaseModel):
     step_name: str = Field(..., description="name of the higher-level step")
     input: CutTranscriptLinearWorkflowStepInput | None = Field(
         None, description="Input that was (or will be) provided to the step's method"
+    )
+    input_prompt: str | None = Field(
+        None, description="Initial prompt to guide user before executing this step"
     )
     chunked_feedback: bool = Field(
         False,
@@ -1866,6 +1870,7 @@ class StepWrapper(BaseModel):
             name=self.name,
             human_readable_name=self.human_readable_name,
             substeps=[substep.to_exportable() for substep in self.substeps],
+            input_prompt=self.substeps[-1].input_prompt,
         )
 
 
@@ -1873,6 +1878,7 @@ class ExportableStepWrapper(BaseModel):
     name: str
     human_readable_name: str
     substeps: list[ExportableStepInfo]
+    input_prompt: str | None = None
 
 
 class Steps(BaseModel):

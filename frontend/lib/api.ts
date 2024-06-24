@@ -13,6 +13,7 @@ import {
   FrontendWorkflowState,
   GetLatestStateParams,
   GetUploadedVideoParams,
+  ListWorkflowParams,
   ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
@@ -184,7 +185,7 @@ export async function step(
   try {
     const res = await fetch(url.toString(), {
       method: 'Post',
-      data: data,
+      body: JSON.stringify(data),
     }).catch((err) => {
       throw err;
     });
@@ -202,6 +203,29 @@ export async function step(
   } catch (err: unknown) {
     console.error(err);
   }
+}
+export async function listWorkflows(
+  params: ListWorkflowParams
+): Promise<boolean> {
+  const data = await fetcherWithParams('workflows', params);
+  if (data && data.error) {
+    console.error(data.error);
+  } else if (data) {
+    return data;
+  }
+  return null;
+}
+export async function checkWorkflowExists(
+  queryParams: StepQueryParams
+): Promise<boolean> {
+  const data = await fetcherWithParams('workflow_exists', queryParams);
+  console.log('workflow exists output', data);
+  if (data && data.error) {
+    console.error(data.error);
+  } else if (data && data.exists) {
+    return data.exists;
+  }
+  return false;
 }
 export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
   if (params.userEmail === '' || !params.videoFile) return {};

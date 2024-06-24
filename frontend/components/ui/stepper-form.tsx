@@ -27,6 +27,7 @@ export const FormSchema = z.object({
 
 interface StepperFormProps {
   systemPrompt: string;
+  isInitialized: boolean;
   isLoading: boolean;
   stepIndex: number;
   userParams: any;
@@ -38,6 +39,7 @@ interface StepperFormProps {
 }
 export function StepperForm({
   systemPrompt,
+  isInitialized,
   isLoading,
   stepIndex,
   userParams,
@@ -163,7 +165,7 @@ export function StepperForm({
       </Form>
       {isLoading && (
         <div className="absolute top-0 left-0 w-full h-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
-          Running step...
+          {isInitialized ? 'Running step...' : 'Initializing...'}
           <LoadingSpinner size="large" />
           {onCancelStep && (
             <Button variant="secondary" onClick={onCancelStep}>

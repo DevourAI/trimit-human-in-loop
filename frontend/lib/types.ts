@@ -6,6 +6,10 @@ export interface CommonAPIParams {
   length_seconds: number;
   video_hash: string;
 }
+export interface ListWorkflowParams {
+  user_email: string;
+  video_hashes?: string[];
+}
 
 export interface StepQueryParams extends CommonAPIParams {}
 export interface StepData {

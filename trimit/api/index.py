@@ -7,7 +7,7 @@ from pathlib import Path
 from torch import export
 import yaml
 
-from pydantic import EmailStr
+from pydantic import EmailStr, BaseModel
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter
@@ -30,6 +30,7 @@ from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.backend.models import (
     CallStatus,
+    Cut,
     VideoProcessingStatus,
     UploadVideo,
     UploadedVideo,
@@ -63,6 +64,8 @@ from trimit.models import (
     VideoFileProjection,
     FrontendWorkflowState,
     CutTranscriptLinearWorkflowStreamingOutput,
+    CutTranscriptLinearWorkflowState,
+    FrontendWorkflowProjection,
 )
 from .image import image
 from trimit.backend.conf import VIDEO_PROCESSING_CALL_IDS_DICT_NAME
@@ -151,6 +154,7 @@ async def get_current_workflow(
     length_seconds: int | None = Query(
         None, description="desired final length of video"
     ),
+    nstages: int | None = Query(None, description="number of stages"),
     user: User | None = Depends(maybe_user_wrapper),
     video_hash: str | None = None,
     user_id: str | None = None,
@@ -181,11 +185,15 @@ async def get_current_workflow(
     ),
 ):
     if timeline_name is None or length_seconds is None or user is None:
+        print(
+            f"missing params to get_current_workflow: timeline_name={length_seconds} length_seconds={length_seconds} user={user}"
+        )
         return None
     try:
         return await load_or_create_workflow(
             timeline_name=timeline_name,
             length_seconds=length_seconds,
+            nstages=nstages,
             user_email=user.email,
             video_hash=video_hash,
             user_id=user_id,
@@ -405,6 +413,10 @@ def step_endpoint(
         description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
     ),
 ):
+    if workflow is None:
+        raise HTTPException(
+            status_code=400, detail="necessary workflow params not provided"
+        )
     step_params = {
         "workflow": workflow,
         "user_input": user_input,
@@ -533,6 +545,49 @@ async def revert_workflow_step_to(
     substep_name = matching[0].substeps[0].name
     await workflow.revert_step_to_before(step_name, substep_name)
     print(f"Workflow {workflow.id} reverted to {step_name}.{substep_name}")
+
+
+@web_app.get(
+    "/workflows",
+    tags=["Workflows"],
+    response_model=list[FrontendWorkflowProjection],
+    summary="List all workflows for a user, optionally filtered by video hashes",
+    description="TODO",
+)
+async def workflows(
+    user_email: str = Query(...), video_hashes: list[str] | None = Query(None)
+):
+    await maybe_init_mongo()
+    filters = [CutTranscriptLinearWorkflowState.static_state.user.email == user_email]
+    if video_hashes and len(video_hashes):
+        filters.append(
+            In(
+                CutTranscriptLinearWorkflowState.static_state.video.md5_hash,
+                video_hashes,
+            )
+        )
+    return (
+        await CutTranscriptLinearWorkflowState.find(*filters)
+        .project(FrontendWorkflowProjection)
+        .to_list()
+    )
+
+
+class WorkflowExists(BaseModel):
+    exists: bool
+
+
+@web_app.get(
+    "/workflow_exists",
+    tags=["Workflows"],
+    response_model=WorkflowExists,
+    summary="Return true if a workflow exists in db",
+    description="TODO",
+)
+async def workflow_exists(
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+):
+    return WorkflowExists(exists=workflow is not None)
 
 
 @web_app.get(
