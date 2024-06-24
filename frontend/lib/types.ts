@@ -1,9 +1,5 @@
 import { type StepItem } from '@/components/ui/stepper';
 
-export interface CommonAPIParams {
-  user_email: string;
-  workflow_id: string;
-}
 export interface ListWorkflowParams {
   user_email: string;
   video_hashes?: string[];
@@ -16,7 +12,6 @@ export interface CreateNewWorkflowParams {
   nstages: number;
 }
 
-export interface StepQueryParams extends CommonAPIParams {}
 export interface StepData {
   user_input: string;
   streaming: boolean;
@@ -25,27 +20,31 @@ export interface StepData {
   retry_step?: boolean;
 }
 
-export interface StepOutputParams extends CommonAPIParams {
+export interface StepOutputParams {
+  workflow_id: string;
   step_name: string;
   latest_retry?: boolean;
 }
 
-export interface GetLatestStateParams extends CommonAPIParams {
+export interface GetLatestStateParams {
+  workflow_id: string;
   with_output?: boolean;
   wait_until_done_running?: boolean;
   block_until?: boolean;
   timeout?: number;
 }
 
-export interface RevertStepParams extends CommonAPIParams {
+export interface RevertStepParams {
+  workflow_id: string;
   to_before_retries: boolean;
 }
 
-export interface RevertStepToParams extends CommonAPIParams {
+export interface RevertStepToParams {
+  workflow_id;
+  string;
   step_name: string;
 }
 
-export interface ResetWorkflowParams extends CommonAPIParams {}
 export interface GetUploadedVideoParams {
   user_email: string;
 }

@@ -20,7 +20,7 @@ from trimit.backend.models import (
     SpeakerTaggingSegmentModification,
 )
 
-from trimit.backend.serve import step_workflow_until_feedback_request
+from trimit.backend.serve import step_workflow_until_feedback_request, step
 
 import os
 import pytest
@@ -919,3 +919,84 @@ async def test_step_by_name(workflow_3909774043_with_transcript):
         for substep in step.substeps:
             actual_step_order.append(f"{step.name}.{substep}")
     assert actual_step_order == standard_step_order
+
+
+async def test_step_workflow_until_feedback_request_advance_until(
+    workflow_3909774043_with_transcript_no_export,
+):
+    workflow = workflow_3909774043_with_transcript_no_export
+    async for _ in step_workflow_until_feedback_request(
+        workflow,
+        "",
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+        advance_until="preprocess_video.remove_off_screen_speakers",
+    ):
+        pass
+    assert (
+        await workflow.get_last_substep(with_load_state=False)
+    ).name == "remove_off_screen_speakers"
+    async for _ in step_workflow_until_feedback_request(
+        workflow,
+        "",
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+        advance_until="identify_key_soundbites.identify_key_soundbites",
+    ):
+        pass
+    assert (
+        await workflow.get_last_substep(with_load_state=False)
+    ).name == "identify_key_soundbites"
+
+
+async def test_step_advance_until_int(workflow_3909774043_with_transcript_no_export):
+    workflow = workflow_3909774043_with_transcript_no_export
+    async for _ in step.local(
+        workflow,
+        "",
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+        advance_until=2,
+        ignore_running_workflows=True,
+    ):
+        pass
+    assert (
+        await workflow.get_last_substep(with_load_state=False)
+    ).name == "identify_key_soundbites"
+
+    async for _ in step.local(
+        workflow,
+        "",
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+        advance_until=1,
+        ignore_running_workflows=True,
+    ):
+        pass
+    assert (
+        await workflow.get_last_substep(with_load_state=False)
+    ).name == "generate_story"
+
+    async for _ in step.local(
+        workflow,
+        "new_input",
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+        advance_until=0,
+        ignore_running_workflows=True,
+    ):
+        pass
+    assert (
+        await workflow.get_last_substep(with_load_state=False)
+    ).name == "remove_off_screen_speakers"
+    assert (
+        workflow.state.outputs["preprocess_video.remove_off_screen_speakers"][
+            0
+        ].step_inputs.user_prompt
+        == "new_input"
+    )

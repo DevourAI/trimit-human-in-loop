@@ -382,6 +382,10 @@ def step_endpoint(
         None,
         description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
     ),
+    advance_until: int | None = Form(
+        None,
+        description="Advance steps until this step index is reached, or revert step to before this index and rerun step at this index",
+    ),
 ):
     if workflow is None:
         raise HTTPException(
@@ -394,6 +398,7 @@ def step_endpoint(
         "ignore_running_workflows": ignore_running_workflows,
         "async_export": os.environ.get("ASYNC_EXPORT", False),
         "retry_step": retry_step,
+        "advance_until": advance_until,
     }
     from trimit.backend.serve import step as step_function
 
