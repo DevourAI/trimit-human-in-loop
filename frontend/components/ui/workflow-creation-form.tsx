@@ -52,7 +52,6 @@ export function WorkflowCreationForm({
       video_hash: availableVideos ? availableVideos[0].video_hash : '',
     },
   });
-  console.log(form.getValues());
 
   return (
     <div className="relative p-3">

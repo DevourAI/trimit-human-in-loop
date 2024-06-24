@@ -10,7 +10,7 @@ import yaml
 from pydantic import EmailStr, BaseModel
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
-from beanie import BulkWriter
+from beanie import BulkWriter, PydanticObjectId
 from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -55,7 +55,7 @@ from trimit.utils.fs_utils import (
 )
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
-from trimit.api.utils import load_or_create_workflow
+from trimit.api.utils import load_workflow
 from trimit.app import app, get_volume_dir, S3_BUCKET
 from trimit.models import (
     maybe_init_mongo,
@@ -150,16 +150,14 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
     return await find_or_create_user(user_email)
 
 
+async def get_current_workflow_frontend_state(workflow_id: str):
+    return await CutTranscriptLinearWorkflowState.find_one(
+        CutTranscriptLinearWorkflowState.id == PydanticObjectId(workflow_id)
+    ).project(FrontendWorkflowProjection)
+
+
 async def get_current_workflow(
-    timeline_name: str | None = None,
-    length_seconds: int | None = Query(
-        None, description="desired final length of video"
-    ),
-    nstages: int | None = Query(None, description="number of stages"),
-    user: User | None = Depends(maybe_user_wrapper),
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+    workflow_id: str,
     wait_until_done_running: bool = Query(
         False,
         description="If True, block returning a workflow until workflow is done running its current step",
@@ -172,41 +170,14 @@ async def get_current_workflow(
         0.1,
         description="poll interval to wait for workflow step to finish if wait_until_done_running=True",
     ),
-    force_restart: bool = Query(False, description="Force a fresh workflow state"),
-    export_video: bool = Query(
-        True, description="export mp4 videos after relevant steps"
-    ),
-    volume_dir: str = Query(
-        None,
-        description="mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests",
-    ),
-    output_folder: str = Query(
-        None,
-        description="mounted directory serving as root for exports. Only provide this parameter in tests",
-    ),
 ):
-    if timeline_name is None or length_seconds is None or user is None:
-        print(
-            f"missing params to get_current_workflow: timeline_name={length_seconds} length_seconds={length_seconds} user={user}"
-        )
-        return None
     try:
-        return await load_or_create_workflow(
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            nstages=nstages,
-            user_email=user.email,
-            video_hash=video_hash,
-            user_id=user_id,
-            video_id=video_id,
+        return await load_workflow(
+            workflow_id=workflow_id,
             with_output=True,
             wait_until_done_running=wait_until_done_running,
             timeout=timeout,
             wait_interval=wait_interval,
-            force_restart=force_restart,
-            export_video=export_video,
-            volume_dir=volume_dir,
-            output_folder=output_folder,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -248,22 +219,17 @@ async def get_step_outputs(
         description="Step names (no substeps), comma-separated. If provided instead of step_keys, the last substep of each step will be returned",
     ),
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    latest_retry: bool = False,
 ):
     if not workflow:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
     if step_keys is not None:
         return GetStepOutputs(
-            outputs=await workflow.get_output_for_keys(
-                keys=step_keys.split(","), latest_retry=latest_retry
-            )
+            outputs=await workflow.get_output_for_keys(keys=step_keys.split(","))
         )
     elif step_names is not None:
         return GetStepOutputs(
-            outputs=await workflow.get_output_for_names(
-                names=step_names.split(","), latest_retry=latest_retry
-            )
+            outputs=await workflow.get_output_for_names(names=step_names.split(","))
         )
     raise ValueError("one of step_keys or step_names must be provided")
 
@@ -589,6 +555,21 @@ async def workflow_exists(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
     return WorkflowExists(exists=workflow is not None)
+
+
+@web_app.get(
+    "/workflow",
+    tags=["Workflows"],
+    response_model=FrontendWorkflowProjection,
+    summary="Return workflow details",
+    description="TODO",
+)
+async def get_workflow_details(
+    workflow_details: CutTranscriptLinearWorkflowState | None = Depends(
+        get_current_workflow_frontend_state
+    ),
+):
+    return workflow_details
 
 
 @web_app.get(

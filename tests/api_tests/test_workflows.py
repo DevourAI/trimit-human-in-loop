@@ -1,6 +1,8 @@
 from fastapi.testclient import TestClient
 from trimit.api.index import web_app as original_web_app
 import pytest_asyncio
+
+from trimit.models.models import FrontendWorkflowProjection
 from ..conftest import DAVE_EMAIL, DAVE_VIDEO_LOW_RES_HASHES
 import asyncio
 import pytest
@@ -20,19 +22,51 @@ async def client():
         yield client
 
 
+async def test_get_workflow_details(client, workflow_15557970_with_transcript):
+    from trimit.models import MONGO_INITIALIZED
+
+    workflow = workflow_15557970_with_transcript
+    MONGO_INITIALIZED[0] = False
+
+    response = client.get("/workflow", params={"workflow_id": workflow.id})
+    assert response.status_code == 200
+    details = FrontendWorkflowProjection(**response.json())
+    assert details.timeline_name == workflow.state.static_state.timeline_name
+    assert details.user_email == workflow.state.user.email
+    assert details.video_hash == workflow.state.video.md5_hash
+    assert details.length_seconds == workflow.state.static_state.length_seconds
+    assert details.nstages == workflow.state.static_state.nstages
+    assert details.id == str(workflow.state.id)
+
+
+async def test_list_workflows(client, workflow_15557970_with_transcript):
+    from trimit.models import MONGO_INITIALIZED
+
+    workflow = workflow_15557970_with_transcript
+    MONGO_INITIALIZED[0] = False
+
+    response = client.get(
+        "/workflows", params={"user_email": workflow.state.user.email}
+    )
+    assert response.status_code == 200
+    workflows = response.json()
+    assert len(workflows) == 1
+    details = FrontendWorkflowProjection(**workflows[0])
+    assert details.timeline_name == workflow.state.static_state.timeline_name
+    assert details.user_email == workflow.state.user.email
+    assert details.video_hash == workflow.state.video.md5_hash
+    assert details.length_seconds == workflow.state.static_state.length_seconds
+    assert details.nstages == workflow.state.static_state.nstages
+    assert details.id == str(workflow.state.id)
+
+
 async def test_get_all_steps(client, workflow_15557970_with_transcript):
     from trimit.models import MONGO_INITIALIZED
 
     MONGO_INITIALIZED[0] = False
 
     response = client.get(
-        "/all_steps",
-        params={
-            "video_hash": workflow_15557970_with_transcript.video.md5_hash,
-            "user_email": workflow_15557970_with_transcript.user.email,
-            "timeline_name": workflow_15557970_with_transcript.timeline_name,
-            "length_seconds": workflow_15557970_with_transcript.length_seconds,
-        },
+        "/all_steps", params={"workflow_id": workflow_15557970_with_transcript.id}
     )
     assert response.status_code == 200
     assert len(response.json()) == 5
@@ -45,12 +79,7 @@ async def test_get_latest_state_init(client, workflow_15557970_with_transcript):
 
     response = client.get(
         "/get_latest_state",
-        params={
-            "video_hash": workflow_15557970_with_transcript.video.md5_hash,
-            "user_email": workflow_15557970_with_transcript.user.email,
-            "timeline_name": workflow_15557970_with_transcript.timeline_name,
-            "length_seconds": workflow_15557970_with_transcript.length_seconds,
-        },
+        params={"workflow_id": workflow_15557970_with_transcript.id},
     )
     assert response.status_code == 200
     data = response.json()
@@ -77,18 +106,7 @@ async def test_get_latest_state_after_step_with_retry(
 
     MONGO_INITIALIZED[0] = False
 
-    response = client.get(
-        "/get_latest_state",
-        params={
-            "video_hash": workflow.video.md5_hash,
-            "user_email": workflow.user.email,
-            "timeline_name": workflow.timeline_name,
-            "length_seconds": workflow.length_seconds,
-            "export_video": workflow.export_video,
-            "volume_dir": workflow.volume_dir,
-            "output_folder": workflow.state.static_state.output_folder,
-        },
-    )
+    response = client.get("/get_latest_state", params={"workflow_id": workflow.id})
     assert response.status_code == 200
     data = response.json()
 
@@ -166,13 +184,7 @@ async def test_get_output_for_name(client, workflow_15557970_after_second_step):
     response = client.get(
         "/get_step_outputs",
         params={
-            "video_hash": workflow.video.md5_hash,
-            "user_email": workflow.user.email,
-            "timeline_name": workflow.timeline_name,
-            "length_seconds": workflow.length_seconds,
-            "export_video": workflow.export_video,
-            "volume_dir": workflow.volume_dir,
-            "output_folder": workflow.state.static_state.output_folder,
+            "workflow_id": workflow.id,
             "step_names": "preprocess_video,generate_story",
         },
     )

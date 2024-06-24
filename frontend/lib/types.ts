@@ -2,9 +2,7 @@ import { type StepItem } from '@/components/ui/stepper';
 
 export interface CommonAPIParams {
   user_email: string;
-  timeline_name: string;
-  length_seconds: number;
-  video_hash: string;
+  workflow_id: string;
 }
 export interface ListWorkflowParams {
   user_email: string;

@@ -20,46 +20,16 @@ else:
     )
 
 
-async def load_or_create_workflow(
-    timeline_name: str,
-    length_seconds: int,
-    nstages: int | None = None,
-    user_email: str | None = None,
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+async def load_workflow(
+    workflow_id: str,
     with_output: bool = False,
     wait_until_done_running: bool = False,
     timeout: float = 5,
     wait_interval: float = 0.1,
-    force_restart: bool = False,
-    export_video: bool = True,
-    output_folder: str = LINEAR_WORKFLOW_OUTPUT_FOLDER,
-    volume_dir: str = VOLUME_DIR,
 ):
-    print("in load or create workflow")
-    if not video_hash and not video_id:
-        raise ValueError("video_hash or video_id must be provided")
-    if not user_id and not user_email:
-        raise ValueError("user_id or user_email must be provided")
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
-    workflow_params = {
-        "video_hash": video_hash,
-        "timeline_name": timeline_name,
-        "user_email": user_email,
-        "length_seconds": length_seconds,
-        "nstages": nstages,
-        "output_folder": output_folder or LINEAR_WORKFLOW_OUTPUT_FOLDER,
-        "volume_dir": volume_dir or VOLUME_DIR,
-        "export_video": export_video,
-    }
-    print("workflow params:", workflow_params)
-
-    workflow_id = await CutTranscriptLinearWorkflow.id_from_params(
-        video_id=video_id or None, user_id=user_id or None, **workflow_params
-    )
-    print("got workflow id:", workflow_id)
+    print("in load or create workflow")
     running = running_workflows.get(workflow_id, False)
     if running and wait_until_done_running:
         start_time = time.time()
@@ -72,27 +42,17 @@ async def load_or_create_workflow(
     print("got workflow")
     if not workflow:
         if with_output:
-            if video_id:
-                if "video_hash" in workflow_params:
-                    del workflow_params["video_hash"]
-                if "user_email" in workflow_params:
-                    del workflow_params["user_email"]
-                workflow = await CutTranscriptLinearWorkflow.from_video_id(
-                    video_id=video_id, new_state=force_restart, **workflow_params
-                )
-                print("created workflow from video_id")
-            else:
-                workflow = await CutTranscriptLinearWorkflow.from_video_hash(
-                    new_state=force_restart, **workflow_params
-                )
-                print("created workflow from video_hash")
+            workflow = await CutTranscriptLinearWorkflow.from_state_id(workflow_id)
+            print("created workflow from state")
         else:
-            workflow = await CutTranscriptLinearWorkflow.with_only_step_order(
-                video_id=video_id or None, user_id=user_id or None, **workflow_params
+            workflow = (
+                await CutTranscriptLinearWorkflow.from_state_id_with_only_step_order(
+                    workflow_id
+                )
             )
             print("created workflow with only step order")
-        assert workflow_id == workflow.id
-        workflows[workflow_id] = workflow
+        assert workflow_id == str(workflow.id)
+        workflows[str(workflow_id)] = workflow
     else:
         if with_output:
             await workflow.load_state()

@@ -3,6 +3,7 @@ import axios, { AxiosResponse } from 'axios';
 import {
   CheckFunctionCallResults,
   CutTranscriptLinearWorkflowStepOutput,
+  FrontendWorkflowProjection,
   UploadedVideo,
   UploadVideo,
   UploadVideoApi,
@@ -172,16 +173,12 @@ export async function getStepOutput(
 }
 
 export async function step(
-  queryParams: StepQueryParams,
+  workflowId: string,
   data: StepData,
   streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
 ): Promise<void> {
   const url = new URL(`${API_URL}/step`);
-  Object.keys(queryParams).forEach((key) => {
-    if (queryParams[key] !== undefined && queryParams[key] !== null) {
-      url.searchParams.append(key, queryParams[key]);
-    }
-  });
+  url.searchParams.append('workflow_id', workflowId);
   try {
     const res = await fetch(url.toString(), {
       method: 'Post',
@@ -206,8 +203,19 @@ export async function step(
 }
 export async function listWorkflows(
   params: ListWorkflowParams
-): Promise<boolean> {
+): Promise<FrontendWorkflowProjection[]> {
   const data = await fetcherWithParams('workflows', params);
+  if (data && data.error) {
+    console.error(data.error);
+  } else if (data) {
+    return data;
+  }
+  return null;
+}
+export async function getWorkflowDetails(
+  workflowId: string
+): Promise<FrontendWorkflowProjection> {
+  const data = await fetcherWithParams('workflow', { workflow_id: workflowId });
   if (data && data.error) {
     console.error(data.error);
   } else if (data) {

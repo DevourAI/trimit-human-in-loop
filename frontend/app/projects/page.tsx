@@ -3,8 +3,10 @@ import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
 import AppShell from '@/components/layout/app-shell';
+import { Button } from '@/components/ui/button';
 import {
   Popover,
+  PopoverAnchor,
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
@@ -27,7 +29,16 @@ export default function Projects() {
   const { userVideosData } = useUserVideosData();
   const videos = userVideosData.videos;
   const [projects, setProjects] = useState<FrontendWorkflowProjection[]>([]);
+  const [selectedProject, setSelectedProject] =
+    useState<FrontendWorkflowProjection | null>(null);
   const router = useRouter();
+
+  useEffect(() => {
+    if (selectedProject?.id) {
+      console.log(selectedProject);
+      router.push(`/builder?projectId=${selectedProject.id}`);
+    }
+  }, [router, selectedProject]);
 
   useEffect(() => {
     if (!isLoggedIn && !isLoading) {
@@ -41,7 +52,9 @@ export default function Projects() {
       // TODO project.status
       setProjects(projects);
     }
-    fetchAndSetProjects();
+    if (userData.email) {
+      fetchAndSetProjects();
+    }
   }, [userData]);
 
   async function createNewProject(
@@ -50,45 +63,58 @@ export default function Projects() {
 
   return (
     <AppShell title="Projects">
-      <div className="flex justify-center items-center h-full border-border border rounded-md">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Video</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {projects.map((project) => {
-              return (
-                <TableRow
-                  key={`${project.video_hash}.${project.timeline_name}`}
-                >
-                  <TableCell>{project.timeline_name}</TableCell>
-                  <TableCell>{project.video_hash}</TableCell>
-                  <TableCell>In Progress</TableCell>
-                </TableRow>
-              );
-            })}
-            <TableRow>
-              <TableCell colSpan={3}>
-                <Popover>
+      <Popover>
+        <div className="flex justify-center items-center h-full border-border border rounded-md">
+          <PopoverAnchor />
+          <PopoverContent>
+            <WorkflowCreationForm
+              isLoading={false}
+              userEmail={userData.email}
+              availableVideos={videos}
+              onSubmit={createNewProject}
+            />
+          </PopoverContent>
+        </div>
+
+        <div className="flex justify-center items-center h-full border-border border rounded-md">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Video</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Select</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {projects.map((project) => {
+                return (
+                  <TableRow
+                    key={`${project.video_hash}.${project.timeline_name}`}
+                  >
+                    <TableCell>{project.timeline_name}</TableCell>
+                    <TableCell>{project.video_hash}</TableCell>
+                    <TableCell>In Progress</TableCell>
+                    <TableCell>
+                      <Button
+                        variant="outline"
+                        onClick={() => setSelectedProject(project)}
+                      >
+                        Select
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+              <TableRow>
+                <TableCell colSpan={3}>
                   <PopoverTrigger>+ New project</PopoverTrigger>
-                  <PopoverContent>
-                    <WorkflowCreationForm
-                      isLoading={false}
-                      userEmail={userData.email}
-                      availableVideos={videos}
-                      onSubmit={createNewProject}
-                    />
-                  </PopoverContent>
-                </Popover>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </div>
+                </TableCell>
+              </TableRow>
+            </TableBody>
+          </Table>
+        </div>
+      </Popover>
     </AppShell>
   );
 }

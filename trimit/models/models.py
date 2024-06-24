@@ -1206,6 +1206,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
 
 
 class FrontendWorkflowProjection(BaseModel):
+    id: str
     timeline_name: str
     user_email: str
     video_hash: str
@@ -1214,6 +1215,7 @@ class FrontendWorkflowProjection(BaseModel):
 
     class Settings:
         projection = {
+            "id": {"$toString": "$_id"},
             "video_hash": "$static_state.video.md5_hash",
             "user_email": "$static_state.user.email",
             "timeline_name": "$static_state.timeline_name",
