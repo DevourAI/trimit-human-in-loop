@@ -1,8 +1,13 @@
 'use client';
+import { useRouter } from 'next/navigation';
 import React, { useEffect, useState } from 'react';
 
 import AppShell from '@/components/layout/app-shell';
-import { Button } from '@/components/ui/button';
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '@/components/ui/popover';
 import {
   Table,
   TableBody,
@@ -11,13 +16,25 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { WorkflowCreationForm } from '@/components/ui/workflow-creation-form';
 import { useUser } from '@/contexts/user-context';
+import { useUserVideosData } from '@/contexts/user-videos-context';
 import { FrontendWorkflowProjection } from '@/gen/openapi/api';
 import { listWorkflows } from '@/lib/api';
 
 export default function Projects() {
-  const { userData } = useUser();
+  const { userData, isLoggedIn, isLoading } = useUser();
+  const { userVideosData } = useUserVideosData();
+  const videos = userVideosData.videos;
   const [projects, setProjects] = useState<FrontendWorkflowProjection[]>([]);
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!isLoggedIn && !isLoading) {
+      router.push('/');
+    }
+  }, [isLoggedIn, isLoading, router]);
+
   useEffect(() => {
     async function fetchAndSetProjects() {
       const projects = await listWorkflows({ user_email: userData.email });
@@ -26,6 +43,10 @@ export default function Projects() {
     }
     fetchAndSetProjects();
   }, [userData]);
+
+  async function createNewProject(
+    data: z.infer<typeof WorkflowCreationFormSchema>
+  ) {}
 
   return (
     <AppShell title="Projects">
@@ -52,9 +73,17 @@ export default function Projects() {
             })}
             <TableRow>
               <TableCell colSpan={3}>
-                <a href="/videos">
-                  <Button variant="ghost">+ New project</Button>
-                </a>
+                <Popover>
+                  <PopoverTrigger>+ New project</PopoverTrigger>
+                  <PopoverContent>
+                    <WorkflowCreationForm
+                      isLoading={false}
+                      userEmail={userData.email}
+                      availableVideos={videos}
+                      onSubmit={createNewProject}
+                    />
+                  </PopoverContent>
+                </Popover>
               </TableCell>
             </TableRow>
           </TableBody>

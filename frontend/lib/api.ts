@@ -292,13 +292,9 @@ export async function getFunctionCallResults(
   return { result: 'error', message: 'No result found' };
 }
 
-function remoteVideoStreamURLForPath(path: string): string {
-  return `${API_URL}/video?video_path=${path}`;
-}
-
 export async function getUploadedVideos(
   params: GetUploadedVideoParams
-): Promise<unknown> {
+): Promise<UploadedVideo[]> {
   if (params.user_email === '') return {};
 
   console.log(params.user_email);
@@ -311,15 +307,9 @@ export async function getUploadedVideos(
   if (respData && respData.error) {
     console.error(respData);
   } else if (data && data.length > 0) {
-    return data.map((video: UploadedVideo) => {
-      return {
-        filename: video.filename,
-        hash: video.video_hash,
-        remoteUrl: remoteVideoStreamURLForPath(video.path),
-      };
-    });
+    return data;
   }
-  return respData;
+  return [];
 }
 
 const endpointForFileType: Record<string, string> = {

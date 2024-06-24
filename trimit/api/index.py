@@ -14,6 +14,7 @@ from beanie import BulkWriter
 from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import URL
 from fastapi import (
     FastAPI,
     Form,
@@ -869,6 +870,10 @@ async def uploaded_video_hashes(
     }
 
 
+def remote_video_stream_url_for_path(base_url, path):
+    return f"{base_url}/video?video_path={path}"
+
+
 @web_app.get(
     "/uploaded_videos",
     response_model=list[UploadedVideo],
@@ -876,13 +881,18 @@ async def uploaded_video_hashes(
     summary="Get information about a user's uploaded videos",
     description="TODO",
 )
-async def uploaded_videos(user: User = Depends(find_or_create_user)):
+async def uploaded_videos(request: Request, user: User = Depends(find_or_create_user)):
+    base_url = str(URL(str(request.url)).replace(path="", query=""))
+
     await maybe_init_mongo()
     data = [
         UploadedVideo(
             filename=video.high_res_user_file_path,
             video_hash=video.md5_hash,
             path=video.path(get_volume_dir()),
+            remote_url=remote_video_stream_url_for_path(
+                base_url, video.path(get_volume_dir())
+            ),
         )
         for video in await Video.find(Video.user.email == user.email)
         .project(VideoFileProjection)

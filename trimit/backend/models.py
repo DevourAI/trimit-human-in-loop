@@ -1944,6 +1944,7 @@ class UploadedVideo(BaseModel):
     filename: str
     video_hash: str
     path: str
+    remote_url: str
 
 
 class UploadVideo(BaseModel):

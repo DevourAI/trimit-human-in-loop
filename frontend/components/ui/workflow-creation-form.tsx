@@ -16,6 +16,8 @@ import {
 import { Input } from '@/components/ui/input';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { VideoFormSelector } from '@/components/ui/video-form-selector';
+import { UploadedVideo } from '@/gen/openapi/api';
 
 const DEFAULT_LENGTH_SECONDS = 120;
 const DEFAULT_N_STAGES = 2;
@@ -29,13 +31,15 @@ export const WorkflowCreationFormSchema = z.object({
 
 interface WorkflowCreationFormProps {
   isLoading: boolean;
-  userParams: any;
+  userEmail: string;
+  availableVideos: UploadedVideo[];
   onSubmit: (data: z.infer<typeof WorkflowCreationFormSchema>) => void;
   onCancelStep?: () => void;
 }
 export function WorkflowCreationForm({
   isLoading,
-  userParams,
+  userEmail,
+  availableVideos,
   onSubmit,
   onCancelStep,
 }: WorkflowCreationFormProps) {
@@ -45,8 +49,10 @@ export function WorkflowCreationForm({
       timeline_name: '',
       length_seconds: DEFAULT_LENGTH_SECONDS,
       nstages: DEFAULT_N_STAGES,
+      video_hash: availableVideos ? availableVideos[0].video_hash : '',
     },
   });
+  console.log(form.getValues());
 
   return (
     <div className="relative p-3">
@@ -67,6 +73,20 @@ export function WorkflowCreationForm({
                   </FormControl>
                   <FormMessage />
                 </FormItem>
+              );
+            }}
+          />
+          <FormField
+            control={form.control}
+            name="video_hash"
+            render={({ field }) => {
+              return (
+                <VideoFormSelector
+                  formLabel="Video"
+                  onChange={field.onChange}
+                  defaultValue={field.value}
+                  availableVideos={availableVideos}
+                />
               );
             }}
           />
