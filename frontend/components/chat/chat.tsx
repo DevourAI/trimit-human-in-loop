@@ -35,6 +35,11 @@ interface ChatProps {
 
 const Chat: FC<ChatProps> = ({ initialMessages, onNewMessage }) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  useEffect(() => {
+    setMessages(initialMessages);
+  }, [initialMessages]);
+  console.log('initialMessages inside Chat', initialMessages);
+  console.log('messages inside Chat', messages);
   const [inputValue, setInputValue] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 

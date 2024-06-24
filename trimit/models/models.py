@@ -863,6 +863,16 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     class Settings:
         name = "CutTranscriptLinearWorkflowState"
         use_revision = True
+        indexes = [
+            IndexModel(
+                [
+                    ("static_state.video.md5_hash", pymongo.ASCENDING),
+                    ("static_state.user.email", pymongo.ASCENDING),
+                    ("static_state.timeline_name", pymongo.ASCENDING),
+                ],
+                unique=True,
+            )
+        ]
 
     def __init__(self, **data):
         super().__init__(**data)
@@ -1193,6 +1203,23 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                 if existing_step.name == step_name and existing_substep == substep_name:
                     return True
         return False
+
+
+class FrontendWorkflowProjection(BaseModel):
+    timeline_name: str
+    user_email: str
+    video_hash: str
+    length_seconds: int
+    nstages: int
+
+    class Settings:
+        projection = {
+            "video_hash": "$static_state.video.md5_hash",
+            "user_email": "$static_state.user.email",
+            "timeline_name": "$static_state.timeline_name",
+            "length_seconds": "$static_state.length_seconds",
+            "nstages": "$static_state.nstages",
+        }
 
 
 class FrontendStepOutput(CutTranscriptLinearWorkflowStepOutput):

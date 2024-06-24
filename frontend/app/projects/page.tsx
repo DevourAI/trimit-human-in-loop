@@ -1,5 +1,5 @@
 'use client';
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 
 import AppShell from '@/components/layout/app-shell';
 import { Button } from '@/components/ui/button';
@@ -11,8 +11,22 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { useUser } from '@/contexts/user-context';
+import { FrontendWorkflowProjection } from '@/gen/openapi/api';
+import { listWorkflows } from '@/lib/api';
 
 export default function Projects() {
+  const { userData } = useUser();
+  const [projects, setProjects] = useState<FrontendWorkflowProjection[]>([]);
+  useEffect(() => {
+    async function fetchAndSetProjects() {
+      const projects = await listWorkflows({ user_email: userData.email });
+      // TODO project.status
+      setProjects(projects);
+    }
+    fetchAndSetProjects();
+  }, [userData]);
+
   return (
     <AppShell title="Projects">
       <div className="flex justify-center items-center h-full border-border border rounded-md">
@@ -25,21 +39,17 @@ export default function Projects() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            <TableRow>
-              <TableCell>Project Alpha</TableCell>
-              <TableCell>Video 1</TableCell>
-              <TableCell>In Progress</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>Project Beta</TableCell>
-              <TableCell>Video 2</TableCell>
-              <TableCell>Completed</TableCell>
-            </TableRow>
-            <TableRow>
-              <TableCell>Project Gamma</TableCell>
-              <TableCell>Video 3</TableCell>
-              <TableCell>Not Started</TableCell>
-            </TableRow>
+            {projects.map((project) => {
+              return (
+                <TableRow
+                  key={`${project.video_hash}.${project.timeline_name}`}
+                >
+                  <TableCell>{project.timeline_name}</TableCell>
+                  <TableCell>{project.video_hash}</TableCell>
+                  <TableCell>In Progress</TableCell>
+                </TableRow>
+              );
+            })}
             <TableRow>
               <TableCell colSpan={3}>
                 <a href="/videos">

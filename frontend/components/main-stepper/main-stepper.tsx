@@ -24,6 +24,7 @@ import {
   FrontendWorkflowState,
 } from '@/gen/openapi/api';
 import {
+  checkWorkflowExists,
   getLatestState,
   resetWorkflow,
   revertStepInBackend,
@@ -127,6 +128,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   const [workflowParams, setWorkflowParams] = useState<
     z.infer<typeof WorkflowCreationFormSchema>
   >({});
+  const [workflowExists, setWorkflowExists] = useState(false);
   // TODO stepParams should be renamed workflowParams, and workflowParams should be renamed something else like workflowCreationOptions
   const stepParams = { ...userParams, ...workflowParams };
   const fetchedInitialState = useRef(false);
@@ -141,6 +143,11 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       // since we include currentStepIndex as a dependency
       // but set its value in the first successful call to this effect hook,
       // the 2nd call to this hook should be a noop
+      console.log('fetchedInitialState.current', fetchedInitialState.current);
+      console.log(
+        'allowRunningFromCurrentStepIndexChange.current',
+        allowRunningFromCurrentStepIndexChange.current
+      );
       if (
         fetchedInitialState.current &&
         !allowRunningFromCurrentStepIndexChange.current
@@ -148,7 +155,8 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
         allowRunningFromCurrentStepIndexChange.current = true;
         return;
       }
-      const data = await getLatestState(userParams as GetLatestStateParams);
+      const data = await getLatestState(stepParams as GetLatestStateParams);
+      console.log('stepParams', stepParams);
       if (!data || Object.keys(data).length === 0) return;
       console.log('data', data);
       if (!fetchedInitialState.current) {
@@ -170,23 +178,22 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       fetchedInitialState.current = true;
     }
     fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput();
-  }, [userData, userParams, videoHash, currentStepIndex]);
+  }, [userData, userParams, videoHash, currentStepIndex, workflowParams]);
 
   useEffect(() => {
     if (!latestState || !latestState.all_steps) return;
 
     const stepIndex = stepIndexFromState(latestState);
-    let latestStep = null;
     if (trueStepIndex != stepIndex) {
       setTrueStepIndex(stepIndex);
     }
+
     if (stepIndex === latestState.all_steps.length - 1) {
       setHasCompletedAllSteps(true);
-      latestStep = latestState.all_steps[latestState.all_steps.length - 1];
-    } else {
-      latestStep = latestState.all_steps[stepIndex];
     }
-    setStepInputPrompt(latestStep?.input_prompt || '');
+    let currentStep =
+      currentStepIndex >= 0 ? latestState.all_steps[currentStepIndex] : null;
+    setStepInputPrompt(currentStep?.input_prompt || '');
 
     if (!latestState.outputs || !latestState.outputs.length) return;
     const lastOutput = latestState.outputs[latestState.outputs.length - 1];
@@ -263,7 +270,11 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     data: z.infer<typeof WorkflowCreationFormSchema>
   ) {
     setWorkflowParams(data);
-    advanceStep(0, data);
+    const exists = await checkWorkflowExists({ ...userParams, ...data });
+    setWorkflowExists(exists);
+    if (!exists) {
+      advanceStep(0, data);
+    }
   }
   async function advanceStep(
     stepIndex: number,
@@ -528,7 +539,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
           </div>
         ) : null}
       </div>
-      {workflowInitialized ? (
+      {workflowInitialized ? ( // TODO: can make this depend on workflowExists but there is a time period where latestState is not available yet
         <Stepper
           initialStep={currentStepIndex}
           steps={latestState.all_steps.map((step: ExportableStepWrapper) => {
@@ -561,7 +572,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
                   <StepRenderer
                     step={step}
                     stepIndex={index}
-                    prompt={stepInputPrompt}
+                    stepInputPrompt={stepInputPrompt}
                     stepOutput={
                       latestState?.outputs?.length &&
                       latestState.outputs.length > index

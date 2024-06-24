@@ -1870,6 +1870,7 @@ class StepWrapper(BaseModel):
             name=self.name,
             human_readable_name=self.human_readable_name,
             substeps=[substep.to_exportable() for substep in self.substeps],
+            input_prompt=self.substeps[-1].input_prompt,
         )
 
 
@@ -1877,6 +1878,7 @@ class ExportableStepWrapper(BaseModel):
     name: str
     human_readable_name: str
     substeps: list[ExportableStepInfo]
+    input_prompt: str | None = None
 
 
 class Steps(BaseModel):
