@@ -3,6 +3,7 @@ import axios, { AxiosResponse } from 'axios';
 import {
   CheckFunctionCallResults,
   CutTranscriptLinearWorkflowStepOutput,
+  FrontendWorkflowProjection,
   UploadedVideo,
   UploadVideo,
   UploadVideoApi,
@@ -11,7 +12,6 @@ import {
 import {
   DownloadFileParams,
   FrontendWorkflowState,
-  GetLatestStateParams,
   GetUploadedVideoParams,
   ListWorkflowParams,
   ResetWorkflowParams,
@@ -98,6 +98,12 @@ const postFetcherWithData = async (
   }
 };
 
+export async function createNewWorkflow(
+  params: CreateNewWorkflowParams
+): Promise<string> {
+  return await postFetcherWithData('workflows/new', params);
+}
+
 export async function resetWorkflow(
   params: ResetWorkflowParams
 ): Promise<UserState | boolean> {
@@ -132,15 +138,10 @@ export async function revertStepToInBackend(
 }
 
 export async function getLatestState(
-  params: GetLatestStateParams
+  workflowId: string
 ): Promise<FrontendWorkflowState> {
-  if (
-    !params.user_email ||
-    !params.video_hash ||
-    !params.length_seconds ||
-    !params.timeline_name
-  )
-    return {};
+  if (!workflowId) return {};
+  const params = { workflow_id: workflowId };
   params.with_output = params.with_output ?? true;
   params.wait_until_done_running = params.wait_until_done_running ?? false;
   params.block_until = params.block_until ?? false;
@@ -172,16 +173,12 @@ export async function getStepOutput(
 }
 
 export async function step(
-  queryParams: StepQueryParams,
+  workflowId: string,
   data: StepData,
   streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
 ): Promise<void> {
   const url = new URL(`${API_URL}/step`);
-  Object.keys(queryParams).forEach((key) => {
-    if (queryParams[key] !== undefined && queryParams[key] !== null) {
-      url.searchParams.append(key, queryParams[key]);
-    }
-  });
+  url.searchParams.append('workflow_id', workflowId);
   try {
     const res = await fetch(url.toString(), {
       method: 'Post',
@@ -206,8 +203,19 @@ export async function step(
 }
 export async function listWorkflows(
   params: ListWorkflowParams
-): Promise<boolean> {
+): Promise<FrontendWorkflowProjection[]> {
   const data = await fetcherWithParams('workflows', params);
+  if (data && data.error) {
+    console.error(data.error);
+  } else if (data) {
+    return data;
+  }
+  return null;
+}
+export async function getWorkflowDetails(
+  workflowId: string
+): Promise<FrontendWorkflowProjection> {
+  const data = await fetcherWithParams('workflow', { workflow_id: workflowId });
   if (data && data.error) {
     console.error(data.error);
   } else if (data) {
@@ -292,13 +300,9 @@ export async function getFunctionCallResults(
   return { result: 'error', message: 'No result found' };
 }
 
-function remoteVideoStreamURLForPath(path: string): string {
-  return `${API_URL}/video?video_path=${path}`;
-}
-
 export async function getUploadedVideos(
   params: GetUploadedVideoParams
-): Promise<unknown> {
+): Promise<UploadedVideo[]> {
   if (params.user_email === '') return {};
 
   console.log(params.user_email);
@@ -311,15 +315,9 @@ export async function getUploadedVideos(
   if (respData && respData.error) {
     console.error(respData);
   } else if (data && data.length > 0) {
-    return data.map((video: UploadedVideo) => {
-      return {
-        filename: video.filename,
-        hash: video.video_hash,
-        remoteUrl: remoteVideoStreamURLForPath(video.path),
-      };
-    });
+    return data;
   }
-  return respData;
+  return [];
 }
 
 const endpointForFileType: Record<string, string> = {

@@ -5,6 +5,7 @@ import { Inter as FontSans } from 'next/font/google';
 
 import { Toaster } from '@/components/ui/toaster';
 import { UserProvider } from '@/contexts/user-context';
+import { UserVideosDataProvider } from '@/contexts/user-videos-context';
 import { cn } from '@/lib/utils';
 import { ThemeProvider } from '@/providers/theme-provider';
 
@@ -39,15 +40,17 @@ export default function RootLayout({
         <Toaster />
         <GoogleOAuthProvider clientId={clientId ?? ''}>
           <UserProvider>
-            <ThemeProvider
-              attribute="class"
-              defaultTheme="dark"
-              enableSystem
-              disableTransitionOnChange
-            >
-              {children}
-              <Toaster />
-            </ThemeProvider>
+            <UserVideosDataProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="dark"
+                enableSystem
+                disableTransitionOnChange
+              >
+                {children}
+                <Toaster />
+              </ThemeProvider>
+            </UserVideosDataProvider>
           </UserProvider>
         </GoogleOAuthProvider>
       </body>

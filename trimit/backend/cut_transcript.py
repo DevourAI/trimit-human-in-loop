@@ -158,6 +158,16 @@ class CutTranscriptLinearWorkflow:
         return obj_id
 
     @classmethod
+    async def from_state_id(cls, state_id: str):
+        state = await CutTranscriptLinearWorkflowState.get(state_id)
+        return CutTranscriptLinearWorkflow(state=state)
+
+    @classmethod
+    async def from_state_id_with_only_step_order(cls, state_id: str):
+        step_order = await load_step_order(state_id)
+        return CutTranscriptLinearWorkflow(state=None, step_order=step_order)
+
+    @classmethod
     async def from_video_id(
         cls,
         video_id: str,

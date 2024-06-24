@@ -10,10 +10,11 @@ import yaml
 from pydantic import EmailStr, BaseModel
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
-from beanie import BulkWriter
+from beanie import BulkWriter, PydanticObjectId
 from beanie.operators import In
 from starlette.middleware.sessions import SessionMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.datastructures import URL
 from fastapi import (
     FastAPI,
     Form,
@@ -54,7 +55,7 @@ from trimit.utils.fs_utils import (
 )
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
-from trimit.api.utils import load_or_create_workflow
+from trimit.api.utils import load_workflow
 from trimit.app import app, get_volume_dir, S3_BUCKET
 from trimit.models import (
     maybe_init_mongo,
@@ -68,7 +69,10 @@ from trimit.models import (
     FrontendWorkflowProjection,
 )
 from .image import image
-from trimit.backend.conf import VIDEO_PROCESSING_CALL_IDS_DICT_NAME
+from trimit.backend.conf import (
+    VIDEO_PROCESSING_CALL_IDS_DICT_NAME,
+    LINEAR_WORKFLOW_OUTPUT_FOLDER,
+)
 from trimit.backend.background_processor import BackgroundProcessor
 from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
@@ -149,16 +153,14 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
     return await find_or_create_user(user_email)
 
 
+async def get_current_workflow_frontend_state(workflow_id: str):
+    return await CutTranscriptLinearWorkflowState.find_one(
+        CutTranscriptLinearWorkflowState.id == PydanticObjectId(workflow_id)
+    ).project(FrontendWorkflowProjection)
+
+
 async def get_current_workflow(
-    timeline_name: str | None = None,
-    length_seconds: int | None = Query(
-        None, description="desired final length of video"
-    ),
-    nstages: int | None = Query(None, description="number of stages"),
-    user: User | None = Depends(maybe_user_wrapper),
-    video_hash: str | None = None,
-    user_id: str | None = None,
-    video_id: str | None = None,
+    workflow_id: str,
     wait_until_done_running: bool = Query(
         False,
         description="If True, block returning a workflow until workflow is done running its current step",
@@ -171,41 +173,14 @@ async def get_current_workflow(
         0.1,
         description="poll interval to wait for workflow step to finish if wait_until_done_running=True",
     ),
-    force_restart: bool = Query(False, description="Force a fresh workflow state"),
-    export_video: bool = Query(
-        True, description="export mp4 videos after relevant steps"
-    ),
-    volume_dir: str = Query(
-        None,
-        description="mounted directory serving as root for finding uploaded videos. Only provide this parameter in tests",
-    ),
-    output_folder: str = Query(
-        None,
-        description="mounted directory serving as root for exports. Only provide this parameter in tests",
-    ),
 ):
-    if timeline_name is None or length_seconds is None or user is None:
-        print(
-            f"missing params to get_current_workflow: timeline_name={length_seconds} length_seconds={length_seconds} user={user}"
-        )
-        return None
     try:
-        return await load_or_create_workflow(
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            nstages=nstages,
-            user_email=user.email,
-            video_hash=video_hash,
-            user_id=user_id,
-            video_id=video_id,
+        return await load_workflow(
+            workflow_id=workflow_id,
             with_output=True,
             wait_until_done_running=wait_until_done_running,
             timeout=timeout,
             wait_interval=wait_interval,
-            force_restart=force_restart,
-            export_video=export_video,
-            volume_dir=volume_dir,
-            output_folder=output_folder,
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -247,22 +222,17 @@ async def get_step_outputs(
         description="Step names (no substeps), comma-separated. If provided instead of step_keys, the last substep of each step will be returned",
     ),
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    latest_retry: bool = False,
 ):
     if not workflow:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
     if step_keys is not None:
         return GetStepOutputs(
-            outputs=await workflow.get_output_for_keys(
-                keys=step_keys.split(","), latest_retry=latest_retry
-            )
+            outputs=await workflow.get_output_for_keys(keys=step_keys.split(","))
         )
     elif step_names is not None:
         return GetStepOutputs(
-            outputs=await workflow.get_output_for_names(
-                names=step_names.split(","), latest_retry=latest_retry
-            )
+            outputs=await workflow.get_output_for_names(names=step_names.split(","))
         )
     raise ValueError("one of step_keys or step_names must be provided")
 
@@ -573,6 +543,41 @@ async def workflows(
     )
 
 
+@web_app.post(
+    "/workflows/new",
+    tags=["Workflows"],
+    response_model=str,
+    summary="Create a new workflow, returning its id",
+    description="TODO",
+)
+async def workflows(
+    user_email: str = Form(...),
+    video_hash: str = Form(...),
+    timeline_name: str = Form(...),
+    length_seconds: int = Form(...),
+    nstages: int = Form(2),
+    recreate: bool = Form(
+        False,
+        description="If True, recreate the workflow from scratch if it already exists",
+    ),
+):
+    await maybe_init_mongo()
+    method = CutTranscriptLinearWorkflowState.find_or_create_from_video_hash
+    if recreate:
+        method = CutTranscriptLinearWorkflowState.recreate_from_video_hash
+    state = await method(
+        video_hash=video_hash,
+        user_email=user_email,
+        timeline_name=timeline_name,
+        volume_dir=get_volume_dir(),
+        output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
+        length_seconds=length_seconds,
+        nstages=nstages,
+    )
+    await state.save()
+    return str(state.id)
+
+
 class WorkflowExists(BaseModel):
     exists: bool
 
@@ -588,6 +593,21 @@ async def workflow_exists(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
 ):
     return WorkflowExists(exists=workflow is not None)
+
+
+@web_app.get(
+    "/workflow",
+    tags=["Workflows"],
+    response_model=FrontendWorkflowProjection,
+    summary="Return workflow details",
+    description="TODO",
+)
+async def get_workflow_details(
+    workflow_details: CutTranscriptLinearWorkflowState | None = Depends(
+        get_current_workflow_frontend_state
+    ),
+):
+    return workflow_details
 
 
 @web_app.get(
@@ -869,6 +889,10 @@ async def uploaded_video_hashes(
     }
 
 
+def remote_video_stream_url_for_path(base_url, path):
+    return f"{base_url}/video?video_path={path}"
+
+
 @web_app.get(
     "/uploaded_videos",
     response_model=list[UploadedVideo],
@@ -876,13 +900,18 @@ async def uploaded_video_hashes(
     summary="Get information about a user's uploaded videos",
     description="TODO",
 )
-async def uploaded_videos(user: User = Depends(find_or_create_user)):
+async def uploaded_videos(request: Request, user: User = Depends(find_or_create_user)):
+    base_url = str(URL(str(request.url)).replace(path="", query=""))
+
     await maybe_init_mongo()
     data = [
         UploadedVideo(
             filename=video.high_res_user_file_path,
             video_hash=video.md5_hash,
             path=video.path(get_volume_dir()),
+            remote_url=remote_video_stream_url_for_path(
+                base_url, video.path(get_volume_dir())
+            ),
         )
         for video in await Video.find(Video.user.email == user.email)
         .project(VideoFileProjection)

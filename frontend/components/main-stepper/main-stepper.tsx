@@ -1,6 +1,13 @@
 'use client';
 import { DownloadIcon, ReloadIcon } from '@radix-ui/react-icons';
-import React, { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+} from 'react';
 import { z } from 'zod';
 
 import { Footer } from '@/components/main-stepper/main-stepper-footer';
@@ -9,10 +16,6 @@ import { Button } from '@/components/ui/button';
 import { Step, Stepper } from '@/components/ui/stepper';
 import { FormSchema, StepperForm } from '@/components/ui/stepper-form';
 import { useToast } from '@/components/ui/use-toast';
-import {
-  WorkflowCreationForm,
-  WorkflowCreationFormSchema,
-} from '@/components/ui/workflow-creation-form';
 import { useStepperForm } from '@/contexts/stepper-form-context';
 import { useUser } from '@/contexts/user-context';
 import {
@@ -21,11 +24,12 @@ import {
   CutTranscriptLinearWorkflowStreamingOutput,
   ExportableStepWrapper,
   FrontendStepOutput,
+  FrontendWorkflowProjection,
   FrontendWorkflowState,
 } from '@/gen/openapi/api';
 import {
-  checkWorkflowExists,
   getLatestState,
+  getWorkflowDetails,
   resetWorkflow,
   revertStepInBackend,
   revertStepToInBackend,
@@ -33,7 +37,6 @@ import {
 } from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
 import {
-  GetLatestStateParams,
   ResetWorkflowParams,
   RevertStepParams,
   RevertStepToParams,
@@ -94,8 +97,11 @@ function stepOutputFromIndex(
  * - Handle stepping through steps
  * - Handle retrying / undoing
  */
-export default function MainStepper({ videoHash }: { videoHash: string }) {
+export default function MainStepper({ projectId }: { projectId: string }) {
   const { userData } = useUser();
+  const [project, setProject] = useState<FrontendWorkflowProjection | null>(
+    null
+  );
   const { stepperFormValues } = useStepperForm();
   const { toast } = useToast();
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
@@ -121,18 +127,10 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   const userParams = useMemo(
     () => ({
       user_email: userData.email,
-      video_hash: videoHash,
+      workflow_id: project?.id || null,
+      video_hash: project?.video_hash || null,
     }),
-    [userData.email, videoHash]
-  );
-  const [workflowParams, setWorkflowParams] = useState<
-    z.infer<typeof WorkflowCreationFormSchema>
-  >({});
-  const [workflowExists, setWorkflowExists] = useState(false);
-  // TODO stepParams should be renamed workflowParams, and workflowParams should be renamed something else like workflowCreationOptions
-  const stepParams = useMemo(
-    () => ({ ...userParams, ...workflowParams }),
-    [userParams, workflowParams]
+    [userData.email, project]
   );
   const fetchedInitialState = useRef(false);
   const allowRunningFromCurrentStepIndexChange = useRef(false);
@@ -141,6 +139,15 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   }>();
   const prevExportCallId = useRef<string>();
 
+  useEffect(() => {
+    async function fetchAndSetProject() {
+      const project = await getWorkflowDetails(projectId);
+      setProject(project);
+    }
+    if (projectId) {
+      fetchAndSetProject(projectId);
+    }
+  }, [projectId]);
   useEffect(() => {
     async function fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput() {
       // since we include currentStepIndex as a dependency
@@ -158,8 +165,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
         allowRunningFromCurrentStepIndexChange.current = true;
         return;
       }
-      const data = await getLatestState(stepParams as GetLatestStateParams);
-      console.log('stepParams', stepParams);
+      const data = await getLatestState(userParams.workflow_id);
       if (!data || Object.keys(data).length === 0) return;
       console.log('data', data);
       if (!fetchedInitialState.current) {
@@ -181,14 +187,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       fetchedInitialState.current = true;
     }
     fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput();
-  }, [
-    userData,
-    userParams,
-    videoHash,
-    currentStepIndex,
-    workflowParams,
-    stepParams,
-  ]);
+  }, [userData, userParams, project?.video_hash, currentStepIndex]);
 
   const prevTrueStepIndex = useRef<number>(trueStepIndex);
   useEffect(() => {
@@ -278,65 +277,73 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     return finalState;
   }
 
-  async function beginWorkflow(
-    data: z.infer<typeof WorkflowCreationFormSchema>
-  ) {
-    setWorkflowParams(data);
-    const exists = await checkWorkflowExists({ ...userParams, ...data });
-    setWorkflowExists(exists);
-    if (!exists) {
-      advanceStep(0, data);
-    }
-  }
-  async function advanceStep(
-    stepIndex: number,
-    overrideWorkflowParams?: z.infer<typeof WorkflowCreationFormSchema> | null
-  ) {
-    if (
-      overrideWorkflowParams === null ||
-      overrideWorkflowParams === undefined
-    ) {
-      overrideWorkflowParams = workflowParams;
-    }
-    setIsLoading(true);
-    console.log(
-      'advanceStep stepIndex',
-      stepIndex,
-      'trueStepIndex',
-      trueStepIndex,
-      'currentStepIndex',
-      currentStepIndex
-    );
-    if (trueStepIndex >= stepIndex) {
-      console.log('reverting step to before', stepIndex);
-      // TODO send name of step and have backend do reversions
-      const success = await revertStepTo(stepIndex);
-      console.log('revert success', success);
-      if (!success) {
-        setIsLoading(false);
-        return;
+  const revertStepTo = useCallback(
+    async (stepIndex: number) => {
+      setIsLoading(true);
+      if (!latestState || !latestState.all_steps) {
+        throw new Error(
+          "can't revert unless latestState.all_steps is available"
+        );
       }
+      const stepName = stepNameFromIndex(latestState.all_steps, stepIndex);
+      console.log('stepName', stepName);
+      const success = await revertStepToInBackend({
+        step_name: stepName,
+        ...userParams,
+      } as RevertStepToParams);
+      console.log('in revertStepTo success', success);
+      if (success) {
+        activePromptDispatch({ type: 'restart', value: '' });
+        const latestState = await getLatestState(userParams.workflow_id);
+        setLatestState(latestState);
+        setCurrentStepIndex(stepIndexFromState(latestState));
+      }
+      setIsLoading(false);
+      return success;
+    },
+    [latestState, userParams]
+  );
+
+  const advanceStep = useCallback(
+    async (stepIndex: number) => {
+      setIsLoading(true);
+      if (trueStepIndex >= stepIndex) {
+        console.log('reverting step to before', stepIndex);
+        // TODO send name of step and have backend do reversions
+        const success = await revertStepTo(stepIndex);
+        console.log('revert success', success);
+        if (!success) {
+          setIsLoading(false);
+          return;
+        }
+      }
+      setCurrentStepIndex(stepIndex);
+      setStepOutput(null);
+      const data: StepData = {
+        user_input:
+          stepperFormValues.feedback !== undefined &&
+          stepperFormValues.feedback !== null
+            ? stepperFormValues.feedback
+            : '',
+        streaming: true,
+        force_restart: false,
+        ignore_running_workflows: true,
+        retry_step: false,
+      };
+      try {
+        await step(userParams.workflow_id, data, handleStepStream);
+      } catch (error) {
+        console.error('error in step', error);
+      }
+    },
+    [trueStepIndex, userParams, revertStepTo, stepperFormValues]
+  );
+
+  useEffect(() => {
+    if (project && !latestState) {
+      advanceStep(0);
     }
-    setCurrentStepIndex(stepIndex);
-    setStepOutput(null);
-    const data: StepData = {
-      user_input:
-        stepperFormValues.feedback !== undefined &&
-        stepperFormValues.feedback !== null
-          ? stepperFormValues.feedback
-          : '',
-      streaming: true,
-      force_restart: false,
-      ignore_running_workflows: true,
-      retry_step: false,
-    };
-    const stepParams = { ...overrideWorkflowParams, ...userParams };
-    try {
-      await step(stepParams, data, handleStepStream);
-    } catch (error) {
-      console.error('error in step', error);
-    }
-  }
+  }, [project, latestState, advanceStep]);
 
   async function retryStep(
     stepIndex: number,
@@ -364,11 +371,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       retry_step: true,
     };
     try {
-      await step(
-        { ...userParams, ...workflowParams },
-        stepData,
-        handleStepStream
-      );
+      await step(userParams, stepData, handleStepStream);
     } catch (error) {
       console.error('error in step', error);
     }
@@ -418,7 +421,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     activePromptDispatch({ type: 'restart', value: '' });
     setStepOutput(null);
     await resetWorkflow(stepParams as ResetWorkflowParams);
-    const newState = await getLatestState(stepParams as GetLatestStateParams);
+    const newState = await getLatestState(userParams.workflow_id);
     setLatestState(newState);
     setCurrentStepIndex(-1);
     setIsLoading(false);
@@ -432,36 +435,10 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       to_before_retries: toBeforeRetries,
       ...stepParams,
     } as RevertStepParams);
-    const latestState = await getLatestState(
-      stepParams as GetLatestStateParams
-    );
+    const latestState = await getLatestState(userParams.workflowId);
     setLatestState(latestState);
     setCurrentStepIndex(stepIndexFromState(latestState));
     setIsLoading(false);
-  }
-
-  async function revertStepTo(stepIndex: number) {
-    setIsLoading(true);
-    if (!latestState || !latestState.all_steps) {
-      throw new Error("can't revert unless latestState.all_steps is available");
-    }
-    const stepName = stepNameFromIndex(latestState.all_steps, stepIndex);
-    console.log('stepName', stepName);
-    const success = await revertStepToInBackend({
-      step_name: stepName,
-      ...stepParams,
-    } as RevertStepToParams);
-    console.log('in revertStepTo success', success);
-    if (success) {
-      activePromptDispatch({ type: 'restart', value: '' });
-      const latestState = await getLatestState(
-        stepParams as GetLatestStateParams
-      );
-      setLatestState(latestState);
-      setCurrentStepIndex(stepIndexFromState(latestState));
-    }
-    setIsLoading(false);
-    return success;
   }
 
   async function undoLastStep() {
@@ -532,12 +509,14 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
     });
   }, [backendMessage, toast]);
 
-  const workflowInitialized =
-    latestState?.all_steps !== undefined && currentStepIndex > -1;
+  const workflowInitialized = project && latestState?.all_steps !== undefined;
+  console.log('project', project);
+  console.log('workflowInitialized', workflowInitialized);
+  console.log('latestState', latestState);
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
-        Video: {videoHash}
+        Video: {project?.video_hash}
         {workflowInitialized ? (
           <div className="flex gap-3 items-center">
             <Button variant="outline" onClick={restart} disabled={isLoading}>
@@ -551,7 +530,8 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
           </div>
         ) : null}
       </div>
-      {workflowInitialized ? ( // TODO: can make this depend on workflowExists but there is a time period where latestState is not available yet
+
+      {workflowInitialized ? (
         <Stepper
           initialStep={currentStepIndex}
           steps={latestState.all_steps.map((step: ExportableStepWrapper) => {
@@ -618,16 +598,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
             )
           )}
         </Stepper>
-      ) : (
-        <WorkflowCreationForm
-          isLoading={isLoading}
-          userParams={userParams}
-          onSubmit={beginWorkflow}
-          onCancelStep={() => {
-            throw new Error('Unimplemented');
-          }}
-        />
-      )}
+      ) : null}
     </div>
   );
 }

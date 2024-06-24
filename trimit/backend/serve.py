@@ -90,7 +90,7 @@ async def step(
         await workflow.revert_state_to_before(step_name, substep_name)
     else:
         await workflow.load_state()
-    id = workflow.id
+    id = str(workflow.id)
 
     if not ignore_running_workflows:
         if id in workflows:

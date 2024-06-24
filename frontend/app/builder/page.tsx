@@ -11,7 +11,7 @@ export default function Builder() {
   const { isLoggedIn, isLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const videoHash = searchParams.get('videoHash');
+  const projectId = searchParams.get('projectId') || '';
 
   useEffect(() => {
     if (!isLoggedIn && !isLoading) {
@@ -19,16 +19,16 @@ export default function Builder() {
     }
   }, [isLoggedIn, isLoading, router]);
 
-  if (!videoHash) {
-    console.error('Missing required query parameter: videoHash');
-    router.push('/videos');
+  if (!projectId) {
+    console.error('Missing required query parameter: projectid');
+    router.push('/projects');
     return null;
   }
 
   return (
     <AppShell title="Builder">
       <StepperFormProvider>
-        <MainStepper videoHash={videoHash} />
+        <MainStepper projectId={projectId} />
       </StepperFormProvider>
     </AppShell>
   );
