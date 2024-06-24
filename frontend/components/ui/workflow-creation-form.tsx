@@ -27,6 +27,7 @@ export const WorkflowCreationFormSchema = z.object({
     .min(2, { message: 'Project name must be at least 2 characters.' }),
   length_seconds: z.number().default(DEFAULT_LENGTH_SECONDS),
   nstages: z.number().min(1).max(2).default(DEFAULT_N_STAGES),
+  video_hash: z.string(),
 });
 
 interface WorkflowCreationFormProps {
@@ -49,7 +50,12 @@ export function WorkflowCreationForm({
       timeline_name: '',
       length_seconds: DEFAULT_LENGTH_SECONDS,
       nstages: DEFAULT_N_STAGES,
-      video_hash: availableVideos ? availableVideos[0].video_hash : '',
+      video_hash:
+        availableVideos !== undefined &&
+        availableVideos !== null &&
+        availableVideos.length
+          ? availableVideos[0].video_hash
+          : '',
     },
   });
 

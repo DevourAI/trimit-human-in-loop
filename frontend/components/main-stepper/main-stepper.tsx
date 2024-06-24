@@ -509,8 +509,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     });
   }, [backendMessage, toast]);
 
-  const workflowInitialized =
-    project && latestState?.all_steps !== undefined && currentStepIndex > -1;
+  const workflowInitialized = project && latestState?.all_steps !== undefined;
   console.log('project', project);
   console.log('workflowInitialized', workflowInitialized);
   console.log('latestState', latestState);

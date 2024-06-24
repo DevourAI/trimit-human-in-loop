@@ -30,6 +30,7 @@ export default function Projects() {
   const { userVideosData } = useUserVideosData();
   const videos = userVideosData.videos;
   const [projects, setProjects] = useState<FrontendWorkflowProjection[]>([]);
+  const [latestWorkflowId, setLatestWorkflowId] = useState<string>('');
   const [selectedProject, setSelectedProject] =
     useState<FrontendWorkflowProjection | null>(null);
   const router = useRouter();
@@ -56,15 +57,16 @@ export default function Projects() {
     if (userData.email) {
       fetchAndSetProjects();
     }
-  }, [userData]);
+  }, [userData, latestWorkflowId]);
 
   async function createNewProjectWrapper(
     data: z.infer<typeof WorkflowCreationFormSchema>
   ) {
-    await createNewWorkflow({
-      email: userData.email,
+    const workflowId = await createNewWorkflow({
+      user_email: userData.email,
       ...data,
     } as CreateNewWorkflowParams);
+    setLatestWorkflowId(workflowId);
   }
 
   return (
