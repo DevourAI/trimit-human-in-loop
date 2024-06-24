@@ -130,7 +130,10 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
   >({});
   const [workflowExists, setWorkflowExists] = useState(false);
   // TODO stepParams should be renamed workflowParams, and workflowParams should be renamed something else like workflowCreationOptions
-  const stepParams = { ...userParams, ...workflowParams };
+  const stepParams = useMemo(
+    () => ({ ...userParams, ...workflowParams }),
+    [userParams, workflowParams]
+  );
   const fetchedInitialState = useRef(false);
   const allowRunningFromCurrentStepIndexChange = useRef(false);
   const prevExportResult = useRef<{
@@ -178,14 +181,23 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       fetchedInitialState.current = true;
     }
     fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput();
-  }, [userData, userParams, videoHash, currentStepIndex, workflowParams]);
+  }, [
+    userData,
+    userParams,
+    videoHash,
+    currentStepIndex,
+    workflowParams,
+    stepParams,
+  ]);
 
+  const prevTrueStepIndex = useRef<number>(trueStepIndex);
   useEffect(() => {
     if (!latestState || !latestState.all_steps) return;
 
     const stepIndex = stepIndexFromState(latestState);
-    if (trueStepIndex != stepIndex) {
+    if (prevTrueStepIndex.current != stepIndex) {
       setTrueStepIndex(stepIndex);
+      prevTrueStepIndex.current = stepIndex;
     }
 
     if (stepIndex === latestState.all_steps.length - 1) {
@@ -211,7 +223,7 @@ export default function MainStepper({ videoHash }: { videoHash: string }) {
       setLatestExportCallId(lastOutput.export_call_id);
       prevExportCallId.current = lastOutput.export_call_id;
     }
-  }, [latestState]);
+  }, [latestState, currentStepIndex]);
 
   useEffect(() => {
     setUserFeedbackRequest(stepOutput?.user_feedback_request || '');
