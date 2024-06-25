@@ -76,8 +76,7 @@ export const Footer = ({
           size="sm"
           onClick={onNextStep}
           disabled={
-            trueStepIndex >= totalNSteps - 1 ||
-            currentStepIndex >= trueStepIndex
+            trueStepIndex >= totalNSteps - 1 || currentStepIndex > trueStepIndex
           }
         >
           Next

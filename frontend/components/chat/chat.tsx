@@ -31,9 +31,16 @@ interface ChatProps {
     userMessage: string,
     callback: (aiMessage: string) => void
   ) => void;
+  onEmptySubmit: (callback: (aiMessage: string) => void) => void;
+  isNewStep: boolean;
 }
 
-const Chat: FC<ChatProps> = ({ initialMessages, onNewMessage }) => {
+const Chat: FC<ChatProps> = ({
+  isNewStep,
+  initialMessages,
+  onEmptySubmit,
+  onNewMessage,
+}) => {
   const [messages, setMessages] = useState<Message[]>(initialMessages);
   useEffect(() => {
     setMessages(initialMessages);
@@ -52,7 +59,10 @@ const Chat: FC<ChatProps> = ({ initialMessages, onNewMessage }) => {
   }, [messages]);
 
   const handleSendMessage = () => {
-    if (inputValue.trim() === '') return;
+    if (inputValue.trim() === '') {
+      onEmptySubmit();
+      return;
+    }
 
     const newMessage: Message = { sender: 'Human', text: inputValue };
     setMessages((prevMessages) => [...prevMessages, newMessage]);
@@ -104,7 +114,7 @@ const Chat: FC<ChatProps> = ({ initialMessages, onNewMessage }) => {
             size="sm"
             variant="secondary"
           >
-            Retry
+            {isNewStep ? 'Submit' : 'Retry'}
             <ArrowUpIcon />
           </Button>
         </div>

@@ -11,6 +11,7 @@ interface StepRendererProps {
   stepOutput: FrontendStepOutput | null;
   stepInputPrompt: string;
   footer?: ReactNode;
+  isNewStep: boolean;
   onRetry: (
     stepIndex: number,
     userMessage: string,
@@ -24,8 +25,9 @@ function StepRenderer({
   stepOutput,
   stepInputPrompt,
   footer,
-  onRetry,
+  onSubmit,
   stepIndex,
+  isNewStep,
 }: StepRendererProps) {
   const chatInitialMessages = stepInputPrompt
     ? [{ sender: 'AI', text: stepInputPrompt }]
@@ -46,7 +48,9 @@ function StepRenderer({
             Chat
           </Heading>
           <Chat
-            onNewMessage={(msg, callback) => onRetry(stepIndex, msg, callback)}
+            isNewStep={isNewStep}
+            onNewMessage={(msg, callback) => onSubmit(stepIndex, msg, callback)}
+            onEmptySubmit={(callback) => onSubmit(stepIndex, '', callback)}
             initialMessages={chatInitialMessages}
           />
         </div>
