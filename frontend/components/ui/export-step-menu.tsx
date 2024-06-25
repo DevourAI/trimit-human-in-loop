@@ -19,18 +19,15 @@ import { DownloadFileParams } from '@/lib/types';
 interface DownloadButtonsProps {
   userParams: DownloadFileParams;
   stepName?: string;
-  substepName?: string;
 }
 
 export default function ExportStepMenu({
   userParams,
   stepName,
-  substepName,
 }: DownloadButtonsProps) {
   const downloadParams: DownloadFileParams = {
     ...userParams,
     step_name: stepName,
-    substep_name: substepName,
   };
 
   return (

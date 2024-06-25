@@ -7,7 +7,9 @@ import {
 import React, { useEffect } from 'react';
 
 import { Button } from '@/components/ui/button';
+import ExportStepMenu from '@/components/ui/export-step-menu';
 import { useStepper } from '@/components/ui/stepper';
+import { DownloadFileParams } from '@/lib/types';
 
 export interface FooterProps {
   onPrevStep: () => void;
@@ -17,6 +19,8 @@ export interface FooterProps {
   trueStepIndex: number;
   hasCompletedAllSteps: boolean;
   totalNSteps: number;
+  userParams: DownloadFileParams;
+  stepName: string;
 }
 
 export const Footer = ({
@@ -27,6 +31,8 @@ export const Footer = ({
   trueStepIndex,
   hasCompletedAllSteps,
   totalNSteps,
+  userParams,
+  stepName,
 }: FooterProps) => {
   const {
     nextStep,
@@ -72,6 +78,8 @@ export const Footer = ({
             Undo step
           </Button>
         </div>
+
+        <ExportStepMenu userParams={userParams} stepName={stepName} />
         <Button
           size="sm"
           onClick={onNextStep}

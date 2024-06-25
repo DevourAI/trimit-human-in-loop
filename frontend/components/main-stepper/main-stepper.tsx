@@ -14,7 +14,7 @@ import { Footer } from '@/components/main-stepper/main-stepper-footer';
 import StepRenderer from '@/components/main-stepper/step-renderer';
 import { Button } from '@/components/ui/button';
 import { Step, Stepper } from '@/components/ui/stepper';
-import { FormSchema, StepperForm } from '@/components/ui/stepper-form';
+import { FormSchema } from '@/components/ui/stepper-form';
 import { useToast } from '@/components/ui/use-toast';
 import { useStepperForm } from '@/contexts/stepper-form-context';
 import { useUser } from '@/contexts/user-context';
@@ -252,6 +252,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     | { type: 'append'; value: string }
     | { type: 'restart'; value: string };
 
+  // TODO change activePrompt name to outputText
   const [activePrompt, activePromptDispatch] = useReducer(
     (state: string, action: ActivePromptAction) => {
       switch (action.type) {
@@ -509,25 +510,11 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                 label={step.human_readable_name || step.name}
               >
                 <div className="grid w-full gap-2">
-                  <StepperForm
-                    systemPrompt={activePrompt}
-                    isInitialized={workflowInitialized}
-                    isLoading={isLoading}
-                    prompt={userFeedbackRequest}
-                    stepIndex={index}
-                    onRetry={retryStep}
-                    onSubmit={advanceStep}
-                    userParams={userParams}
-                    step={step}
-                    onCancelStep={() => {
-                      throw new Error('Unimplemented');
-                    }}
-                  />
-
                   <StepRenderer
                     step={step}
                     stepIndex={index}
                     stepInputPrompt={stepInputPrompt}
+                    outputText={activePrompt} // TODO change activePrompt name to outputText
                     stepOutput={
                       latestState?.outputs?.length &&
                       latestState.outputs.length > index
@@ -536,6 +523,8 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                     }
                     onSubmit={advanceOrRetryStep}
                     isNewStep={trueStepIndex < index}
+                    isLoading={isLoading}
+                    isInitialized={workflowInitialized}
                     footer={
                       <Footer
                         currentStepIndex={currentStepIndex}
@@ -545,6 +534,8 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                         undoLastStep={undoLastStep}
                         hasCompletedAllSteps={hasCompletedAllSteps}
                         totalNSteps={latestState.all_steps!.length}
+                        userParams={userParams}
+                        stepName={step.name}
                       />
                     }
                   />
