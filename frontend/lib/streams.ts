@@ -1,3 +1,5 @@
+import { Readable } from 'stream';
+
 import {
   CutTranscriptLinearWorkflowStreamingOutput,
   FrontendWorkflowState,
@@ -30,10 +32,7 @@ export async function decodeStreamAsJSON(
       if (valueDecoded && valueDecoded.final_state) {
         return [valueDecoded.final_state, true];
       } else if (valueDecoded) {
-        console.log('valueDecoded, passing to callback', valueDecoded);
         callback(valueDecoded);
-      } else {
-        console.log('Could not parse message', valueDecoded);
       }
     }
     return [null, true];
@@ -98,4 +97,73 @@ export async function decodeStreamAsJSON(
     console.error('Buffer: ', buffer);
   }
   return lastValue;
+}
+
+export async function decodeStreamWithAxios(
+  stream: Readable,
+  callback: (output: CutTranscriptLinearWorkflowStreamingOutput) => void
+): Promise<FrontendWorkflowState | null> {
+  let buffer = ''; // Buffer to accumulate chunks of data
+  let lastValue = null; // Variable to store the last processed value
+
+  // Function to process a chunk of text and parse it as JSON
+  function processChunk(text: string) {
+    if (text) {
+      let valueDecoded = null;
+      try {
+        valueDecoded = JSON.parse(text);
+      } catch (e) {
+        return [null, false];
+      }
+      if (valueDecoded && valueDecoded.final_state) {
+        return [valueDecoded.final_state, true];
+      } else if (valueDecoded) {
+        callback(valueDecoded);
+      }
+    }
+    return [null, true];
+  }
+
+  function splitAndProcessBuffer(buffer: string) {
+    const parts = buffer.split(/(?<=})(?={)/);
+    let lastValue = null;
+    let parsed = false;
+    const n = parts.length > 1 ? parts.length - 1 : parts.length;
+    for (let i = 0; i < n; i++) {
+      [lastValue, parsed] = processChunk(parts[i]);
+    }
+    if (parts.length > 1) {
+      buffer = parts[parts.length - 1];
+    } else if (parsed) {
+      buffer = '';
+    }
+    return [buffer, lastValue];
+  }
+
+  return new Promise((resolve, reject) => {
+    stream.on('data', (data) => {
+      const chunk = new TextDecoder('utf-8').decode(data);
+      buffer += chunk;
+      [buffer, lastValue] = splitAndProcessBuffer(buffer);
+    });
+
+    stream.on('end', () => {
+      // Final processing if there's remaining data in the buffer
+      if (buffer.length > 0) {
+        [buffer, lastValue] = splitAndProcessBuffer(buffer);
+      }
+      if (!lastValue) {
+        console.error('No last value found in stream');
+        console.error('Buffer:', buffer);
+        reject('Stream ended but no valid final state was parsed.');
+      } else {
+        resolve(lastValue);
+      }
+    });
+
+    stream.on('error', (error) => {
+      console.error('Stream encountered an error:', error);
+      reject(error);
+    });
+  });
 }

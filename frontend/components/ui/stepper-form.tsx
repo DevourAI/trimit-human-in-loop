@@ -1,7 +1,6 @@
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
-import { ReloadIcon } from '@radix-ui/react-icons';
 import { ChangeEvent, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -135,6 +134,7 @@ export function StepperForm({
           )}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
+              {/*
               <Button
                 size="sm"
                 disabled={isLoading}
@@ -154,6 +154,7 @@ export function StepperForm({
                 <ReloadIcon className="mr-2" />
                 Submit
               </Button>
+                */}
               <ExportStepMenu
                 userParams={userParams}
                 stepName={step.name}

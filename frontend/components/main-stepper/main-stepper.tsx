@@ -14,7 +14,7 @@ import { Footer } from '@/components/main-stepper/main-stepper-footer';
 import StepRenderer from '@/components/main-stepper/step-renderer';
 import { Button } from '@/components/ui/button';
 import { Step, Stepper } from '@/components/ui/stepper';
-import { FormSchema, StepperForm } from '@/components/ui/stepper-form';
+import { FormSchema } from '@/components/ui/stepper-form';
 import { useToast } from '@/components/ui/use-toast';
 import { useStepperForm } from '@/contexts/stepper-form-context';
 import { useUser } from '@/contexts/user-context';
@@ -146,11 +146,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       // since we include currentStepIndex as a dependency
       // but set its value in the first successful call to this effect hook,
       // the 2nd call to this hook should be a noop
-      console.log('fetchedInitialState.current', fetchedInitialState.current);
-      console.log(
-        'allowRunningFromCurrentStepIndexChange.current',
-        allowRunningFromCurrentStepIndexChange.current
-      );
       if (
         fetchedInitialState.current &&
         !allowRunningFromCurrentStepIndexChange.current
@@ -160,12 +155,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       }
       const data = await getLatestState(userParams.workflow_id);
       if (!data || Object.keys(data).length === 0) return;
-      console.log('data', data);
       if (!fetchedInitialState.current) {
         let stepIndex = -1;
         try {
           stepIndex = stepIndexFromState(data);
-          console.log('stepIndex', stepIndex);
         } catch (error) {
           console.log(error);
         }
@@ -183,6 +176,31 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }, [userData, userParams, project?.video_hash, currentStepIndex]);
 
   const prevTrueStepIndex = useRef<number>(trueStepIndex);
+  const advanceStep = useCallback(
+    async (stepIndex: number) => {
+      setIsLoading(true);
+      setCurrentStepIndex(stepIndex);
+      setStepOutput(null);
+      const stepData: StepData = {
+        user_input:
+          stepperFormValues.feedback !== undefined &&
+          stepperFormValues.feedback !== null
+            ? stepperFormValues.feedback
+            : '',
+        streaming: true,
+        ignore_running_workflows: true,
+        retry_step: false,
+        advance_until: stepIndex,
+      };
+      try {
+        await step(userParams.workflow_id, stepData, handleStepStream);
+      } catch (error) {
+        console.error('error in step', error);
+      }
+    },
+    [userParams, stepperFormValues]
+  );
+
   useEffect(() => {
     async function setPageStateFromBackendState() {
       if (!latestState || !latestState.all_steps) return;
@@ -234,6 +252,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     | { type: 'append'; value: string }
     | { type: 'restart'; value: string };
 
+  // TODO change activePrompt name to outputText
   const [activePrompt, activePromptDispatch] = useReducer(
     (state: string, action: ActivePromptAction) => {
       switch (action.type) {
@@ -288,12 +307,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         );
       }
       const stepName = stepNameFromIndex(latestState.all_steps, stepIndex);
-      console.log('stepName', stepName);
       const success = await revertStepToInBackend({
         step_name: stepName,
         ...userParams,
       } as RevertStepToParams);
-      console.log('in revertStepTo success', success);
       if (success) {
         activePromptDispatch({ type: 'restart', value: '' });
         const latestState = await getLatestState(userParams.workflow_id);
@@ -306,48 +323,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     [latestState, userParams]
   );
 
-  const advanceStep = useCallback(
-    async (stepIndex: number) => {
-      setIsLoading(true);
-      // if (trueStepIndex >= stepIndex) {
-      // console.log('reverting step to before', stepIndex);
-      // // TODO send name of step and have backend do reversions
-      // const success = await revertStepTo(stepIndex);
-      // console.log('revert success', success);
-      // if (!success) {
-      // setIsLoading(false);
-      // return;
-      // }
-      // }
-      setCurrentStepIndex(stepIndex);
-      setStepOutput(null);
-      const data: StepData = {
-        user_input:
-          stepperFormValues.feedback !== undefined &&
-          stepperFormValues.feedback !== null
-            ? stepperFormValues.feedback
-            : '',
-        streaming: true,
-        force_restart: false,
-        ignore_running_workflows: true,
-        retry_step: false,
-        advance_until: stepIndex,
-      };
-      try {
-        await step(userParams.workflow_id, data, handleStepStream);
-      } catch (error) {
-        console.error('error in step', error);
-      }
-    },
-    [userParams, stepperFormValues]
-  );
-
   async function retryStep(
     stepIndex: number,
     data: z.infer<typeof FormSchema>
   ) {
-    console.log('passed form data', data);
-    console.log('form context data', stepperFormValues);
     // TODO: stepperFormValues.feedback is cut off- doesn't include last character
     setIsLoading(true);
     if (trueStepIndex > stepIndex) {
@@ -374,27 +353,28 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     }
   }
   // TODO combine this method with the form once we have structured input
-  async function retryStepNoForm(
+  async function advanceOrRetryStep(
     stepIndex: number,
     userMessage: string,
     callback: (aiMessage: string) => void
   ) {
     // TODO: stepperFormValues.feedback is cut off- doesn't include last character
     setIsLoading(true);
-    if (trueStepIndex > stepIndex) {
-      const success = await revertStepTo(stepIndex + 1);
-      if (!success) {
-        setIsLoading(false);
-        return;
-      }
+    let retry = false;
+    if (trueStepIndex >= stepIndex) {
+      retry = true;
     }
+
+    setCurrentStepIndex(stepIndex);
+    setStepOutput(null);
     const stepData: StepData = {
       user_input: userMessage,
       streaming: true,
-      force_restart: false,
       ignore_running_workflows: true,
-      retry_step: true,
+      retry_step: retry,
+      advance_until: stepIndex,
     };
+    console.log('stepData', stepData);
     try {
       await step(userParams.workflow_id, stepData, async (reader) => {
         const finalState = await handleStepStream(reader);
@@ -453,36 +433,23 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }
 
   async function onPrevStep() {
-    console.log(
-      'onPrevStep trueStepIndex',
-      trueStepIndex,
-      'currentStepIndex',
-      currentStepIndex
-    );
     if (currentStepIndex === -1 || isLoading || !latestState?.all_steps) {
       return;
     }
     setCurrentStepIndex(currentStepIndex - 1);
     activePromptDispatch({ type: 'restart', value: '' });
-    console.log('onPrevStep updating step output to ', currentStepIndex - 1);
     updateStepOutput(currentStepIndex - 1, latestState);
   }
   async function onNextStep() {
-    console.log(
-      'onNextStep trueStepIndex',
-      trueStepIndex,
-      'currentStepIndex',
-      currentStepIndex
-    );
     if (
       isLoading ||
       !latestState?.all_steps ||
-      currentStepIndex >= trueStepIndex
+      currentStepIndex == trueStepIndex + 1
     ) {
       return;
     }
-    if (currentStepIndex > trueStepIndex) {
-      setCurrentStepIndex(trueStepIndex);
+    if (currentStepIndex > trueStepIndex + 1) {
+      setCurrentStepIndex(trueStepIndex + 1);
       return;
     }
     setCurrentStepIndex(currentStepIndex + 1);
@@ -491,8 +458,11 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     // (currently activePromptDispatch but kasp is adding better conversation UX)
     // using the messages in latestState for this particular step
     activePromptDispatch({ type: 'restart', value: '' });
-    console.log('onNextStep updating step output to ', currentStepIndex + 1);
-    updateStepOutput(currentStepIndex + 1, latestState);
+    if (currentStepIndex + 1 <= trueStepIndex) {
+      updateStepOutput(currentStepIndex + 1, latestState);
+    } else {
+      setStepOutput(null);
+    }
   }
 
   useEffect(() => {
@@ -507,10 +477,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }, [backendMessage, toast]);
 
   const workflowInitialized = project && latestState?.all_steps !== undefined;
-  console.log('project', project);
-  console.log('workflowInitialized', workflowInitialized);
-  console.log('latestState', latestState);
-  console.log('activePrompt', activePrompt);
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
@@ -544,32 +510,21 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                 label={step.human_readable_name || step.name}
               >
                 <div className="grid w-full gap-2">
-                  <StepperForm
-                    systemPrompt={activePrompt}
-                    isInitialized={workflowInitialized}
-                    isLoading={isLoading}
-                    prompt={userFeedbackRequest}
-                    stepIndex={index}
-                    onRetry={retryStep}
-                    onSubmit={advanceStep}
-                    userParams={userParams}
-                    step={step}
-                    onCancelStep={() => {
-                      throw new Error('Unimplemented');
-                    }}
-                  />
-
                   <StepRenderer
                     step={step}
                     stepIndex={index}
                     stepInputPrompt={stepInputPrompt}
+                    outputText={activePrompt} // TODO change activePrompt name to outputText
                     stepOutput={
                       latestState?.outputs?.length &&
                       latestState.outputs.length > index
                         ? latestState.outputs[index]
                         : null
                     }
-                    onRetry={retryStepNoForm}
+                    onSubmit={advanceOrRetryStep}
+                    isNewStep={trueStepIndex < index}
+                    isLoading={isLoading}
+                    isInitialized={workflowInitialized}
                     footer={
                       <Footer
                         currentStepIndex={currentStepIndex}
@@ -579,6 +534,8 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                         undoLastStep={undoLastStep}
                         hasCompletedAllSteps={hasCompletedAllSteps}
                         totalNSteps={latestState.all_steps!.length}
+                        userParams={userParams}
+                        stepName={step.name}
                       />
                     }
                   />
