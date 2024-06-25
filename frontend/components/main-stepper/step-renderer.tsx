@@ -32,8 +32,6 @@ function StepRenderer({
   const chatInitialMessages = stepInputPrompt
     ? [{ sender: 'AI', text: stepInputPrompt }]
     : [];
-  console.log('stepInputPrompt', stepInputPrompt);
-  console.log('chatInitialMessages', chatInitialMessages);
   if (stepOutput?.full_conversation) {
     stepOutput.full_conversation.forEach((msg) => {
       chatInitialMessages.push({ sender: msg.role, text: msg.value });

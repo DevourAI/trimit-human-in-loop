@@ -955,7 +955,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         output_dir.mkdir(parents=True, exist_ok=True)
         return str(output_dir)
 
-    async def revert_step_to_before(self, step_name: str, substep_name: str, save=True):
+    async def revert_step_to(self, step_name: str, substep_name: str, save=True):
         if not self._already_in_dynamic_state_step_order(step_name, substep_name):
             raise StepNotYetReachedError(
                 f"have not reached step {step_name}.{substep_name} yet"
@@ -965,7 +965,6 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         while latest_state_key != state_key:
             await self._revert_step()
             latest_state_key = self.get_latest_dynamic_key()
-        await self._revert_step()
         if save:
             await self.save()
 

@@ -146,11 +146,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       // since we include currentStepIndex as a dependency
       // but set its value in the first successful call to this effect hook,
       // the 2nd call to this hook should be a noop
-      console.log('fetchedInitialState.current', fetchedInitialState.current);
-      console.log(
-        'allowRunningFromCurrentStepIndexChange.current',
-        allowRunningFromCurrentStepIndexChange.current
-      );
       if (
         fetchedInitialState.current &&
         !allowRunningFromCurrentStepIndexChange.current
@@ -160,12 +155,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       }
       const data = await getLatestState(userParams.workflow_id);
       if (!data || Object.keys(data).length === 0) return;
-      console.log('data', data);
       if (!fetchedInitialState.current) {
         let stepIndex = -1;
         try {
           stepIndex = stepIndexFromState(data);
-          console.log('stepIndex', stepIndex);
         } catch (error) {
           console.log(error);
         }
@@ -186,32 +179,21 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   const advanceStep = useCallback(
     async (stepIndex: number) => {
       setIsLoading(true);
-      // if (trueStepIndex >= stepIndex) {
-      // console.log('reverting step to before', stepIndex);
-      // // TODO send name of step and have backend do reversions
-      // const success = await revertStepTo(stepIndex);
-      // console.log('revert success', success);
-      // if (!success) {
-      // setIsLoading(false);
-      // return;
-      // }
-      // }
       setCurrentStepIndex(stepIndex);
       setStepOutput(null);
-      const data: StepData = {
+      const stepData: StepData = {
         user_input:
           stepperFormValues.feedback !== undefined &&
           stepperFormValues.feedback !== null
             ? stepperFormValues.feedback
             : '',
         streaming: true,
-        force_restart: false,
         ignore_running_workflows: true,
         retry_step: false,
         advance_until: stepIndex,
       };
       try {
-        await step(userParams.workflow_id, data, handleStepStream);
+        await step(userParams.workflow_id, stepData, handleStepStream);
       } catch (error) {
         console.error('error in step', error);
       }
@@ -324,12 +306,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         );
       }
       const stepName = stepNameFromIndex(latestState.all_steps, stepIndex);
-      console.log('stepName', stepName);
       const success = await revertStepToInBackend({
         step_name: stepName,
         ...userParams,
       } as RevertStepToParams);
-      console.log('in revertStepTo success', success);
       if (success) {
         activePromptDispatch({ type: 'restart', value: '' });
         const latestState = await getLatestState(userParams.workflow_id);
@@ -346,8 +326,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     stepIndex: number,
     data: z.infer<typeof FormSchema>
   ) {
-    console.log('passed form data', data);
-    console.log('form context data', stepperFormValues);
     // TODO: stepperFormValues.feedback is cut off- doesn't include last character
     setIsLoading(true);
     if (trueStepIndex > stepIndex) {
@@ -385,20 +363,17 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     if (trueStepIndex >= stepIndex) {
       retry = true;
     }
-    if (trueStepIndex > stepIndex) {
-      const success = await revertStepTo(stepIndex + 1);
-      if (!success) {
-        setIsLoading(false);
-        return;
-      }
-    }
+
+    setCurrentStepIndex(stepIndex);
+    setStepOutput(null);
     const stepData: StepData = {
       user_input: userMessage,
       streaming: true,
-      force_restart: false,
       ignore_running_workflows: true,
       retry_step: retry,
+      advance_until: stepIndex,
     };
+    console.log('stepData', stepData);
     try {
       await step(userParams.workflow_id, stepData, async (reader) => {
         const finalState = await handleStepStream(reader);
@@ -457,27 +432,14 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }
 
   async function onPrevStep() {
-    console.log(
-      'onPrevStep trueStepIndex',
-      trueStepIndex,
-      'currentStepIndex',
-      currentStepIndex
-    );
     if (currentStepIndex === -1 || isLoading || !latestState?.all_steps) {
       return;
     }
     setCurrentStepIndex(currentStepIndex - 1);
     activePromptDispatch({ type: 'restart', value: '' });
-    console.log('onPrevStep updating step output to ', currentStepIndex - 1);
     updateStepOutput(currentStepIndex - 1, latestState);
   }
   async function onNextStep() {
-    console.log(
-      'onNextStep trueStepIndex',
-      trueStepIndex,
-      'currentStepIndex',
-      currentStepIndex
-    );
     if (
       isLoading ||
       !latestState?.all_steps ||
@@ -495,7 +457,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     // (currently activePromptDispatch but kasp is adding better conversation UX)
     // using the messages in latestState for this particular step
     activePromptDispatch({ type: 'restart', value: '' });
-    console.log('onNextStep updating step output to ', currentStepIndex + 1);
     if (currentStepIndex + 1 <= trueStepIndex) {
       updateStepOutput(currentStepIndex + 1, latestState);
     } else {
@@ -515,10 +476,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }, [backendMessage, toast]);
 
   const workflowInitialized = project && latestState?.all_steps !== undefined;
-  console.log('project', project);
-  console.log('workflowInitialized', workflowInitialized);
-  console.log('latestState', latestState);
-  console.log('activePrompt', activePrompt);
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">

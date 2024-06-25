@@ -116,7 +116,7 @@ async def step(
         if substep_name is None:
             raise ValueError("substep_name must be provided if step_name is provided")
         try:
-            await workflow.revert_step_to_before(step_name, substep_name)
+            await workflow.revert_step_to(step_name, substep_name)
         except StepNotYetReachedError:
             step_workflow_advance_until = get_dynamic_state_key(step_name, substep_name)
 

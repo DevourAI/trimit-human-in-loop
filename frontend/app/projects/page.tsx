@@ -37,7 +37,6 @@ export default function Projects() {
 
   useEffect(() => {
     if (selectedProject?.id) {
-      console.log(selectedProject);
       router.push(`/builder?projectId=${selectedProject.id}`);
     }
   }, [router, selectedProject]);

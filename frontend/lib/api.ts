@@ -97,6 +97,88 @@ const postFetcherWithData = async (
   }
 };
 
+// const postJSONFetcherWithStreamingResponse = async (
+// url: string,
+// options: {
+// data: Record<string, unknown>,
+// params?: Record<string, unknown>,
+// streamReaderCallback?: (reader: ReadableStreamDefaultReader) => void
+// }
+// ): Promise<unknown> => {
+// let res: AxiosResponse;
+// const axiosConfig = {
+// url,
+// method: 'post',
+// baseURL: API_URL,
+// data: options.data,
+// params: options.params,
+// };
+// console.log('axiosConfig', axiosConfig);
+// console.log('options', options);
+// try {
+// res = await axios(axiosConfig);
+// } catch (error) {
+// console.error('postFetcherWithData error', error);
+// return { error };
+// }
+// if (!res.body) {
+// const errorMsg ='The response body is empty.';
+// console.error(errorMsg);
+// return {error: errorMsg}
+// }
+// if (options.streamReaderCallback) {
+// const reader = res.body.getReader();
+// options.streamReaderCallback(reader);
+// }
+// };
+const postJSONFetcherWithStreamingResponse = async (
+  url: string,
+  options: {
+    data: Record<string, any>;
+    params?: Record<string, any>;
+    streamReaderCallback?: (reader: ReadableStreamDefaultReader) => void;
+  }
+): Promise<unknown> => {
+  // Prepare URL with query parameters if any
+  const urlWithParams = new URL(url);
+  if (options.params) {
+    Object.keys(options.params).forEach((key) =>
+      urlWithParams.searchParams.append(key, options.params[key])
+    );
+  }
+
+  // Prepare fetch options
+  const fetchOptions = {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(options.data),
+  };
+
+  try {
+    const response = await fetch(urlWithParams.toString(), fetchOptions);
+
+    // Check if the response is ok (status in the range 200-299)
+    if (!response.ok) {
+      throw new Error(`HTTP error! status: ${response.status}`);
+    }
+
+    // If a streamReaderCallback is provided and the body is usable as a stream
+    if (options.streamReaderCallback && response.body) {
+      const reader = response.body.getReader();
+      options.streamReaderCallback(reader);
+      return;
+    }
+
+    // If streaming is not required, simply return the parsed JSON
+    return await response.json();
+  } catch (error) {
+    console.error('postFetcherWithData error', error);
+    return { error };
+  }
+};
+
 export async function createNewWorkflow(
   params: CreateNewWorkflowParams
 ): Promise<string> {
@@ -129,12 +211,9 @@ export async function revertStepToInBackend(
   params: RevertStepToParams
 ): Promise<boolean> {
   const result = await fetcherWithParams('revert_workflow_step_to', params);
-  console.log('revertStepToInBackend result', result);
   if (result && result.error !== undefined) {
-    console.log('returning false');
     return false;
   }
-  console.log('returning true');
   return true;
 }
 
@@ -178,30 +257,15 @@ export async function step(
   data: StepData,
   streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
 ): Promise<void> {
-  const url = new URL(`${API_URL}/step`);
-  url.searchParams.append('workflow_id', workflowId);
-  try {
-    const res = await fetch(url.toString(), {
-      method: 'Post',
-      body: JSON.stringify(data),
-    }).catch((err) => {
-      throw err;
-    });
-    if (!res.ok) {
-      throw new Error(
-        (await res.text()) || 'Failed to fetch the chat response.'
-      );
-    }
-
-    if (!res.body) {
-      throw new Error('The response body is empty.');
-    }
-    const reader = res.body.getReader();
-    streamReaderCallback(reader);
-  } catch (err: unknown) {
-    console.error(err);
-  }
+  console.log('data in step', data);
+  const params = { workflow_id: workflowId };
+  await postJSONFetcherWithStreamingResponse(`${API_URL}/step`, {
+    params,
+    data,
+    streamReaderCallback,
+  });
 }
+
 export async function listWorkflows(
   params: ListWorkflowParams
 ): Promise<FrontendWorkflowProjection[]> {
@@ -228,7 +292,6 @@ export async function checkWorkflowExists(
   queryParams: StepQueryParams
 ): Promise<boolean> {
   const data = await fetcherWithParams('workflow_exists', queryParams);
-  console.log('workflow exists output', data);
   if (data && data.error) {
     console.error(data.error);
   } else if (data && data.exists) {
@@ -306,11 +369,9 @@ export async function getUploadedVideos(
 ): Promise<UploadedVideo[]> {
   if (params.user_email === '') return {};
 
-  console.log(params.user_email);
   const respData = await videosApi.uploadedVideosUploadedVideosGet(
     params.user_email
   );
-  console.log('upload video resp data', respData);
 
   const data = respData.data;
   if (respData && respData.error) {

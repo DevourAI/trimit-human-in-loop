@@ -45,8 +45,6 @@ const Chat: FC<ChatProps> = ({
   useEffect(() => {
     setMessages(initialMessages);
   }, [initialMessages]);
-  console.log('initialMessages inside Chat', initialMessages);
-  console.log('messages inside Chat', messages);
   const [inputValue, setInputValue] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -58,9 +56,15 @@ const Chat: FC<ChatProps> = ({
     scrollToBottom();
   }, [messages]);
 
+  const setAIMessageCallback = (aiMessage: string) => {
+    setMessages((prevMessages) => [
+      ...prevMessages,
+      { sender: 'AI', text: aiMessage },
+    ]);
+  };
   const handleSendMessage = () => {
     if (inputValue.trim() === '') {
-      onEmptySubmit();
+      onEmptySubmit(setAIMessageCallback);
       return;
     }
 
@@ -68,12 +72,7 @@ const Chat: FC<ChatProps> = ({
     setMessages((prevMessages) => [...prevMessages, newMessage]);
     setInputValue('');
 
-    onNewMessage(newMessage.text, (aiMessage: string) => {
-      setMessages((prevMessages) => [
-        ...prevMessages,
-        { sender: 'AI', text: aiMessage },
-      ]);
-    });
+    onNewMessage(newMessage.text, setAIMessageCallback);
   };
 
   const handleSubmit = (e: React.FormEvent) => {

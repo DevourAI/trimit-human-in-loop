@@ -7,7 +7,7 @@ from pathlib import Path
 from torch import export
 import yaml
 
-from pydantic import EmailStr, BaseModel
+from pydantic import EmailStr, BaseModel, Field
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter, PydanticObjectId
@@ -25,6 +25,7 @@ from fastapi import (
     Query,
     HTTPException,
     Depends,
+    Body,
 )
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
@@ -89,7 +90,17 @@ video_processing_call_ids = Dict.from_name(
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
+        # Check if it's a preflight request
+        if request.method == "OPTIONS":
+            response = Response()
+            self.apply_cors_headers(request, response)
+            return response
+
         response = await call_next(request)
+        self.apply_cors_headers(request, response)
+        return response
+
+    def apply_cors_headers(self, request: Request, response: Response):
         origin = request.headers.get("origin")
         # Regex to match allowed origins, e.g., any subdomain of trimit.vercel.app
         local_origins = ["http://127.0.0.1:3000", "http://localhost:3000"]
@@ -154,6 +165,7 @@ async def form_user_dependency(user_email: EmailStr = Depends(get_user_email)):
 
 
 async def get_current_workflow_frontend_state(workflow_id: str):
+    await maybe_init_mongo()
     return await CutTranscriptLinearWorkflowState.find_one(
         CutTranscriptLinearWorkflowState.id == PydanticObjectId(workflow_id)
     ).project(FrontendWorkflowProjection)
@@ -339,6 +351,33 @@ async def check_function_call_results(modal_call_ids: list[str], timeout: float 
     return CheckFunctionCallResults(statuses=statuses)
 
 
+class StepInput(BaseModel):
+    user_input: str | None = Field(
+        None,
+        description="string conversational input from the user that will be provided to the underlying LLM",
+    )
+    streaming: bool = Field(
+        True,
+        description="If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran",
+    )
+    ignore_running_workflows: bool = Field(
+        False,
+        description="If True, run this workflow's step even if it is already running. May lead to race conditions in underlying database",
+    )
+    retry_step: bool = Field(
+        False,
+        description="If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output",
+    )
+    structured_user_input: StructuredUserInput | None = Field(
+        None,
+        description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
+    )
+    advance_until: int | None = Field(
+        None,
+        description="Advance steps until this step index is reached, or revert step to before this index and rerun step at this index",
+    )
+
+
 @web_app.post(
     "/step",
     response_model=CutTranscriptLinearWorkflowStreamingOutput,
@@ -361,31 +400,8 @@ The last output this method produces is always `final_step_output`, which includ
 """,
 )
 def step_endpoint(
+    step_input: StepInput,
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
-    user_input: str | None = Form(
-        None,
-        description="string conversational input from the user that will be provided to the underlying LLM",
-    ),
-    streaming: bool = Form(
-        True,
-        description="If False, do not stream intermediate output and just provide the final workflow output after all substeps have ran",
-    ),
-    ignore_running_workflows: bool = Form(
-        False,
-        description="If True, run this workflow's step even if it is already running. May lead to race conditions in underlying database",
-    ),
-    retry_step: bool = Form(
-        False,
-        description="If True, indicates that the client desires to run the last step again, optionally with user feedback in user_input instructing the LLM how to modify its previous output",
-    ),
-    structured_user_input: StructuredUserInput | None = Form(
-        None,
-        description="structured input that will be passed to a step to guide modification, separate from the LLM conversation. The particular structure is unique to each step. Only one of the subfields should be defined",
-    ),
-    advance_until: int | None = Form(
-        None,
-        description="Advance steps until this step index is reached, or revert step to before this index and rerun step at this index",
-    ),
 ):
     if workflow is None:
         raise HTTPException(
@@ -393,17 +409,17 @@ def step_endpoint(
         )
     step_params = {
         "workflow": workflow,
-        "user_input": user_input,
-        "structured_user_input": structured_user_input,
-        "ignore_running_workflows": ignore_running_workflows,
+        "user_input": step_input.user_input,
+        "structured_user_input": step_input.structured_user_input,
+        "ignore_running_workflows": step_input.ignore_running_workflows,
         "async_export": os.environ.get("ASYNC_EXPORT", False),
-        "retry_step": retry_step,
-        "advance_until": advance_until,
+        "retry_step": step_input.retry_step,
+        "advance_until": step_input.advance_until,
     }
     from trimit.backend.serve import step as step_function
 
     print(f"Starting step with params: {step_params}")
-    if not streaming:
+    if not step_input.streaming:
         step_function.spawn(**step_params)
     else:
 
