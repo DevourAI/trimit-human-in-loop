@@ -35,6 +35,7 @@ const fetcherWithParams = async (
   url: string,
   params: Record<string, unknown>
 ): Promise<unknown> => {
+  console.log('url', url, 'params', params);
   try {
     const res: AxiosResponse = await axios.get(url, {
       baseURL: API_URL,
@@ -351,17 +352,23 @@ export async function getFunctionCallResults(
   callIds: string[],
   options: { timeout?: number } = { timeout: 0 }
 ): Promise<unknown> {
-  if (!callIds || callIds.length === 0) {
+  const callIdsFiltered = callIds.filter((callId)=>{return (callId !== undefined && callId !== null)});
+  console.log('callIdsFiltered', callIdsFiltered);
+  if (callIdsFiltered.length === 0) {
     return { result: 'error', message: 'No callIds provided' };
   }
   const respData = (await fetcherWithParams('check_function_call_results', {
-    modal_call_ids: callIds,
+    modal_call_ids: encodeURIComponent(callIds.join(',')),
     ...options,
   })) as CheckFunctionCallResults;
   if (respData && respData.statuses) {
     return respData.statuses;
   }
   return { result: 'error', message: 'No result found' };
+}
+
+export function remoteVideoStreamURLForPath(path) {
+    return `${API_URL}/video?video_path=${encodeURIComponent(path)}`
 }
 
 export async function getUploadedVideos(

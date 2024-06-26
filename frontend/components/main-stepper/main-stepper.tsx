@@ -477,6 +477,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }, [backendMessage, toast]);
 
   const workflowInitialized = project && latestState?.all_steps !== undefined;
+  function onCancelStep() {
+    throw new Error("not implemented");
+  }
+
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
@@ -525,6 +529,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                     isNewStep={trueStepIndex < index}
                     isLoading={isLoading}
                     isInitialized={workflowInitialized}
+                    onCancelStep={onCancelStep}
                     footer={
                       <Footer
                         currentStepIndex={currentStepIndex}

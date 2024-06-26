@@ -3,7 +3,7 @@ from enum import StrEnum
 from IPython.display import Video
 from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel, Field, model_serializer
-from typing import Callable, Optional, Union
+from typing import Callable, Optional, Union, Any
 import pickle
 from trimit.utils.misc import union_list_of_intervals
 import copy
@@ -1558,6 +1558,7 @@ class SpeakerTaggingSegmentModification(BaseModel):
 
 
 class RemoveOffScreenSpeakersInput(BaseModel):
+    # TODO modify this to be simpler. Check out frontend
     segments: list[SpeakerTaggingSegmentModification]
 
 
@@ -1834,6 +1835,7 @@ class CallStatus(BaseModel):
     status: str = Field(..., description="'done', 'pending', or 'error'")
     call_id: str | None
     error: str | None = None
+    output: Any | None = None
 
 
 class VideoProcessingStatus(CallStatus):
@@ -1841,7 +1843,7 @@ class VideoProcessingStatus(CallStatus):
 
     @classmethod
     def from_call_status(cls, status, video_hash):
-        return cls(status=status, **status.model_dump())
+        return cls(status=status, video_hash=video_hash, **status.model_dump())
 
 
 class GetVideoProcessingStatus(BaseModel):

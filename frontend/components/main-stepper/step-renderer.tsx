@@ -24,6 +24,7 @@ interface StepRendererProps {
   stepIndex: number;
   isLoading: boolean;
   isInitialized: boolean;
+  onCancelStep?: () => void;
 }
 
 function StepRenderer({
@@ -37,6 +38,7 @@ function StepRenderer({
   isNewStep,
   isLoading,
   isInitialized,
+  onCancelStep,
 }: StepRendererProps) {
   const chatInitialMessages = stepInputPrompt
     ? [{ sender: 'AI', text: stepInputPrompt }]
@@ -49,6 +51,9 @@ function StepRenderer({
 
   const outputTextDefaultOpen =
     stepOutput === null || !stepOutput.step_outputs?.length;
+  // TODO
+  const onOutputFormSubmit(data) => {
+  };
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
@@ -83,7 +88,7 @@ function StepRenderer({
             value={outputText}
             step={step}
           />
-          <StepOutput output={stepOutput} />
+          <StepOutput output={stepOutput} onSubmit={onOutputFormSubmit}/>
         </div>
       </CardContent>
       {footer && <CardFooter>{footer}</CardFooter>}
