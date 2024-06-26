@@ -694,7 +694,9 @@ class Transcript:
         chunks=None,
     ):
         self.segments = segments
-        self.kept_segments = kept_segments or set(range(len(segments)))
+        self.kept_segments = (
+            kept_segments if kept_segments is not None else set(range(len(segments)))
+        )
         self.partition_boundaries = partition_boundaries or []
         self.chunks = chunks or []
 
@@ -1558,8 +1560,8 @@ class SpeakerTaggingSegmentModification(BaseModel):
 
 
 class RemoveOffScreenSpeakersInput(BaseModel):
-    # TODO modify this to be simpler. Check out frontend
-    segments: list[SpeakerTaggingSegmentModification]
+    speaker_tag_mapping: dict[str, bool] | None = None
+    speaker_name_mapping: dict[str, str] | None = None
 
 
 class PartialFeedback(BaseModel):

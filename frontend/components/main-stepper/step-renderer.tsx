@@ -51,8 +51,13 @@ function StepRenderer({
 
   const outputTextDefaultOpen =
     stepOutput === null || !stepOutput.step_outputs?.length;
-  // TODO
-  const onOutputFormSubmit = (data) => {};
+
+  const onOutputFormSubmit = (data) => {
+    // TODO should have a single submit button instead of two
+    // and send chat message here
+    console.log('onOutputFormSubmit', 'stepIndex', stepIndex, 'data', data);
+    onSubmit({ stepIndex, userMesage: '', structuredUserInput: data });
+  };
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
@@ -73,8 +78,10 @@ function StepRenderer({
           </Heading>
           <Chat
             isNewStep={isNewStep}
-            onNewMessage={(msg, callback) => onSubmit(stepIndex, msg, callback)}
-            onEmptySubmit={(callback) => onSubmit(stepIndex, '', callback)}
+            onNewMessage={(userMessage, callback) =>
+              onSubmit({ stepIndex, userMessage, callback })
+            }
+            onEmptySubmit={(callback) => onSubmit({ stepIndex, callback })}
             initialMessages={chatInitialMessages}
           />
         </div>

@@ -1,6 +1,4 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import React, { FC } from 'react';
-import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
@@ -24,13 +22,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { VideoStream } from '@/components/ui/video-stream';
-import { StructuredUserInputInput } from '@/gen/openapi';
 import { OutputComponentProps } from '@/lib/types';
 
 const removeEmptyVals = (d) => {
   return Object.keys(d).reduce((acc, key) => {
-    if (d[key].length) {
-      acc[key] = [key];
+    if (d[key] !== undefined && d[key] !== null && d[key] !== '') {
+      acc[key] = d[key];
     }
     return acc;
   }, {});
@@ -59,53 +56,28 @@ const SpeakerTaggingExamples: FC<{ videoPaths: string[] }> = ({
     </Carousel>
   );
 };
-export const OnScreenSpeakerIdentificationFormSchema = z.object({
-  speaker_name_mapping: z.record(z.string()),
-  speaker_tag_mapping: z.record(z.string(), z.boolean()),
-});
 
 export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
   value,
   exportResult,
   onSubmit,
+  form,
 }) => {
-  const speakerTaggingClips = exportResult.speaker_tagging_clips || {};
-  const defaultNameMapping = Object.keys(speakerTaggingClips).reduce(
-    (acc, key) => {
-      acc[key] = '';
-      return acc;
-    },
-    {}
-  );
-  const defaultTagMapping = Object.keys(speakerTaggingClips).reduce(
-    (acc, key) => {
-      acc[key] = value.includes(key.toLowerCase());
-      return acc;
-    },
-    {}
-  );
-  const form = useForm<z.infer<typeof OnScreenSpeakerIdentificationFormSchema>>(
-    {
-      resolver: zodResolver(OnScreenSpeakerIdentificationFormSchema),
-      defaultValues: {
-        speaker_name_mapping: defaultNameMapping,
-        speaker_tag_mapping: defaultTagMapping,
-      },
-    }
-  );
-  const onSubmitWrapper = (
-    data: z.infer<typeof OnScreenSpeakerIdentificationFormSchema>
-  ) => {
-    data.speaker_name_mapping = removeEmptyVals(data.speaker_name_mapping);
-    data.speaker_tag_mapping = removeEmptyVals(data.speaker_tag_mapping);
-    onSubmit({ remove_off_screen_speakers: data } as StructuredUserInputInput);
+  const speakerTaggingClips = exportResult?.speaker_tagging_clips || {};
+  const onSubmitWrapper = (data: z.infer<typeof StructuredInputFormSchema>) => {
+    data.remove_off_screen_speakers.speaker_name_mapping = removeEmptyVals(
+      data.remove_off_screen_speakers.speaker_name_mapping
+    );
+    data.remove_off_screen_speakers.speaker_tag_mapping = removeEmptyVals(
+      data.remove_off_screen_speakers.speaker_tag_mapping
+    );
   };
 
   return (
     <div className="relative p-3">
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit((data) => onSubmit(data))}
+          onSubmit={form.handleSubmit((data) => onSubmitWrapper(data))}
           className="w-2/3 space-y-6"
         >
           {Object.keys(speakerTaggingClips).map((speaker, index) => (
@@ -113,19 +85,21 @@ export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
               <FormLabel>Speaker {speaker} tagged as</FormLabel>
               <FormField
                 control={form.control}
-                name={`speaker_tag_mapping.${speaker}`}
+                name={`remove_off_screen_speakers.speaker_tag_mapping.${speaker}`}
                 render={({ field }) => {
                   return (
                     <FormItem>
                       <FormControl>
                         <Switch
-                          id={`on-screen-switch-${speaker}`}
+                          id={`remove_off_screen_speakers.speaker_tag_mapping.${speaker}`}
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
                       <FormMessage />
-                      <Label htmlFor={`on-screen-switch-${speaker}`}>
+                      <Label
+                        htmlFor={`remove_off_screen_speakers.speaker_tag_mapping.${speaker}`}
+                      >
                         {field.value ? 'On Screen' : 'Off Screen'}
                       </Label>
                     </FormItem>
@@ -134,7 +108,7 @@ export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
               />
               <FormField
                 control={form.control}
-                name={`speaker_name_mapping.${speaker}`}
+                name={`remove_off_screen_speakers.speaker_name_mapping.${speaker}`}
                 render={({ field }) => {
                   return (
                     <FormItem>

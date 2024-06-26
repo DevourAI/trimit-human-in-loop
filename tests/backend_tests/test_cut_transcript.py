@@ -193,33 +193,90 @@ async def test_retry_soundbites_step(workflow_3909774043_with_state_init):
     assert output.step_name == step_name
 
 
+@pytest.mark.parametrize(
+    "structured_user_input,speakers_in_frame,speakers_out_frame",
+    [
+        #  (
+        #  StructuredUserInput(
+        #  remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+        #  speaker_name_mapping={'SPEAKER_00': 'Ruta Gupta', 'SPEAKER_01': 'Interviewer'},
+        #  speaker_tag_mapping={},
+        #  )
+        #  ),
+        #  ['Ruta Gupta'],
+        #  ['Interviewer']
+        #  ),
+        #  (
+        #  StructuredUserInput(
+        #  remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+        #  speaker_name_mapping={'SPEAKER_01': 'Interviewer'},
+        #  speaker_tag_mapping={},
+        #  )
+        #  ),
+        #  ['SPEAKER_00'],
+        #  ['Interviewer']
+        #  ),
+        (
+            StructuredUserInput(
+                remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+                    speaker_name_mapping={
+                        "SPEAKER_00": "Ruta Gupta",
+                        "SPEAKER_01": "Interviewer",
+                    },
+                    speaker_tag_mapping={"Ruta Gupta": False, "Interviewer": False},
+                )
+            ),
+            [],
+            ["Ruta Gupta", "Interviewer"],
+        ),
+        (
+            StructuredUserInput(
+                remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+                    speaker_name_mapping={
+                        "SPEAKER_00": "Ruta Gupta",
+                        "SPEAKER_01": "Interviewer",
+                    },
+                    speaker_tag_mapping={"Ruta Gupta": True, "Interviewer": True},
+                )
+            ),
+            ["Ruta Gupta", "Interviewer"],
+            [],
+        ),
+        (
+            StructuredUserInput(
+                remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+                    speaker_name_mapping={
+                        "SPEAKER_00": "Ruta Gupta",
+                        "SPEAKER_01": "Interviewer",
+                    },
+                    speaker_tag_mapping={"Ruta Gupta": False, "Interviewer": True},
+                )
+            ),
+            ["Interviewer"],
+            ["Ruta Gupta"],
+        ),
+    ],
+)
 async def test_retry_remove_off_screen_speakers_with_structured_user_input(
     workflow_3909774043_with_state_init_no_export,
+    structured_user_input,
+    speakers_in_frame,
+    speakers_out_frame,
 ):
     workflow = workflow_3909774043_with_state_init_no_export
+    workflow.state = workflow.state.model_copy()
+    workflow.step_order = workflow.state
     step_name = "remove_off_screen_speakers"
     output = None
-    while (await workflow.get_last_substep(with_load_state=False)).name != step_name:
+    latest_step_name = None
+    while latest_step_name != step_name:
         async for output, _ in workflow.step(
             load_state=False, save_state_to_db=False, async_export=False
         ):
             pass
-    structured_user_input = StructuredUserInput(
-        remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
-            segments=[
-                SpeakerTaggingSegmentModification(
-                    index=1, speaker="Ruta Gupta", on_screen=True
-                ),
-                SpeakerTaggingSegmentModification(
-                    index=4, speaker="Interviewer", on_screen=False
-                ),
-                SpeakerTaggingSegmentModification(
-                    index=18, speaker="Interviewer", on_screen=False
-                ),
-            ]
-        )
-    )
-    old_transcript = workflow.on_screen_transcript.copy()
+        latest_step = await workflow.get_last_substep(with_load_state=False)
+        latest_step_name = latest_step.name
+
     async for output, _ in workflow.step(
         load_state=False,
         save_state_to_db=False,
@@ -230,20 +287,15 @@ async def test_retry_remove_off_screen_speakers_with_structured_user_input(
     ):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert workflow.video.speakers_in_frame == ["Ruta Gupta"]
+    assert set(workflow.video.speakers_in_frame) == set(speakers_in_frame)
     new_transcript = workflow.on_screen_transcript
-    assert new_transcript.kept_segments == old_transcript.kept_segments - {18}
-    for i, (old_segment, new_segment) in enumerate(
-        zip(old_transcript.segments, new_transcript.segments)
-    ):
-        if i == 18:
-            assert new_segment.speaker == "Interviewer"
-        elif old_segment.speaker == "SPEAKER_00":
-            assert new_segment.speaker == "Ruta Gupta"
-        elif old_segment.speaker == "SPEAKER_01":
-            assert new_segment.speaker == "Interviewer"
+    for i, new_segment in enumerate(new_transcript.segments):
+        if i in new_transcript.kept_segments:
+            assert new_segment.speaker in speakers_in_frame
+            assert new_segment.speaker not in speakers_out_frame
         else:
-            assert False
+            assert new_segment.speaker in speakers_out_frame
+            assert new_segment.speaker not in speakers_in_frame
 
 
 async def test_decide_retry_transcript_chunks(

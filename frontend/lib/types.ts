@@ -1,3 +1,5 @@
+import type { UseFormReturn } from 'react-hook-form';
+
 import { type StepItem } from '@/components/ui/stepper';
 
 export interface ListWorkflowParams {
@@ -112,4 +114,5 @@ export interface OutputComponentProps {
   value: any;
   exportResult: any;
   onSubmit: (formData: StructuredUserInputInput) => void;
+  form: UseFormReturn;
 }

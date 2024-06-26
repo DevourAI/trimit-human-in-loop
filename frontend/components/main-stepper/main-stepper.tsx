@@ -1,5 +1,6 @@
 'use client';
 import { DownloadIcon, ReloadIcon } from '@radix-ui/react-icons';
+import { debounce } from 'lodash';
 import React, {
   useCallback,
   useEffect,
@@ -17,6 +18,10 @@ import { Step, Stepper } from '@/components/ui/stepper';
 import { FormSchema } from '@/components/ui/stepper-form';
 import { useToast } from '@/components/ui/use-toast';
 import { useStepperForm } from '@/contexts/stepper-form-context';
+import {
+  StructuredInputFormProvider,
+  StructuredInputFormSchema,
+} from '@/contexts/structured-input-form-context';
 import { useUser } from '@/contexts/user-context';
 import {
   CutTranscriptLinearWorkflowStepOutput,
@@ -116,6 +121,15 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   >({});
   const [hasCompletedAllSteps, setHasCompletedAllSteps] =
     useState<boolean>(false);
+  const [structuredInputFormData, setStructuredInputFormData] =
+    useState<z.infer<typeof StructuredInputFormSchema>>();
+
+  const handleStructuredInputFormValueChange = debounce(
+    (values: z.infer<typeof StructuredInputFormSchema>) => {
+      setStructuredInputFormData(values);
+    },
+    300
+  );
 
   const userParams = useMemo(
     () => ({
@@ -353,26 +367,32 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     }
   }
   // TODO combine this method with the form once we have structured input
-  async function advanceOrRetryStep(
-    stepIndex: number,
-    userMessage: string,
-    callback: (aiMessage: string) => void
-  ) {
+  async function advanceOrRetryStep(options: {
+    stepIndex: number;
+    userMessage: string;
+    callback: (aiMessage: string) => void;
+  }) {
+    if (options.stepIndex === null || options.stepIndex === undefined) {
+      throw new Error('must provide stepIndex to advanceOrRetryStep');
+    }
+
     // TODO: stepperFormValues.feedback is cut off- doesn't include last character
     setIsLoading(true);
     let retry = false;
-    if (trueStepIndex >= stepIndex) {
+    if (trueStepIndex >= options.stepIndex) {
       retry = true;
     }
+    console.log('advanceOrRetryStep retry', retry);
 
-    setCurrentStepIndex(stepIndex);
+    setCurrentStepIndex(options.stepIndex);
     setStepOutput(null);
     const stepData: StepData = {
-      user_input: userMessage,
+      user_input: options.userMessage || '',
+      structured_user_input: structuredInputFormData,
       streaming: true,
       ignore_running_workflows: true,
       retry_step: retry,
-      advance_until: stepIndex,
+      advance_until: options.stepIndex,
     };
     console.log('stepData', stepData);
     try {
@@ -386,7 +406,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
               stepOutput.full_conversation.length - 1
             ].value
           : '';
-        callback(aiMessage);
+        setCurrentStepIndex(stepIndexFromState(latestState));
+        if (options.callback) {
+          options.callback(aiMessage);
+        }
       });
     } catch (error) {
       console.error('error in step', error);
@@ -500,64 +523,60 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       </div>
 
       {workflowInitialized ? (
-        <Stepper
-          initialStep={currentStepIndex}
-          steps={latestState.all_steps.map((step: ExportableStepWrapper) => {
-            return { label: step.human_readable_name || step.name };
-          })}
-          orientation="vertical"
+        <StructuredInputFormProvider
+          onFormDataChange={handleStructuredInputFormValueChange}
+          stepOutput={stepOutput}
         >
-          {latestState.all_steps.map(
-            (step: ExportableStepWrapper, index: number) => (
-              <Step
-                key={step.name}
-                label={step.human_readable_name || step.name}
-              >
-                <div className="grid w-full gap-2">
-                  <StepRenderer
-                    step={step}
-                    stepIndex={index}
-                    stepInputPrompt={stepInputPrompt}
-                    outputText={activePrompt} // TODO change activePrompt name to outputText
-                    stepOutput={
-                      latestState?.outputs?.length &&
-                      latestState.outputs.length > index
-                        ? latestState.outputs[index]
-                        : null
-                    }
-                    onSubmit={advanceOrRetryStep}
-                    isNewStep={trueStepIndex < index}
-                    isLoading={isLoading}
-                    isInitialized={workflowInitialized}
-                    onCancelStep={onCancelStep}
-                    footer={
-                      <Footer
-                        currentStepIndex={currentStepIndex}
-                        trueStepIndex={trueStepIndex}
-                        onPrevStep={onPrevStep}
-                        onNextStep={onNextStep}
-                        undoLastStep={undoLastStep}
-                        hasCompletedAllSteps={hasCompletedAllSteps}
-                        totalNSteps={latestState.all_steps!.length}
-                        userParams={userParams}
-                        stepName={step.name}
-                      />
-                    }
-                  />
-                </div>
-                {/* <Footer
-                  currentStepIndex={currentStepIndex}
-                  trueStepIndex={trueStepIndex}
-                  onPrevStep={onPrevStep}
-                  onNextStep={onNextStep}
-                  undoLastStep={undoLastStep}
-                  hasCompletedAllSteps={hasCompletedAllSteps}
-                  totalNSteps={latestState.all_steps!.length}
-                /> */}
-              </Step>
-            )
-          )}
-        </Stepper>
+          <Stepper
+            initialStep={currentStepIndex}
+            steps={latestState.all_steps.map((step: ExportableStepWrapper) => {
+              return { label: step.human_readable_name || step.name };
+            })}
+            orientation="vertical"
+          >
+            {latestState.all_steps.map(
+              (step: ExportableStepWrapper, index: number) => (
+                <Step
+                  key={step.name}
+                  label={step.human_readable_name || step.name}
+                >
+                  <div className="grid w-full gap-2">
+                    <StepRenderer
+                      step={step}
+                      stepIndex={index}
+                      stepInputPrompt={stepInputPrompt}
+                      outputText={activePrompt} // TODO change activePrompt name to outputText
+                      stepOutput={
+                        latestState?.outputs?.length &&
+                        latestState.outputs.length > index
+                          ? latestState.outputs[index]
+                          : null
+                      }
+                      onSubmit={advanceOrRetryStep}
+                      isNewStep={trueStepIndex < index}
+                      isLoading={isLoading}
+                      isInitialized={workflowInitialized}
+                      onCancelStep={onCancelStep}
+                      footer={
+                        <Footer
+                          currentStepIndex={currentStepIndex}
+                          trueStepIndex={trueStepIndex}
+                          onPrevStep={onPrevStep}
+                          onNextStep={onNextStep}
+                          undoLastStep={undoLastStep}
+                          hasCompletedAllSteps={hasCompletedAllSteps}
+                          totalNSteps={latestState.all_steps!.length}
+                          userParams={userParams}
+                          stepName={step.name}
+                        />
+                      }
+                    />
+                  </div>
+                </Step>
+              )
+            )}
+          </Stepper>
+        </StructuredInputFormProvider>
       ) : null}
     </div>
   );

@@ -920,6 +920,7 @@ class CutTranscriptLinearWorkflow:
         async_export=True,
         retry_step=False,
     ):
+        print("stepping with structured_user_input", structured_user_input)
         if load_state:
             await self.load_state()
         assert self.state is not None
@@ -1494,38 +1495,36 @@ class CutTranscriptLinearWorkflow:
     ):
         assert self.on_screen_transcript is not None
         new_transcript = self.raw_transcript.copy()
-        new_on_screen_speakers = set(
-            [s.speaker for s in structured_user_input.segments if s.on_screen]
-        )
+        speaker_tag_mapping = structured_user_input.speaker_tag_mapping or {}
+        speaker_name_mapping = structured_user_input.speaker_name_mapping or {}
+        new_transcript.kept_segments = set([])
 
-        new_speaker_map = {}
-        one_off_map = {}
-        for seg_mod in structured_user_input.segments:
-            prev_speaker = new_transcript.segments[seg_mod.index].speaker
-            if prev_speaker not in new_speaker_map:
-                new_speaker_map[prev_speaker] = seg_mod.speaker
-            else:
-                # if the user told us that two segments that previously has the same speaker
-                # now have two different ones, label all matching segments to the former,
-                # and treat the latter as a one-off modification.
-                # eventually we can get fancier with some kind of model
-                one_off_map[seg_mod.index] = seg_mod.speaker
         for i, segment in enumerate(new_transcript.segments):
-            if i in one_off_map:
-                segment.speaker = one_off_map[i]
-            elif segment.speaker in new_speaker_map:
-                segment.speaker = new_speaker_map[segment.speaker]
+            if segment.speaker in speaker_name_mapping:
+                segment.speaker = speaker_name_mapping[segment.speaker]
 
-        new_transcript.kept_segments = set(
-            [s.index for s in structured_user_input.segments if s.on_screen]
-        )
-        input_segments = [mod.index for mod in structured_user_input.segments]
-        for i in self.on_screen_transcript.kept_segments:
+        new_on_screen_speakers = {s for s, on in speaker_tag_mapping.items() if on}
+        for i in range(len(self.on_screen_transcript.segments)):
             speaker = self.on_screen_transcript.segments[i].speaker
-            if speaker not in new_speaker_map:
-                new_on_screen_speakers.add(speaker)
-            if i not in input_segments:
+            speaker_mapped = speaker_name_mapping.get(speaker, speaker)
+            if i in self.on_screen_transcript.kept_segments:
+                if (
+                    speaker not in speaker_tag_mapping
+                    and speaker_mapped not in speaker_tag_mapping
+                ):
+                    new_on_screen_speakers.add(speaker)
+                    new_transcript.kept_segments.add(i)
+                elif speaker_tag_mapping.get(speaker, False) or speaker_tag_mapping.get(
+                    speaker_mapped, False
+                ):
+                    new_transcript.kept_segments.add(i)
+            elif speaker_tag_mapping.get(speaker, False) or speaker_tag_mapping.get(
+                speaker_mapped, False
+            ):
                 new_transcript.kept_segments.add(i)
+        new_on_screen_speakers = {
+            speaker_name_mapping.get(s, s) for s in new_on_screen_speakers
+        }
         return new_on_screen_speakers, new_transcript
 
     async def _export_speaker_tagging_samples(self, output_dir, prefix):

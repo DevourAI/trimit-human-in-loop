@@ -443,6 +443,7 @@ def step_endpoint(
         "retry_step": step_input.retry_step,
         "advance_until": step_input.advance_until,
     }
+    print("step_params", step_params)
     from trimit.backend.serve import step as step_function
 
     print(f"Starting step with params: {step_params}")

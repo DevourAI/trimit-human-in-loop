@@ -57,7 +57,11 @@ async def step_workflow_until_feedback_request(
             for s in o.substeps
         ]
 
+    i = 0
     while True:
+        print(
+            f"Stepping iter {i}, advance_until={advance_until}, existing_workflow_step_keys={get_existing_step_keys(workflow)}"
+        )
         result = None
         async for result, is_last in workflow.step(
             user_input or "",
@@ -81,10 +85,14 @@ async def step_workflow_until_feedback_request(
             break
         user_feedback_request = result.user_feedback_request
         first_time = False
+        print(
+            f"Finished step for iter {i}, existing_workflow_step_keys={get_existing_step_keys(workflow)}, user_feedback_request={user_feedback_request}"
+        )
         if user_feedback_request and (
             not advance_until or advance_until in get_existing_step_keys(workflow)
         ):
             break
+        i += 1
 
 
 @app.function(**app_kwargs)
@@ -106,10 +114,12 @@ async def step(
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
+    print("advance_until int", advance_until)
     if advance_until is not None and substep_name is None and step_name is None:
         step = workflow.steps[advance_until]
         step_name = step.name
         substep_name = step.substeps[-1].name
+        print(f"set step_name={step_name} substep_name={substep_name}")
 
     step_workflow_advance_until = None
     if step_name is not None:
@@ -117,11 +127,13 @@ async def step(
             raise ValueError("substep_name must be provided if step_name is provided")
         try:
             await workflow.revert_step_to(step_name, substep_name)
+            print(f"workflow reverted to {step_name}, {substep_name}")
         except StepNotYetReachedError:
             step_workflow_advance_until = get_dynamic_state_key(step_name, substep_name)
-
+            print(f"set step_workflow_advance_until ={step_workflow_advance_until}")
     elif load_state:
         await workflow.load_state()
+    print(f"step_workflow_advance_until ={step_workflow_advance_until}")
     id = str(workflow.id)
 
     if not ignore_running_workflows:
