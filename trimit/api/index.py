@@ -171,6 +171,31 @@ async def get_current_workflow_frontend_state(workflow_id: str):
     ).project(FrontendWorkflowProjection)
 
 
+async def get_current_workflow_or_none(
+    workflow_id: str | None = Query(None),
+    wait_until_done_running: bool = Query(
+        False,
+        description="If True, block returning a workflow until workflow is done running its current step",
+    ),
+    timeout: float = Query(
+        5,
+        description="Timeout until continuing without waiting if wait_until_done_running=True",
+    ),
+    wait_interval: float = Query(
+        0.1,
+        description="poll interval to wait for workflow step to finish if wait_until_done_running=True",
+    ),
+):
+    if workflow_id is None:
+        return None
+    return await get_current_workflow(
+        workflow_id=workflow_id,
+        wait_until_done_running=wait_until_done_running,
+        timeout=timeout,
+        wait_interval=wait_interval,
+    )
+
+
 async def get_current_workflow(
     workflow_id: str,
     wait_until_done_running: bool = Query(
@@ -269,7 +294,8 @@ def check_call_status(modal_call_id, timeout: float = 0):
     try:
         fc = FunctionCall.from_id(modal_call_id)
         try:
-            result = fc.get(timeout=timeout)
+            output = fc.get(timeout=timeout)
+            result = {"output": output["result"], "status": "done"}
         except TimeoutError:
             result = {"status": "pending"}
     except Exception as e:
@@ -341,11 +367,12 @@ async def get_video_processing_status(
     summary="Check the status of modal function calls",
     description="TODO",
 )
-async def check_function_call_results(modal_call_ids: list[str], timeout: float = 0):
+async def check_function_call_results(modal_call_ids: str, timeout: float = 0):
+    modal_call_ids_split = modal_call_ids.split(",")
     statuses = await asyncio.gather(
         *[
             async_passthrough(check_call_status(call_id, timeout))
-            for call_id in modal_call_ids
+            for call_id in modal_call_ids_split
         ]
     )
     return CheckFunctionCallResults(statuses=statuses)
@@ -416,6 +443,7 @@ def step_endpoint(
         "retry_step": step_input.retry_step,
         "advance_until": step_input.advance_until,
     }
+    print("step_params", step_params)
     from trimit.backend.serve import step as step_function
 
     print(f"Starting step with params: {step_params}")
@@ -803,16 +831,17 @@ async def download_timeline(
 async def stream_video(
     request: Request,
     video_path: str | None = None,
-    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    workflow: CutTranscriptLinearWorkflow | None = Depends(
+        get_current_workflow_or_none
+    ),
     step_name: str | None = None,
     substep_name: str | None = None,
     stream: bool = False,
 ):
     if video_path is None and workflow is None:
-        print("Must provide video path or timeline name and length_seconds")
+        print("Must provide video path or workflow_id")
         raise HTTPException(
-            status_code=400,
-            detail="Must provide video path or timeline name and length_seconds",
+            status_code=400, detail="Must provide video path or workflow_id"
         )
     elif video_path is None:
         assert workflow is not None

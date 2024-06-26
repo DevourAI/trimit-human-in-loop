@@ -1,5 +1,7 @@
-import { FC } from 'react';
+import React, { FC } from 'react';
+import type { UseFormReturn } from 'react-hook-form';
 
+import { OnScreenSpeakerIdentificationOutput } from '@/components/main-stepper/on-screen-speaker-identification-output';
 import {
   Accordion,
   AccordionContent,
@@ -7,30 +9,59 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Label } from '@/components/ui/label';
-import { FrontendStepOutput } from '@/gen/openapi';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useStructuredInputForm } from '@/contexts/structured-input-form-context';
+import { FrontendStepOutput, StructuredUserInputInput } from '@/gen/openapi';
+import { OutputComponentProps } from '@/lib/types';
+
+//const POLL_INTERVAL = 5000;
+const OUTPUT_LABEL_MAP = {
+  current_transcript_text: 'Current Transcript',
+  'On Screen Speakers': 'On Screen Speakers',
+  current_soundbites_state: 'Key Selects',
+};
 
 interface StepOutputProps {
   output: FrontendStepOutput;
+  exportResult: Record<string, any> | null;
+  exportCallId: string | null;
+  onSubmit: (formData: StructuredUserInputInput) => void;
 }
 
 interface StepOutputItemProps {
   label: string;
   output: any;
   index: number;
+  exportResult: Record<string, any>;
+  onSubmit: (formData: StructuredUserInputInput) => void;
+  form: UseFormReturn;
 }
 
-const TranscriptOutput: FC<{ value: string }> = ({ value }) => {
+const TranscriptOutput: FC<OutputComponentProps> = ({ value }) => {
   return <div className="mt-1">Transcript: {value}</div>;
 };
-const SoundbitesStateOutput: FC<{ value: any }> = ({ value }) => {
+const SoundbitesStateOutput: FC<OutputComponentProps> = ({ value }) => {
   return <div className="mt-1">Transcript chunks: {value.chunks.length}</div>;
+};
+const StoryOutput: FC<OutputComponentProps> = ({ value }) => {
+  return <div className="mt-1">Story: {value}</div>;
 };
 
 const outputComponentMapping = {
   current_transcript_text: TranscriptOutput,
   soundbites_state: SoundbitesStateOutput,
+  on_screen_speakers: OnScreenSpeakerIdentificationOutput,
+  story: StoryOutput,
 };
-const StepOutputItem: FC<StepOutputItemProps> = ({ label, output, index }) => {
+
+const StepOutputItem: FC<StepOutputItemProps> = ({
+  label,
+  output,
+  index,
+  exportResult,
+  onSubmit,
+  form,
+}) => {
   const Component = outputComponentMapping[label];
   if (Component === undefined) {
     return null;
@@ -47,29 +78,83 @@ const StepOutputItem: FC<StepOutputItemProps> = ({ label, output, index }) => {
         </div>
       </AccordionTrigger>
       <AccordionContent className="space-y-4">
-        <Component value={output} />
+        <Component
+          value={output}
+          exportResult={exportResult}
+          onSubmit={onSubmit}
+          form={form}
+        />
       </AccordionContent>
     </AccordionItem>
   );
 };
 
-const StepOutput: FC<StepOutputProps> = ({ output }) => {
+const StepOutput: FC<StepOutputProps> = ({ output, onSubmit }) => {
+  // const [exportResult, setExportResult] = useState<Record<string, any> | null>(
+  // output?.export_result || null
+  // );
+  // const exportResultDone = useRef<bool>(
+  // output.export_result && Object.keys(output.export_result).length > 0
+  // );
+  // const timeoutId = useRef<NodeJS.Timeout | null>(null);
+  // const isComponentMounted = useRef<boolean>(true);
+  // const isPolling = useRef<boolean>(false);
+
+  // useEffect(() => {
+  // async function checkAndSetExportResultStatus() {
+  // if (isPolling.current) return; // Ensure only one polling request in flight
+  // isPolling.current = true;
+  // const statuses = await getFunctionCallResults([output.export_call_id]);
+  // if (statuses[0] && statuses[0].status === 'done') {
+  // setExportResult(statuses[0].output || null);
+  // exportResultDone.current = true;
+  // }
+  // isPolling.current = false;
+  // }
+
+  // const pollForStatuses = async () => {
+  // await checkAndSetExportResultStatus();
+  // if (isComponentMounted.current && !exportResultDone.current) {
+  // timeoutId.current = setTimeout(pollForStatuses, POLL_INTERVAL);
+  // }
+  // };
+
+  // if (output.export_call_id && !exportResultDone.current) {
+  // pollForStatuses();
+  // }
+  // return () => {
+  // if (timeoutId.current) {
+  // clearTimeout(timeoutId.current);
+  // }
+  // };
+  // }, [output.export_call_id]);
+
+  const { form, exportResult } = useStructuredInputForm();
   if (!output) {
     return <div className="text-muted-foreground">No outputs</div>;
   }
-
   return (
     <Accordion
       type="multiple"
-      collapsible
+      collapsible="true"
       className="mx-auto space-y-6 max-w-full"
     >
+      {exportResult === null &&
+      exportResult === undefined &&
+      Object.keys(exportResult).length === 0 ? (
+        <LoadingSpinner>
+          Computing streamable/downloadable results
+        </LoadingSpinner>
+      ) : null}
       {Object.keys(output.step_outputs).map((key, index) => (
         <StepOutputItem
           key={index}
-          label={key}
+          label={OUTPUT_LABEL_MAP[key] || key}
           output={output.step_outputs[key]}
           index={index}
+          exportResult={exportResult}
+          onSubmit={onSubmit}
+          form={form}
         />
       ))}
     </Accordion>

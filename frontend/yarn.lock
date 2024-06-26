@@ -1082,6 +1082,31 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@radix-ui/react-switch@npm:^1.1.0":
+  version: 1.1.0
+  resolution: "@radix-ui/react-switch@npm:1.1.0"
+  dependencies:
+    "@radix-ui/primitive": "npm:1.1.0"
+    "@radix-ui/react-compose-refs": "npm:1.1.0"
+    "@radix-ui/react-context": "npm:1.1.0"
+    "@radix-ui/react-primitive": "npm:2.0.0"
+    "@radix-ui/react-use-controllable-state": "npm:1.1.0"
+    "@radix-ui/react-use-previous": "npm:1.1.0"
+    "@radix-ui/react-use-size": "npm:1.1.0"
+  peerDependencies:
+    "@types/react": "*"
+    "@types/react-dom": "*"
+    react: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+    react-dom: ^16.8 || ^17.0 || ^18.0 || ^19.0 || ^19.0.0-rc
+  peerDependenciesMeta:
+    "@types/react":
+      optional: true
+    "@types/react-dom":
+      optional: true
+  checksum: 10/847930e2a25699015e83f07ffb5065c2e925ffcf84b2ef2222e63e7862a9753e09ea8cd64504d20cbb689060ece1ad2e3b8a4c04702bc8040c5fda7d13ef71ae
+  languageName: node
+  linkType: hard
+
 "@radix-ui/react-toast@npm:^1.1.5":
   version: 1.2.0
   resolution: "@radix-ui/react-toast@npm:1.2.0"
@@ -2446,6 +2471,34 @@ __metadata:
   version: 1.4.807
   resolution: "electron-to-chromium@npm:1.4.807"
   checksum: 10/64b3c58486291778890c637016b80f8739d5a2d63c59664d8dc00e11f8301ab5fbe48abaa1e83a0dfbfbb9d1a343269b622c2d8476bec53557ce7600ee794e75
+  languageName: node
+  linkType: hard
+
+"embla-carousel-react@npm:^8.1.5":
+  version: 8.1.5
+  resolution: "embla-carousel-react@npm:8.1.5"
+  dependencies:
+    embla-carousel: "npm:8.1.5"
+    embla-carousel-reactive-utils: "npm:8.1.5"
+  peerDependencies:
+    react: ^16.8.0 || ^17.0.1 || ^18.0.0
+  checksum: 10/19e87862c4721fa604ad2aebfc870641ee60804ab83230811c8289a88c05e9f3199a7f106bb49c31b734f50c89a1111e3e6452a6e937a0b2099e7e580f0fbf3f
+  languageName: node
+  linkType: hard
+
+"embla-carousel-reactive-utils@npm:8.1.5":
+  version: 8.1.5
+  resolution: "embla-carousel-reactive-utils@npm:8.1.5"
+  peerDependencies:
+    embla-carousel: 8.1.5
+  checksum: 10/2bd8e9a9ebdc3a9917057b3208c89836c69f9d3d4426daf66d5d9edf8be15f9a0b405f26ad94e85a6eec2781631df59c3202c58308552c4001de9cd8e14ec207
+  languageName: node
+  linkType: hard
+
+"embla-carousel@npm:8.1.5":
+  version: 8.1.5
+  resolution: "embla-carousel@npm:8.1.5"
+  checksum: 10/0556c6eec249e60dbdaf0530a68776ecf727ceb7e647c271657f82d05f7da4b420d4c4f6d2d4c7b46b54712e090bb2a9ddd311a66cdb00f741b1c6cb1a4503d7
   languageName: node
   linkType: hard
 
@@ -6048,6 +6101,7 @@ __metadata:
     "@radix-ui/react-radio-group": "npm:^1.2.0"
     "@radix-ui/react-select": "npm:^2.1.1"
     "@radix-ui/react-slot": "npm:^1.0.2"
+    "@radix-ui/react-switch": "npm:^1.1.0"
     "@radix-ui/react-toast": "npm:^1.1.5"
     "@react-oauth/google": "npm:^0.12.1"
     "@tanstack/react-table": "npm:^8.17.3"
@@ -6063,6 +6117,7 @@ __metadata:
     clsx: "npm:^2.1.1"
     concurrently: "npm:^8.0.1"
     debug: "npm:^4.3.4"
+    embla-carousel-react: "npm:^8.1.5"
     eslint: "npm:^8.43.0"
     eslint-config-next: "npm:13.4.4"
     eslint-config-prettier: "npm:^9.1.0"
