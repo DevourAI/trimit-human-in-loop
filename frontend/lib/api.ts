@@ -352,7 +352,9 @@ export async function getFunctionCallResults(
   callIds: string[],
   options: { timeout?: number } = { timeout: 0 }
 ): Promise<unknown> {
-  const callIdsFiltered = callIds.filter((callId)=>{return (callId !== undefined && callId !== null)});
+  const callIdsFiltered = callIds.filter((callId) => {
+    return callId !== undefined && callId !== null;
+  });
   console.log('callIdsFiltered', callIdsFiltered);
   if (callIdsFiltered.length === 0) {
     return { result: 'error', message: 'No callIds provided' };
@@ -368,7 +370,7 @@ export async function getFunctionCallResults(
 }
 
 export function remoteVideoStreamURLForPath(path) {
-    return `${API_URL}/video?video_path=${encodeURIComponent(path)}`
+  return `${API_URL}/video?video_path=${encodeURIComponent(path)}`;
 }
 
 export async function getUploadedVideos(

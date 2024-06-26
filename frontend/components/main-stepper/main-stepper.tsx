@@ -478,7 +478,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
 
   const workflowInitialized = project && latestState?.all_steps !== undefined;
   function onCancelStep() {
-    throw new Error("not implemented");
+    throw new Error('not implemented');
   }
 
   return (

@@ -52,8 +52,7 @@ function StepRenderer({
   const outputTextDefaultOpen =
     stepOutput === null || !stepOutput.step_outputs?.length;
   // TODO
-  const onOutputFormSubmit(data) => {
-  };
+  const onOutputFormSubmit = (data) => {};
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
@@ -88,7 +87,7 @@ function StepRenderer({
             value={outputText}
             step={step}
           />
-          <StepOutput output={stepOutput} onSubmit={onOutputFormSubmit}/>
+          <StepOutput output={stepOutput} onSubmit={onOutputFormSubmit} />
         </div>
       </CardContent>
       {footer && <CardFooter>{footer}</CardFooter>}

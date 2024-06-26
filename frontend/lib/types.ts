@@ -107,3 +107,9 @@ export type Video = {
   remoteUrl: string;
   hash: string;
 };
+
+export interface OutputComponentProps {
+  value: any;
+  exportResult: any;
+  onSubmit: (formData: StructuredUserInputInput) => void;
+}
