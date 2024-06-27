@@ -24,7 +24,6 @@ interface FormContextProps {
   form: UseFormReturn;
   exportResult: Record<string,any> | null;
 }
-const StructuredInputFormContext = createContext<FormContextProps | undefined>(undefined);
 
 interface StructuredInputFormProviderProps {
   children: ReactNode;
@@ -32,8 +31,18 @@ interface StructuredInputFormProviderProps {
   onFormDataChange: (values: z.infer<typeof StructuredInputFormSchema>) => void;
 }
 
+function setUndefinedToTrue(values: Record<string | int, any>) {
+    return Object.keys(values).reduce(
+      (acc, key) => {
+        acc[key] = (acc[key] === undefined || acc[key] === null) ? true : acc[key];
+        return acc;
+      },
+      {}
+    );
+}
 
-function createStructuredInputDefaultsFromExportResult(exportResult: Record<string,any> | null) {
+
+function createStructuredInputDefaultsFromOutputs(stepOutput: FrontendStepOutput, exportResult: Record<string,any> | null) {
   let defaultNameMapping = {};
   let defaultTagMapping = {};
   let defaultSoundbiteSelectionMapping = {};
@@ -54,7 +63,7 @@ function createStructuredInputDefaultsFromExportResult(exportResult: Record<stri
       },
       {}
     );
-    const soundbiteClips = exportResult.soundbites_videos || [];
+    const soundbiteClips = stepOutput?.step_outputs?.current_soundbites_state?.soundbites || [];
     defaultSoundbiteSelectionMapping = soundbiteClips.reduce(
       (acc, key, index) => {
         acc[index] = true;
@@ -118,10 +127,12 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
 
 
 
+  const defaultValues = useRef(createStructuredInputDefaultsFromOutputs(stepOutput, exportResult));
+
   const form = useForm<z.infer<typeof StructuredInputFormSchema>>(
     {
       resolver: zodResolver(StructuredInputFormSchema),
-      defaultValues: createStructuredInputDefaultsFromExportResult(exportResult),
+      defaultValues: defaultValues.current,
     }
 
   );
@@ -129,12 +140,30 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
   const prevFormDataString = useRef<string>();
 
   useEffect(() => {
-    const currentValues = form.getValues();
-    if (JSON.stringify(currentValues) !== prevFormDataString.current) {
+    let currentValues = form.getValues();
+    const newDefaultValues = createStructuredInputDefaultsFromOutputs(stepOutput, exportResult);
+    if (
+      JSON.stringify(currentValues) !== prevFormDataString.current
+      || JSON.stringify(defaultValues.current) !== JSON.stringify(newDefaultValues)
+    ) {
+
+      defaultValues.current = newDefaultValues;
+      if (currentValues.identify_key_soundbites?.soundbite_selection) {
+        const soundbite_selection = currentValues.identify_key_soundbites?.soundbite_selection;
+        if (Object.keys(soundbite_selection).length > 0) {
+          currentValues.identify_key_soundbites.soundbite_selection = setUndefinedToTrue(
+            currentValues.identify_key_soundbites.soundbite_selection
+          );
+        } else {
+          currentValues.identify_key_soundbites = defaultValues.current.identify_key_soundbites;
+        }
+      } else {
+          currentValues.identify_key_soundbites = defaultValues.current.identify_key_soundbites;
+      }
       onFormDataChange(currentValues);
       prevFormDataString.current = JSON.stringify(currentValues);
     }
-  }, [form.watch(), onFormDataChange]);
+  }, [form.watch(), onFormDataChange, exportResult]);
 
   return (
     <StructuredInputFormContext.Provider value={{form, exportResult}}>
@@ -143,6 +172,7 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
   );
 };
 
+const StructuredInputFormContext = createContext<FormContextProps | undefined>(undefined);
 
 export const useStructuredInputForm = () => {
   const context = useContext(StructuredInputFormContext);

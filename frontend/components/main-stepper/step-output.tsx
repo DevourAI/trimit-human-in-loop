@@ -129,9 +129,6 @@ const StepOutput: FC<StepOutputProps> = ({ output, onSubmit }) => {
   // };
   // }, [output.export_call_id]);
 
-  if (output && output.step_outputs) {
-    console.log(Object.keys(output.step_outputs));
-  }
   const { form, exportResult } = useStructuredInputForm();
   if (!output) {
     return <div className="text-muted-foreground">No outputs</div>;

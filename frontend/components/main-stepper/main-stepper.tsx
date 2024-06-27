@@ -190,6 +190,49 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }, [userData, userParams, project?.video_hash, currentStepIndex]);
 
   const prevTrueStepIndex = useRef<number>(trueStepIndex);
+
+  const handleStepStream = useCallback(
+    async (reader: ReadableStreamDefaultReader) => {
+      activePromptDispatch({ type: 'restart', value: '' });
+      const finalState: FrontendWorkflowState | null = await decodeStreamAsJSON(
+        reader,
+        (value: CutTranscriptLinearWorkflowStreamingOutput) => {
+          if (value?.partial_step_output) {
+            // we can log this maybe
+          } else if (value?.partial_backend_output) {
+            let output = value.partial_backend_output;
+            const currentSubstep = output.current_substep;
+            if (currentSubstep) {
+              const newIndex = stepIndexFromName(
+                currentSubstep.step_name,
+                latestState.all_steps
+              );
+              setCurrentStepIndex(newIndex);
+            }
+            if (output.chunk === null || output.chunk == 0) {
+              setBackendMessage(output.value || '');
+            }
+          } else if (value?.partial_llm_output) {
+            let output = value.partial_llm_output;
+            if (output.chunk === null || output.chunk == 0) {
+              activePromptDispatch({ type: 'append', value: output.value });
+              //  TODO: for some reason this is not triggering StepperForm+systemPrompt to reload
+            }
+          }
+        }
+      );
+      setLatestState(finalState);
+      setStepOutput(
+        finalState?.outputs?.length
+          ? finalState.outputs[finalState.outputs.length - 1]
+          : null
+      );
+      setIsLoading(false);
+      return finalState;
+    },
+    [latestState?.all_steps]
+  );
+
   const advanceStep = useCallback(
     async (stepIndex: number) => {
       setIsLoading(true);
@@ -212,7 +255,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         console.error('error in step', error);
       }
     },
-    [userParams, stepperFormValues]
+    [userParams, stepperFormValues, handleStepStream]
   );
 
   useEffect(() => {
@@ -280,37 +323,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     },
     ''
   );
-
-  async function handleStepStream(reader: ReadableStreamDefaultReader) {
-    activePromptDispatch({ type: 'restart', value: '' });
-    const finalState: FrontendWorkflowState | null = await decodeStreamAsJSON(
-      reader,
-      (value: CutTranscriptLinearWorkflowStreamingOutput) => {
-        if (value?.partial_step_output) {
-          // we can log this maybe
-        } else if (value?.partial_backend_output) {
-          let output = value.partial_backend_output;
-          if (output.chunk === null || output.chunk == 0) {
-            setBackendMessage(output.value || '');
-          }
-        } else if (value?.partial_llm_output) {
-          let output = value.partial_llm_output;
-          if (output.chunk === null || output.chunk == 0) {
-            activePromptDispatch({ type: 'append', value: output.value });
-            //  TODO: for some reason this is not triggering StepperForm+systemPrompt to reload
-          }
-        }
-      }
-    );
-    setLatestState(finalState);
-    setStepOutput(
-      finalState?.outputs?.length
-        ? finalState.outputs[finalState.outputs.length - 1]
-        : null
-    );
-    setIsLoading(false);
-    return finalState;
-  }
 
   const revertStepTo = useCallback(
     async (stepIndex: number) => {
