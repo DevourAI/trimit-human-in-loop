@@ -1113,12 +1113,8 @@ class CutTranscriptLinearWorkflow:
     async def identify_key_soundbites(
         self, step_input: CutTranscriptLinearWorkflowStepInput
     ):
+        print("identify_key_soundbites input", step_input.structured_user_input)
         assert self.state is not None
-        # figure out how to load from file if need be for testing
-        #  if self.soundbites is not None:
-        #  return self.soundbites
-        #  if self.soundbites_file is not None:
-        #  return Soundbites.load_from_file(self.soundbites_file)
         if self.run_output_dir is None:
             raise ValueError("run_output_dir must be set before calling this function")
         if self.on_screen_transcript is None:
@@ -1134,6 +1130,41 @@ class CutTranscriptLinearWorkflow:
         partials_to_redo = None
         relevant_user_feedback_list = None
         if (
+            step_input is not None
+            and step_input.structured_user_input is not None
+            and step_input.structured_user_input.identify_key_soundbites is not None
+            and step_input.structured_user_input.identify_key_soundbites.soundbite_selection
+            is not None
+            and self.current_soundbites is not None
+        ):
+            soundbite_selection = set()
+            for (
+                i,
+                v,
+            ) in (
+                step_input.structured_user_input.identify_key_soundbites.soundbite_selection.items()
+            ):
+                if not v:
+                    continue
+                try:
+                    index = int(i)
+                except ValueError:
+                    continue
+                else:
+                    soundbite_selection.add(index)
+            original_soundbites = self.current_soundbites.copy()
+            current_soundbites = self.current_soundbites.copy()
+            current_soundbites.keep_only_soundbite_indexes(soundbite_selection)
+            yield CutTranscriptLinearWorkflowStepResults(
+                outputs={
+                    "current_soundbites": current_soundbites,
+                    "original_soundbites": original_soundbites,
+                },
+                user_feedback_request=None,
+            ), True
+            return
+
+        elif (
             step_input is not None
             and step_input.llm_modified_partial_feedback is not None
         ):

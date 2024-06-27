@@ -1523,6 +1523,9 @@ class Soundbites(Transcript):
             self.soundbites, key=lambda x: (x.start_segment_index, x.start_word_index)
         )
 
+    def keep_only_soundbite_indexes(self, indexes: list | set):
+        self.soundbites = [s for i, s in enumerate(self.soundbites) if i in indexes]
+
     @classmethod
     def merge(cls, *soundbites_chunks: SoundbitesChunk):
         all_soundbites = [s for chunk in soundbites_chunks for s in chunk.soundbites]
@@ -1564,6 +1567,10 @@ class RemoveOffScreenSpeakersInput(BaseModel):
     speaker_name_mapping: dict[str, str] | None = None
 
 
+class IdentifyKeySoundbitesInput(BaseModel):
+    soundbite_selection: dict[int | str, bool] | None = None
+
+
 class PartialFeedback(BaseModel):
     partials_to_redo: list[bool] = Field(
         ...,
@@ -1578,6 +1585,7 @@ class StructuredUserInput(BaseModel):
     """only one of these fields should be defined"""
 
     remove_off_screen_speakers: RemoveOffScreenSpeakersInput | None = None
+    identify_key_soundbites: IdentifyKeySoundbitesInput | None = None
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):

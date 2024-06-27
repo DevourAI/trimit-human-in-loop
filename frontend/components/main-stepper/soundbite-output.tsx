@@ -17,25 +17,34 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { VideoStream } from '@/components/ui/video-stream';
 import { OutputComponentProps } from '@/lib/types';
 import { removeEmptyVals } from '@/lib/utils';
 
-const SpeakerTaggingExamples: FC<{ videoPaths: string[] }> = ({
-  videoPaths,
-}) => {
+const Transcript: FC<{ text: string }> = ({ text }) => {
+  return <p>{text}</p>;
+};
+
+const SoundbiteExamples: FC<{
+  videoPaths: string[];
+  soundbiteTranscripts: string[];
+}> = ({ videoPaths }) => {
   return (
     <Carousel className="w-full max-w-xs">
       <CarouselContent>
-        {videoPaths.map((videoPath, index) => (
+        {soundbiteTranscripts.map((soundbiteTranscript, index) => (
           <CarouselItem key={index}>
             <div className="p-1">
               <Card>
                 <CardContent className="flex aspect-square items-center justify-center p-6">
-                  <VideoStream key={index} videoPath={videoPath} />
+                  <VideoStream
+                    videoPath={
+                      videoPaths && videoPaths.length > i ? videoPaths[i] : ''
+                    }
+                  />
+                  <Transcript text={soundbiteTranscript} />
                 </CardContent>
               </Card>
             </div>
@@ -48,22 +57,21 @@ const SpeakerTaggingExamples: FC<{ videoPaths: string[] }> = ({
   );
 };
 
-export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
+export const SoundbiteOutput: FC<OutputComponentProps> = ({
   value,
   exportResult,
   onSubmit,
   form,
 }) => {
-  const speakerTaggingClips = exportResult?.speaker_tagging_clips || {};
+  const soundbiteTranscripts = value;
+  const soundbiteClips = exportResult?.soundbites_videos || [];
   const onSubmitWrapper = (data: z.infer<typeof StructuredInputFormSchema>) => {
-    data.remove_off_screen_speakers.speaker_name_mapping = removeEmptyVals(
-      data.remove_off_screen_speakers.speaker_name_mapping
-    );
-    data.remove_off_screen_speakers.speaker_tag_mapping = removeEmptyVals(
-      data.remove_off_screen_speakers.speaker_tag_mapping
+    data.identify_key_soundbites.soundbite_selection = removeEmptyVals(
+      data.identify_key_soundbites.soundbite_selection
     );
   };
 
+  // TODO wrap all these form inputs in a carousel
   return (
     <div className="relative p-3">
       <Form {...form}>
@@ -71,50 +79,37 @@ export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
           onSubmit={form.handleSubmit((data) => onSubmitWrapper(data))}
           className="w-2/3 space-y-6"
         >
-          {Object.keys(speakerTaggingClips).map((speaker, index) => (
+          {soundbiteTranscripts.map(([segmentIndex, text], index) => (
             <div key={index}>
-              <FormLabel>Speaker {speaker} tagged as</FormLabel>
+              <FormLabel>Soundbite {index}</FormLabel>
               <FormField
                 control={form.control}
-                name={`remove_off_screen_speakers.speaker_tag_mapping.${speaker}`}
+                name={`identify_key_soundbites.soundbite_selection.${segmentIndex}`}
                 render={({ field }) => {
                   return (
                     <FormItem>
                       <FormControl>
                         <Switch
-                          id={`remove_off_screen_speakers.speaker_tag_mapping.${speaker}`}
+                          id={`identify_key_soundbites.soundbite_selection.${segmentIndex}`}
                           checked={field.value}
                           onCheckedChange={field.onChange}
                         />
                       </FormControl>
                       <FormMessage />
                       <Label
-                        htmlFor={`remove_off_screen_speakers.speaker_tag_mapping.${speaker}`}
+                        htmlFor={`identify_key_soundbites.soundbite_selection.${segmentIndex}`}
                       >
-                        {field.value ? 'On Screen' : 'Off Screen'}
+                        {field.value ? 'Keep' : 'Remove'}
                       </Label>
-                    </FormItem>
-                  );
-                }}
-              />
-              <FormField
-                control={form.control}
-                name={`remove_off_screen_speakers.speaker_name_mapping.${speaker}`}
-                render={({ field }) => {
-                  return (
-                    <FormItem>
-                      <FormControl>
-                        <React.Fragment>
-                          <Input
-                            {...field}
-                            placeholder={`Enter new name for ${speaker}`}
-                          />
-                          <SpeakerTaggingExamples
-                            videoPaths={speakerTaggingClips[speaker]}
-                          />
-                        </React.Fragment>
-                      </FormControl>
-                      <FormMessage />
+
+                      <VideoStream
+                        videoPath={
+                          soundbiteClips && soundbiteClips.length > index
+                            ? soundbiteClips[index]
+                            : ''
+                        }
+                      />
+                      <Transcript text={text} />
                     </FormItem>
                   );
                 }}
