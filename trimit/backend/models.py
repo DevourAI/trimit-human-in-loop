@@ -1523,6 +1523,9 @@ class Soundbites(Transcript):
             self.soundbites, key=lambda x: (x.start_segment_index, x.start_word_index)
         )
 
+    def keep_only_soundbite_indexes(self, indexes: list | set):
+        self.soundbites = [s for i, s in enumerate(self.soundbites) if i in indexes]
+
     @classmethod
     def merge(cls, *soundbites_chunks: SoundbitesChunk):
         all_soundbites = [s for chunk in soundbites_chunks for s in chunk.soundbites]

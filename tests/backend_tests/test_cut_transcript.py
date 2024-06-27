@@ -7,6 +7,7 @@ from trimit.backend.cut_transcript import (
     CutTranscriptLinearWorkflowStepOutput,
 )
 from trimit.backend.models import (
+    IdentifyKeySoundbitesInput,
     Role,
     PartialBackendOutput,
     Soundbite,
@@ -196,26 +197,29 @@ async def test_retry_soundbites_step(workflow_3909774043_with_state_init):
 @pytest.mark.parametrize(
     "structured_user_input,speakers_in_frame,speakers_out_frame",
     [
-        #  (
-        #  StructuredUserInput(
-        #  remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
-        #  speaker_name_mapping={'SPEAKER_00': 'Ruta Gupta', 'SPEAKER_01': 'Interviewer'},
-        #  speaker_tag_mapping={},
-        #  )
-        #  ),
-        #  ['Ruta Gupta'],
-        #  ['Interviewer']
-        #  ),
-        #  (
-        #  StructuredUserInput(
-        #  remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
-        #  speaker_name_mapping={'SPEAKER_01': 'Interviewer'},
-        #  speaker_tag_mapping={},
-        #  )
-        #  ),
-        #  ['SPEAKER_00'],
-        #  ['Interviewer']
-        #  ),
+        (
+            StructuredUserInput(
+                remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+                    speaker_name_mapping={
+                        "SPEAKER_00": "Ruta Gupta",
+                        "SPEAKER_01": "Interviewer",
+                    },
+                    speaker_tag_mapping={},
+                )
+            ),
+            ["Ruta Gupta"],
+            ["Interviewer"],
+        ),
+        (
+            StructuredUserInput(
+                remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
+                    speaker_name_mapping={"SPEAKER_01": "Interviewer"},
+                    speaker_tag_mapping={},
+                )
+            ),
+            ["SPEAKER_00"],
+            ["Interviewer"],
+        ),
         (
             StructuredUserInput(
                 remove_off_screen_speakers=RemoveOffScreenSpeakersInput(
@@ -296,6 +300,64 @@ async def test_retry_remove_off_screen_speakers_with_structured_user_input(
         else:
             assert new_segment.speaker in speakers_out_frame
             assert new_segment.speaker not in speakers_in_frame
+
+
+@pytest.mark.parametrize(
+    "structured_user_input",
+    [
+        StructuredUserInput(
+            identify_key_soundbites=IdentifyKeySoundbitesInput(
+                soundbite_selection={0: True, 1: False}
+            )
+        ),
+        StructuredUserInput(
+            identify_key_soundbites=IdentifyKeySoundbitesInput(
+                soundbite_selection={0: True, 1: True}
+            )
+        ),
+        StructuredUserInput(
+            identify_key_soundbites=IdentifyKeySoundbitesInput(
+                soundbite_selection={0: False, 1: False}
+            )
+        ),
+    ],
+)
+async def test_retry_identify_key_soundbites_with_structured_user_input(
+    workflow_3909774043_with_state_init_no_export, structured_user_input
+):
+    workflow = workflow_3909774043_with_state_init_no_export
+    workflow.state = workflow.state.model_copy()
+    workflow.step_order = workflow.state
+    step_name = "identify_key_soundbites"
+    output = None
+    latest_step_name = None
+    while latest_step_name != step_name:
+        async for output, _ in workflow.step(
+            load_state=False, save_state_to_db=False, async_export=False
+        ):
+            pass
+        latest_step = await workflow.get_last_substep(with_load_state=False)
+        latest_step_name = latest_step.name
+
+    previous_soundbites = workflow.current_soundbites.iter_text_list()
+    async for output, _ in workflow.step(
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+        user_feedback="",
+        structured_user_input=structured_user_input,
+        retry_step=True,
+    ):
+        pass
+    assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+    new_soundbites = workflow.current_soundbites.iter_text_list()
+    assert new_soundbites == [
+        (i, previous_soundbites[s_idx][1])
+        for i, (s_idx, v) in enumerate(
+            structured_user_input.identify_key_soundbites.soundbite_selection.items()
+        )
+        if v
+    ]
 
 
 async def test_decide_retry_transcript_chunks(
