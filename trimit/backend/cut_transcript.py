@@ -1113,6 +1113,7 @@ class CutTranscriptLinearWorkflow:
     async def identify_key_soundbites(
         self, step_input: CutTranscriptLinearWorkflowStepInput
     ):
+        print("identify_key_soundbites input", step_input.structured_user_input)
         assert self.state is not None
         # figure out how to load from file if need be for testing
         #  if self.soundbites is not None:

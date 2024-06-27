@@ -2,6 +2,7 @@ import React, { FC } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 
 import { OnScreenSpeakerIdentificationOutput } from '@/components/main-stepper/on-screen-speaker-identification-output';
+import { SoundbiteOutput } from '@/components/main-stepper/soundbite-output';
 import {
   Accordion,
   AccordionContent,
@@ -18,7 +19,7 @@ import { OutputComponentProps } from '@/lib/types';
 const OUTPUT_LABEL_MAP = {
   current_transcript_text: 'Current Transcript',
   'On Screen Speakers': 'On Screen Speakers',
-  current_soundbites_state: 'Key Selects',
+  current_soundbites_iter_text: 'Key Selects',
 };
 
 interface StepOutputProps {
@@ -29,6 +30,7 @@ interface StepOutputProps {
 }
 
 interface StepOutputItemProps {
+  name: string;
   label: string;
   output: any;
   index: number;
@@ -40,21 +42,19 @@ interface StepOutputItemProps {
 const TranscriptOutput: FC<OutputComponentProps> = ({ value }) => {
   return <div className="mt-1">Transcript: {value}</div>;
 };
-const SoundbitesStateOutput: FC<OutputComponentProps> = ({ value }) => {
-  return <div className="mt-1">Transcript chunks: {value.chunks.length}</div>;
-};
 const StoryOutput: FC<OutputComponentProps> = ({ value }) => {
   return <div className="mt-1">Story: {value}</div>;
 };
 
 const outputComponentMapping = {
   current_transcript_text: TranscriptOutput,
-  soundbites_state: SoundbitesStateOutput,
+  current_soundbites_iter_text: SoundbiteOutput,
   on_screen_speakers: OnScreenSpeakerIdentificationOutput,
   story: StoryOutput,
 };
 
 const StepOutputItem: FC<StepOutputItemProps> = ({
+  name,
   label,
   output,
   index,
@@ -62,7 +62,7 @@ const StepOutputItem: FC<StepOutputItemProps> = ({
   onSubmit,
   form,
 }) => {
-  const Component = outputComponentMapping[label];
+  const Component = outputComponentMapping[name];
   if (Component === undefined) {
     return null;
   }
@@ -129,6 +129,9 @@ const StepOutput: FC<StepOutputProps> = ({ output, onSubmit }) => {
   // };
   // }, [output.export_call_id]);
 
+  if (output && output.step_outputs) {
+    console.log(Object.keys(output.step_outputs));
+  }
   const { form, exportResult } = useStructuredInputForm();
   if (!output) {
     return <div className="text-muted-foreground">No outputs</div>;
@@ -149,6 +152,7 @@ const StepOutput: FC<StepOutputProps> = ({ output, onSubmit }) => {
       {Object.keys(output.step_outputs).map((key, index) => (
         <StepOutputItem
           key={index}
+          name={key}
           label={OUTPUT_LABEL_MAP[key] || key}
           output={output.step_outputs[key]}
           index={index}

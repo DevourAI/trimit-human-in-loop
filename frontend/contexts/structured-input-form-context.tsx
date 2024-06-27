@@ -6,12 +6,18 @@ import {z} from 'zod';
 import { getFunctionCallResults } from '@/lib/api';
 const POLL_INTERVAL = 5000;
 
+// TODO autogenerate these based on types in @/gen/openapi/api.ts
 export const RemoveOffScreenSpeakersFormSchema = z.object({
-  speaker_name_mapping: z.record(z.string()),
+  speaker_name_mapping: z.record(z.string(), z.string()),
   speaker_tag_mapping: z.record(z.string(), z.boolean()),
 });
+export const IdentifyKeySoundbitesInput = z.object({
+  soundbites_selection: z.record(z.number(), z.boolean()),
+});
+
 export const StructuredInputFormSchema = z.object({
-  remove_off_screen_speakers: RemoveOffScreenSpeakersFormSchema
+  remove_off_screen_speakers: RemoveOffScreenSpeakersFormSchema.optional(),
+  identify_key_soundbites: IdentifyKeySoundbitesInput.optional()
 });
 
 interface FormContextProps {
@@ -28,8 +34,9 @@ interface StructuredInputFormProviderProps {
 
 
 function createStructuredInputDefaultsFromExportResult(exportResult: Record<string,any> | null) {
-  let defaultNameMapping = {}
-  let defaultTagMapping = {}
+  let defaultNameMapping = {};
+  let defaultTagMapping = {};
+  let defaultSoundbiteSelectionMapping = {};
   if (exportResult) {
     const speakerTaggingClips = exportResult.speaker_tagging_clips || {};
     defaultNameMapping = Object.keys(speakerTaggingClips).reduce(
@@ -47,11 +54,22 @@ function createStructuredInputDefaultsFromExportResult(exportResult: Record<stri
       },
       {}
     );
+    const soundbiteClips = exportResult.soundbites_videos || [];
+    defaultSoundbiteSelectionMapping = soundbiteClips.reduce(
+      (acc, key, index) => {
+        acc[index] = true;
+        return acc;
+      },
+      {}
+    );
   }
   return {
     remove_off_screen_speakers: {
       speaker_name_mapping: defaultNameMapping,
       speaker_tag_mapping: defaultTagMapping,
+    },
+    identify_key_soundbites: {
+      soundbite_selection: defaultSoundbiteSelectionMapping
     }
   }
 }

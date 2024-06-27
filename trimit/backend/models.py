@@ -1564,6 +1564,10 @@ class RemoveOffScreenSpeakersInput(BaseModel):
     speaker_name_mapping: dict[str, str] | None = None
 
 
+class IdentifyKeySoundbitesInput(BaseModel):
+    soundbite_selection: dict[int | str, bool] | None = None
+
+
 class PartialFeedback(BaseModel):
     partials_to_redo: list[bool] = Field(
         ...,
@@ -1578,6 +1582,7 @@ class StructuredUserInput(BaseModel):
     """only one of these fields should be defined"""
 
     remove_off_screen_speakers: RemoveOffScreenSpeakersInput | None = None
+    identify_key_soundbites: IdentifyKeySoundbitesInput | None = None
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):
