@@ -27,9 +27,11 @@ async def load_workflow(
     timeout: float = 5,
     wait_interval: float = 0.1,
 ):
+    from trimit.models import maybe_init_mongo
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
-    print("in load or create workflow")
+    await maybe_init_mongo()
+
     running = running_workflows.get(workflow_id, False)
     if running and wait_until_done_running:
         start_time = time.time()
@@ -39,26 +41,28 @@ async def load_workflow(
             if time.time() - start_time > timeout:
                 raise TimeoutError("Timeout (workflow still running)")
     workflow = workflows.get(workflow_id, None)
-    print("got workflow")
     if not workflow:
         if with_output:
             workflow = await CutTranscriptLinearWorkflow.from_state_id(workflow_id)
-            print("created workflow from state")
         else:
             workflow = (
                 await CutTranscriptLinearWorkflow.from_state_id_with_only_step_order(
                     workflow_id
                 )
             )
-            print("created workflow with only step order")
-        assert workflow_id == str(workflow.id)
+        if workflow_id != str(workflow.id):
+            raise ValueError(
+                f"workflow_id {workflow_id} != workflow.id {str(workflow.id)}"
+            )
         workflows[str(workflow_id)] = workflow
     else:
         if with_output:
-            await workflow.load_state()
-            print("loaded workflow state")
+            try:
+                await workflow.load_state()
+            except Exception as e:
+                print("load workflow state error:", e, type(e), str(e))
+                raise
         else:
             await workflow.load_step_order()
-            print("loaded workflow step order")
 
     return workflow
