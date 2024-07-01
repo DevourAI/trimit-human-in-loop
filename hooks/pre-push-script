@@ -1,20 +1,23 @@
 #!/bin/bash
 
-# Run the Make command to generate files
-make openapi
+CHANGED_FILES=$(git diff --cached --name-only --diff-filter=d)
 
-# Check if the make command was successful
-if [ $? -ne 0 ]; then
-  echo "Failed to generate files, aborting push."
-  exit 1
-fi
-
-make copy_gen_to_s3
-
-# Check if the S3 upload was successful
-if [ $? -ne 0 ]; then
-  echo "Failed to upload files to S3, aborting push."
-  exit 1
+if echo "$CHANGED_FILES" | grep -q '\.py$'; then
+  echo "Python files have changed, running make command."
+  # Run the make command to generate files and copy to S3
+  make openapi
+  if [ $? -ne 0 ]; then
+    echo "Make command failed, aborting push."
+    exit 1
+  fi
+  make copy_gen_to_s3
+  # Check if the S3 upload was successful
+  if [ $? -ne 0 ]; then
+    echo "Failed to upload files to S3, aborting push."
+    exit 1
+  fi
+else
+  echo "No Python files have changed, skipping openapi S3 push."
 fi
 
 # Continue with the push

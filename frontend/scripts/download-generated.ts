@@ -19,6 +19,14 @@ function removePrefix(fullString: string, prefixToRemove: string): string {
   return fullString;
 }
 
+function ensureDirectoryExists(filePath: string) {
+    const dirname = path.dirname(filePath);
+    if (fs.existsSync(dirname)) {
+        return true;
+    }
+    fs.mkdirSync(dirname, { recursive: true });
+}
+
 async function downloadFile(bucketName: string, prefix: string, key: string, localDestDir: string): Promise<void> {
   const params = {
     Bucket: bucketName,
@@ -28,6 +36,7 @@ async function downloadFile(bucketName: string, prefix: string, key: string, loc
   try {
     const data = await s3.getObject(params).promise();
     const localDest = path.join(localDestDir, removePrefix(key, prefix));
+    ensureDirectoryExists(localDest);
     fs.writeFileSync(localDest, data.Body as Buffer);
     console.log(`File downloaded successfully: ${key} -> ${localDest}`);
   } catch (err) {
