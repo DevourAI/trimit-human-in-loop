@@ -257,7 +257,6 @@ export async function step(
   data: StepData,
   streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
 ): Promise<void> {
-  console.log('data in step', data);
   const params = { workflow_id: workflowId };
   await postJSONFetcherWithStreamingResponse(`${API_URL}/step`, {
     params,
@@ -361,6 +360,7 @@ export async function getFunctionCallResults(
     modal_call_ids: encodeURIComponent(callIds.join(',')),
     ...options,
   })) as CheckFunctionCallResults;
+
   if (respData && respData.statuses) {
     return respData.statuses;
   }

@@ -40,7 +40,9 @@ export function VideoFormSelector({
           </SelectTrigger>
         </FormControl>
         <SelectContent>
-          {availableVideos !== null && availableVideos !== undefined ? (
+          {availableVideos !== null &&
+          availableVideos !== undefined &&
+          availableVideos.map ? (
             availableVideos.map((video) => {
               return (
                 <SelectItem key={video.video_hash} value={video.video_hash}>
