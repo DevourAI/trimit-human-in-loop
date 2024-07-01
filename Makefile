@@ -17,7 +17,7 @@
 	install_backend_dependencies_linux \
 	vercel_build
 
-export PATH := /vercel/.local/bin:$(PATH)
+export GEN_S3_BUCKET := s3://trimit-generated/frontend
 
 
 deploy_prod:
@@ -80,13 +80,5 @@ openapi:
 	@cd frontend && yarn openapi
 
 
-install_backend_dependencies_linux:
-	@python3 -m pip install pipx
-	@python3 -m pipx ensurepath && \
-		python3 -m pipx install poetry && \
-		echo $$PATH && \
-		poetry install
-
-vercel_build:
-	@make install_backend_dependencies_linux
-	@make openapi
+copy_gen_to_s3:
+	@aws s3 cp frontend/gen/ $$S3_BUCKET --recursive

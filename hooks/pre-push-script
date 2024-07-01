@@ -1,0 +1,21 @@
+#!/bin/bash
+
+# Run the Make command to generate files
+make openapi
+
+# Check if the make command was successful
+if [ $? -ne 0 ]; then
+  echo "Failed to generate files, aborting push."
+  exit 1
+fi
+
+make copy_gen_to_s3
+
+# Check if the S3 upload was successful
+if [ $? -ne 0 ]; then
+  echo "Failed to upload files to S3, aborting push."
+  exit 1
+fi
+
+# Continue with the push
+exit 0
