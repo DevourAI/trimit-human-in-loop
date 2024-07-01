@@ -78,10 +78,9 @@ openapi:
 
 
 install_backend_dependencies_linux:
-	apt install pipx
-	pipx ensurepath
-	pipx ensurepath --global
-	pipx install poetry
+	python3 -m pip install pipx
+	python3 -m pipx ensurepath
+	python3 -m pipx install poetry
 	poetry install
 
 vercel_build:
