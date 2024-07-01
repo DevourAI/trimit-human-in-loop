@@ -24,6 +24,7 @@
     curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
     sudo installer -pkg AWSCLIV2.pkg -target /
     ```
+1. Get aws access credentials and run `aws configure`
 
 
 ## Local frontend dev

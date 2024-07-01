@@ -81,4 +81,4 @@ openapi:
 
 
 copy_gen_to_s3:
-	@aws s3 cp frontend/gen/ $$S3_BUCKET --recursive
+	aws s3 cp frontend/gen/ $$GEN_S3_BUCKET --recursive
