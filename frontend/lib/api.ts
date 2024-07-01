@@ -35,7 +35,6 @@ const fetcherWithParams = async (
   url: string,
   params: Record<string, unknown>
 ): Promise<unknown> => {
-  console.log('url', url, 'params', params);
   try {
     const res: AxiosResponse = await axios.get(url, {
       baseURL: API_URL,
@@ -355,7 +354,6 @@ export async function getFunctionCallResults(
   const callIdsFiltered = callIds.filter((callId) => {
     return callId !== undefined && callId !== null;
   });
-  console.log('callIdsFiltered', callIdsFiltered);
   if (callIdsFiltered.length === 0) {
     return { result: 'error', message: 'No callIds provided' };
   }

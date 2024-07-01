@@ -5,9 +5,11 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "vercel-build": "yarn run download-generated && next build",
     "start": "next start",
     "lint": "next lint",
-    "openapi": "openapi-generator-cli generate -i /local/docs/openapi.yaml -g typescript-axios -o /local/gen/openapi --additional-properties=withInterfaces=true"
+    "openapi": "openapi-generator-cli generate -i /local/docs/openapi.yaml -g typescript-axios -o /local/gen/openapi --additional-properties=withInterfaces=true",
+    "download-generated": "ts-node scripts/download-generated.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.4.2",
@@ -30,6 +32,7 @@
     "@types/react": "18.2.7",
     "@types/react-dom": "18.2.4",
     "autoprefixer": "10.4.14",
+    "aws-sdk": "^2.1651.0",
     "axios": "^1.7.2",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
@@ -56,6 +59,7 @@
     "tailwind-merge": "^2.3.0",
     "tailwindcss": "3.3.2",
     "tailwindcss-animate": "^1.0.7",
+    "ts-node": "^10.9.2",
     "typescript": "5.0.4",
     "zod": "^3.23.8"
   },

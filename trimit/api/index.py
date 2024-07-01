@@ -109,7 +109,10 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
             and origin in local_origins
             and os.environ["ENV"] in ["dev", "staging"]
         )
-        allow_remote = origin and re.match(r"https?://.*-trimit\.vercel\.app", origin)
+        allow_remote = origin and origin in (
+            "https://trimit-human-in-loop-git-deploy-prod-trimit.vercel.app",
+            "https://app.trimit.ai",
+        )
         origin = origin or ""
         if allow_local or allow_remote:
             response.headers["Access-Control-Allow-Origin"] = origin

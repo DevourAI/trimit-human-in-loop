@@ -1,13 +1,14 @@
 'use client';
 import { useRouter, useSearchParams } from 'next/navigation';
 import React, { useEffect } from 'react';
+import { Suspense } from 'react';
 
 import AppShell from '@/components/layout/app-shell';
 import MainStepper from '@/components/main-stepper/main-stepper';
 import { StepperFormProvider } from '@/contexts/stepper-form-context';
 import { useUser } from '@/contexts/user-context';
 
-export default function Builder() {
+function BuilderInner() {
   const { isLoggedIn, isLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -24,12 +25,19 @@ export default function Builder() {
     router.push('/projects');
     return null;
   }
+  return (
+    <StepperFormProvider>
+      <MainStepper projectId={projectId} />
+    </StepperFormProvider>
+  );
+}
 
+export default function Builder() {
   return (
     <AppShell title="Builder">
-      <StepperFormProvider>
-        <MainStepper projectId={projectId} />
-      </StepperFormProvider>
+      <Suspense>
+        <BuilderInner />
+      </Suspense>
     </AppShell>
   );
 }

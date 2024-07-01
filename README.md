@@ -19,6 +19,12 @@
 1. `cd trimit/frontend && yarn install`
 1. Start docker for mac (required for openapi types/docs generator)
 1. Compile openapi types: `make openapi`
+1. Install aws cli:
+    ```
+    curl "https://awscli.amazonaws.com/AWSCLIV2.pkg" -o "AWSCLIV2.pkg"
+    sudo installer -pkg AWSCLIV2.pkg -target /
+    ```
+1. Get aws access credentials and run `aws configure`
 
 
 ## Local frontend dev
