@@ -13,7 +13,9 @@
 	integration_test \
 	integration_test_with_deploy \
 	step_ephemeral \
-	openapi
+	openapi \
+	install_backend_dependencies_linux \
+	vercel_build
 
 deploy_prod:
 	@MODAL_ENVIRONMENT=prod DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
@@ -73,3 +75,15 @@ openapi:
 	curl http://localhost:8000/openapi.yaml -o frontend/docs/openapi.yaml; \
 	kill $$(cat server.pid) && rm server.pid
 	@cd frontend && yarn openapi
+
+
+install_backend_dependencies_linux:
+	apt install pipx
+	pipx ensurepath
+	pipx ensurepath --global
+	pipx install poetry
+	poetry install
+
+vercel_build:
+	@make install_backend_dependencies_linux
+	@make openapi
