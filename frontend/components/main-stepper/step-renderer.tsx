@@ -55,7 +55,6 @@ function StepRenderer({
   const onOutputFormSubmit = (data) => {
     // TODO should have a single submit button instead of two
     // and send chat message here
-    console.log('onOutputFormSubmit', 'stepIndex', stepIndex, 'data', data);
     onSubmit({ stepIndex, userMesage: '', structuredUserInput: data });
   };
   return (

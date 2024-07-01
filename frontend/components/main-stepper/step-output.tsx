@@ -18,7 +18,7 @@ import { OutputComponentProps } from '@/lib/types';
 //const POLL_INTERVAL = 5000;
 const OUTPUT_LABEL_MAP = {
   current_transcript_text: 'Current Transcript',
-  'On Screen Speakers': 'On Screen Speakers',
+  on_screen_speakers: 'On Screen Speakers',
   current_soundbites_iter_text: 'Key Selects',
 };
 

@@ -540,18 +540,15 @@ export default function MainStepper({ projectId }: { projectId: string }) {
           stepOutput={stepOutput}
         >
           <Stepper
-            initialStep={currentStepIndex}
+            initialStep={currentStepIndex > -1 ? currentStepIndex : 0}
             steps={latestState.all_steps.map((step: ExportableStepWrapper) => {
-              return { label: step.human_readable_name || step.name };
+              return { label: step.human_readable_name };
             })}
             orientation="vertical"
           >
             {latestState.all_steps.map(
               (step: ExportableStepWrapper, index: number) => (
-                <Step
-                  key={step.name}
-                  label={step.human_readable_name || step.name}
-                >
+                <Step key={step.name} label={step.human_readable_name}>
                   <div className="grid w-full gap-2">
                     <StepRenderer
                       step={step}
