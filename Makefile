@@ -17,6 +17,9 @@
 	install_backend_dependencies_linux \
 	vercel_build
 
+export PATH := /vercel/.local/bin:$(PATH)
+
+
 deploy_prod:
 	@MODAL_ENVIRONMENT=prod DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
 
@@ -78,10 +81,11 @@ openapi:
 
 
 install_backend_dependencies_linux:
-	python3 -m pip install pipx
-	python3 -m pipx ensurepath
-	python3 -m pipx install poetry
-	poetry install
+	@python3 -m pip install pipx
+	@python3 -m pipx ensurepath && \
+		python3 -m pipx install poetry && \
+		echo $$PATH && \
+		poetry install
 
 vercel_build:
 	@make install_backend_dependencies_linux
