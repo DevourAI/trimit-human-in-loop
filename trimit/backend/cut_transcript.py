@@ -487,14 +487,13 @@ class CutTranscriptLinearWorkflow:
         return last_output.export_result or {}
 
     async def export_result_for_step_substep_name(
-        self, step_name: str, substep_name: str, with_load_state=True
+        self, step_name: str, substep_name: str | None, with_load_state=True
     ):
         if with_load_state:
             await self.load_state()
         assert self.state is not None
 
-        state_key = get_dynamic_state_key(step_name, substep_name)
-        output = self._get_output_for_key(state_key)
+        output = self._get_output_for_name(step_name, substep_name)
         if output is None:
             return {}
         return output.export_result or {}
@@ -615,10 +614,24 @@ class CutTranscriptLinearWorkflow:
     #### READ STATE/STEP ####
 
     async def load_state(self):
-        assert self.state is not None
-        await self.state.sync()
-        await self.state.fetch_all_links()
-        await self.state.video.sync()
+        if self.state is None:
+            raise ValueError("state is none")
+
+        try:
+            await self.state.sync()
+        except Exception as e:
+            print("state sync error:", e)
+            raise
+        try:
+            await self.state.fetch_all_links()
+        except Exception as e:
+            print("fetch_all_links error:", e)
+            raise
+        try:
+            await self.state.video.sync()
+        except Exception as e:
+            print("video sync error:", e)
+            raise
         self.step_order = self.state
 
     async def load_step_order(self):
