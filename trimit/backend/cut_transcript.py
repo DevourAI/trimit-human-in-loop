@@ -1463,6 +1463,7 @@ class CutTranscriptLinearWorkflow:
                 suffix="_soundbites",
                 prefix=f"{prefix}transcript_",
             )
+            print("Saving soundbites videos")
             soundbites_video_files = await save_soundbites_videos_to_disk(
                 video=self.video,
                 output_dir=self.soundbites_video_dir,
@@ -1471,7 +1472,9 @@ class CutTranscriptLinearWorkflow:
                 clip_extra_trim_seconds=self.clip_extra_trim_seconds,
                 prefix=f"{prefix}_" + "{}",
                 timeline_name=self.timeline_name,
+                verbose=False,
             )
+            print(f"Saved soundbites videos: {soundbites_video_files }")
             soundbites_timeline_file = create_fcp_7_xml_from_single_video_transcript(
                 video=self.video,
                 transcript=self.current_soundbites,

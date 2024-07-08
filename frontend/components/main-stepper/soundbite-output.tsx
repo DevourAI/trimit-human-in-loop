@@ -72,13 +72,13 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
   const soundbiteTranscripts = value;
   const soundbiteClips = exportResult?.soundbites_videos || [];
   const onSubmitWrapper = (data: z.infer<typeof StructuredInputFormSchema>) => {
-    console.log('submitting structured form');
     data.identify_key_soundbites.soundbite_selection = removeEmptyVals(
       data.identify_key_soundbites.soundbite_selection
     );
     onSubmit();
   };
 
+  console.log('exportResult', exportResult);
   //form.handleSubmit(onSubmitWrapper)}
   // TODO wrap all these form inputs in a carousel
   return (

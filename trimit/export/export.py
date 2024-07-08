@@ -8,6 +8,7 @@ from trimit.export.utils import (
     get_new_integer_file_name_in_dir,
     get_existing_integer_file_name_in_dir,
 )
+import asyncio
 from tqdm.asyncio import tqdm as tqdm_async
 
 
@@ -24,6 +25,7 @@ async def create_cut_video_from_transcript(
     clip_min_duration: float = 0.1,
     clip_gap_min_duration: float = 0.1,
     create_new_if_existing: bool = True,
+    verbose: bool = True,
 ):
     filename = get_video_filename(
         output_dir=output_dir,
@@ -40,9 +42,11 @@ async def create_cut_video_from_transcript(
     if video.duration is None:
         raise ValueError("Video duration must be provided")
 
-    assert video.duration is not None
     timeline = []
-    for cut in tqdm(transcript.iter_kept_cuts(), desc="Creating scenes"):
+    iterable = transcript.iter_kept_cuts()
+    if verbose:
+        iterable = tqdm(iterable, desc="Creating scenes")
+    for cut in iterable:
         start_time = max(0, float(cut.start) - clip_extra_trim_seconds)
         end_time = min(
             float(cut.end) + clip_extra_trim_seconds,
@@ -62,6 +66,8 @@ async def create_cut_video_from_transcript(
             check_existing=False,
         )
         timeline.append(scene)
+    if len(timeline) == 0:
+        return None
     return await generate_video_from_timeline(
         video.user.email,
         timeline,
@@ -110,6 +116,8 @@ async def generate_video_from_timeline(
 ):
     from moviepy.editor import VideoFileClip, concatenate_videoclips
 
+    if len(timeline) == 0:
+        raise ValueError("No scenes")
     video_clips = {}
     scene_clips = []
     for scene in timeline:
@@ -304,6 +312,7 @@ async def save_soundbites_videos_to_disk(
     clip_duration_safety_buffer: float = 0.01,
     clip_min_duration: float = 0.0,
     clip_gap_min_duration: float = 0.0,
+    verbose: bool = False,
 ):
     tasks = []
     for i, soundbite in enumerate(soundbites.soundbites):
@@ -319,7 +328,11 @@ async def save_soundbites_videos_to_disk(
                 clip_duration_safety_buffer=clip_duration_safety_buffer,
                 clip_min_duration=clip_min_duration,
                 clip_gap_min_duration=clip_gap_min_duration,
+                verbose=verbose,
             )
         )
-    video_paths = await tqdm_async.gather(*tasks)
+    gather = asyncio.gather
+    if verbose:
+        gather = tqdm_async.gather
+    video_paths = [filename or "" for filename in await gather(*tasks)]
     return video_paths
