@@ -132,17 +132,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     300
   );
 
-  const chatInitialMessages = stepInputPrompt
-    ? [{ sender: 'AI', text: stepInputPrompt }]
-    : [];
-  if (stepOutput?.full_conversation) {
-    stepOutput.full_conversation.forEach((msg) => {
-      chatInitialMessages.push({ sender: msg.role, text: msg.value });
-    });
-  }
-
-  const [chatMessages, setChatMessages] =
-    useState<Message[]>(chatInitialMessages);
+  const [chatMessages, setChatMessages] = useState<Message[]>([]);
 
   const setAIMessageCallback = (aiMessage: string) => {
     setChatMessages((prevMessages) => [
@@ -293,6 +283,9 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       }
       let currentStep =
         currentStepIndex >= 0 ? latestState.all_steps[currentStepIndex] : null;
+      console.log('currentStepIndex', currentStepIndex);
+      console.log('currentStep', currentStep?.input_prompt);
+      console.log('stepInputPrompt', stepInputPrompt);
       setStepInputPrompt(currentStep?.input_prompt || '');
 
       if (isLoading) {
@@ -323,6 +316,23 @@ export default function MainStepper({ projectId }: { projectId: string }) {
 
   useEffect(() => {
     setUserFeedbackRequest(stepOutput?.user_feedback_request || '');
+
+    console.log('full conversation', stepOutput?.full_conversation);
+    console.log('stepInputPrompt', stepInputPrompt);
+    if (stepOutput === null) {
+      setChatMessages([]);
+      return;
+    }
+    const newMessages: Message[] = stepInputPrompt
+      ? [{ sender: 'AI', text: stepInputPrompt }]
+      : [];
+    if (stepOutput?.full_conversation) {
+      stepOutput.full_conversation.forEach((msg) => {
+        newMessages.push({ sender: msg.role, text: msg.value });
+      });
+    }
+    console.log('newMessages', newMessages);
+    setChatMessages(newMessages);
   }, [stepOutput]);
 
   type ActivePromptAction =
