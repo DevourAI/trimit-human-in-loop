@@ -113,6 +113,6 @@ export type Video = {
 export interface OutputComponentProps {
   value: any;
   exportResult: any;
-  onSubmit: (formData: StructuredUserInputInput) => void;
+  onSubmit: () => void;
   form: UseFormReturn;
 }

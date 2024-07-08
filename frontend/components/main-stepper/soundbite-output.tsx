@@ -69,6 +69,7 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
     data.identify_key_soundbites.soundbite_selection = removeEmptyVals(
       data.identify_key_soundbites.soundbite_selection
     );
+    onSubmit();
   };
   console.log('soundbiteTranscripts', soundbiteTranscripts);
   console.log('exportResult', exportResult);

@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { z } from 'zod';
 
+import { Message } from '@/components/chat/chat';
 import { Footer } from '@/components/main-stepper/main-stepper-footer';
 import StepRenderer from '@/components/main-stepper/step-renderer';
 import { Button } from '@/components/ui/button';
@@ -107,6 +108,8 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   const [stepInputPrompt, setStepInputPrompt] = useState<string>('');
   const [trueStepIndex, setTrueStepIndex] = useState<number>(-1);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1);
+  const [userMessage, setUserMessage] = useState<string>('');
+
   const [latestExportResult, setLatestExportResult] = useState<
     Record<string, any>
   >({});
@@ -128,6 +131,25 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     },
     300
   );
+
+  const chatInitialMessages = stepInputPrompt
+    ? [{ sender: 'AI', text: stepInputPrompt }]
+    : [];
+  if (stepOutput?.full_conversation) {
+    stepOutput.full_conversation.forEach((msg) => {
+      chatInitialMessages.push({ sender: msg.role, text: msg.value });
+    });
+  }
+
+  const [chatMessages, setChatMessages] =
+    useState<Message[]>(chatInitialMessages);
+
+  const setAIMessageCallback = (aiMessage: string) => {
+    setChatMessages((prevMessages) => [
+      ...prevMessages,
+      { sender: 'AI', text: aiMessage },
+    ]);
+  };
 
   const userParams = useMemo(
     () => ({
@@ -347,14 +369,11 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     [latestState, userParams]
   );
 
-  async function retryStep(
-    stepIndex: number,
-    data: z.infer<typeof FormSchema>
-  ) {
+  async function retryStep(data: z.infer<typeof FormSchema>) {
     // TODO: stepperFormValues.feedback is cut off- doesn't include last character
     setIsLoading(true);
-    if (trueStepIndex > stepIndex) {
-      const success = await revertStepTo(stepIndex + 1);
+    if (trueStepIndex > currentStepIndex) {
+      const success = await revertStepTo(currentStepIndex + 1);
       if (!success) {
         setIsLoading(false);
         return;
@@ -377,19 +396,15 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     }
   }
   // TODO combine this method with the form once we have structured input
-  async function advanceOrRetryStep(options: {
-    stepIndex: number;
-    userMessage: string;
-    callback: (aiMessage: string) => void;
-  }) {
-    if (options.stepIndex === null || options.stepIndex === undefined) {
-      throw new Error('must provide stepIndex to advanceOrRetryStep');
-    }
+  async function advanceOrRetryStep(options: { useStructuredInput: boolean }) {
+    // if (options.stepIndex === null || options.stepIndex === undefined) {
+    // throw new Error('must provide stepIndex to advanceOrRetryStep');
+    // }
 
     // TODO: stepperFormValues.feedback is cut off- doesn't include last character
     setIsLoading(true);
     let retry = false;
-    if (trueStepIndex >= options.stepIndex) {
+    if (trueStepIndex >= currentStepIndex) {
       retry = true;
     }
     console.log(
@@ -398,18 +413,24 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       'trueStepIndex',
       trueStepIndex,
       'advance_until',
-      options.stepIndex
+      currentStepIndex,
+      'useStructuredUserInput',
+      options.useStructuredInput,
+      'useStructuredUserInput',
+      structuredInputFormData
     );
 
-    setCurrentStepIndex(options.stepIndex);
+    //setCurrentStepIndex(options.stepIndex);
     setStepOutput(null);
     const stepData: StepData = {
-      user_input: options.userMessage || '',
-      structured_user_input: structuredInputFormData,
+      user_input: userMessage || '',
+      structured_user_input: options.useStructuredInput
+        ? structuredInputFormData
+        : undefined,
       streaming: true,
       ignore_running_workflows: true,
       retry_step: retry,
-      advance_until: options.stepIndex,
+      advance_until: currentStepIndex,
     };
     console.log('stepData', stepData);
     try {
@@ -426,9 +447,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         console.log('finalState', finalState);
         console.log('stepIndexFromFinalState', stepIndexFromState(finalState));
         setCurrentStepIndex(stepIndexFromState(finalState));
-        if (options.callback) {
-          options.callback(aiMessage);
-        }
+        setAIMessageCallback(aiMessage);
       });
     } catch (error) {
       console.error('error in step', error);
@@ -557,14 +576,17 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                           ? latestState.outputs[index]
                           : null
                       }
+                      chatMessages={chatMessages}
                       onSubmit={advanceOrRetryStep}
                       isNewStep={trueStepIndex < index}
                       isLoading={isLoading}
                       backendMessage={backendMessage}
                       isInitialized={workflowInitialized}
                       onCancelStep={onCancelStep}
+                      setUserMessage={setUserMessage}
                       footer={
                         <Footer
+                          userMessage={userMessage}
                           currentStepIndex={currentStepIndex}
                           trueStepIndex={trueStepIndex}
                           onPrevStep={onPrevStep}
@@ -575,6 +597,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                           userParams={userParams}
                           stepName={step.name}
                           isLoading={isLoading}
+                          onSubmit={advanceOrRetryStep}
                         />
                       }
                     />

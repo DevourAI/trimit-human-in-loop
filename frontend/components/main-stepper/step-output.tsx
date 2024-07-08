@@ -12,7 +12,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useStructuredInputForm } from '@/contexts/structured-input-form-context';
-import { FrontendStepOutput, StructuredUserInputInput } from '@/gen/openapi';
+import { FrontendStepOutput } from '@/gen/openapi';
 import { OutputComponentProps } from '@/lib/types';
 
 //const POLL_INTERVAL = 5000;
@@ -26,7 +26,7 @@ interface StepOutputProps {
   output: FrontendStepOutput;
   exportResult: Record<string, any> | null;
   exportCallId: string | null;
-  onSubmit: (formData: StructuredUserInputInput) => void;
+  onSubmit: () => void;
 }
 
 interface StepOutputItemProps {
@@ -35,7 +35,7 @@ interface StepOutputItemProps {
   output: any;
   index: number;
   exportResult: Record<string, any>;
-  onSubmit: (formData: StructuredUserInputInput) => void;
+  onSubmit: () => void;
   form: UseFormReturn;
 }
 

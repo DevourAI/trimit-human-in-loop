@@ -2,6 +2,7 @@
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  ArrowUpIcon,
   ResetIcon,
 } from '@radix-ui/react-icons';
 import React, { useEffect } from 'react';
@@ -22,6 +23,7 @@ export interface FooterProps {
   userParams: DownloadFileParams;
   stepName: string;
   isLoading: boolean;
+  onSubmit: () => void;
 }
 
 export const Footer = ({
@@ -35,6 +37,7 @@ export const Footer = ({
   userParams,
   stepName,
   isLoading,
+  onSubmit,
 }: FooterProps) => {
   const {
     nextStep,
@@ -78,6 +81,15 @@ export const Footer = ({
           >
             <ResetIcon className="mr-2" />
             Undo step
+          </Button>
+          <Button
+            disabled={currentStepIndex === 0 || isLoading}
+            onClick={onSubmit}
+            size="sm"
+            variant="default"
+          >
+            <ArrowUpIcon className="mr-2" />
+            Submit
           </Button>
         </div>
 

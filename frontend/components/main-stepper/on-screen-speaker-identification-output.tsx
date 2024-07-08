@@ -62,6 +62,8 @@ export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
     data.remove_off_screen_speakers.speaker_tag_mapping = removeEmptyVals(
       data.remove_off_screen_speakers.speaker_tag_mapping
     );
+    // TODO does this actually change the form values?
+    onSubmit();
   };
 
   return (
