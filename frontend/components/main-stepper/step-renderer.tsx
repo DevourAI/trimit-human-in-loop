@@ -25,6 +25,7 @@ interface StepRendererProps {
   isLoading: boolean;
   isInitialized: boolean;
   onCancelStep?: () => void;
+  backendMessage: string;
 }
 
 function StepRenderer({
@@ -39,6 +40,7 @@ function StepRenderer({
   isLoading,
   isInitialized,
   onCancelStep,
+  backendMessage,
 }: StepRendererProps) {
   const chatInitialMessages = stepInputPrompt
     ? [{ sender: 'AI', text: stepInputPrompt }]
@@ -60,17 +62,6 @@ function StepRenderer({
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
-        {isLoading && (
-          <div className="absolute top-0 left-0 w-full h-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
-            {isInitialized ? 'Running step...' : 'Initializing...'}
-            <LoadingSpinner size="large" />
-            {onCancelStep && (
-              <Button variant="secondary" onClick={onCancelStep}>
-                Cancel
-              </Button>
-            )}
-          </div>
-        )}
         <div className="w-1/2 p-4">
           <Heading className="mb-3" size="sm">
             Chat
@@ -96,7 +87,24 @@ function StepRenderer({
           <StepOutput output={stepOutput} onSubmit={onOutputFormSubmit} />
         </div>
       </CardContent>
-      {footer && <CardFooter>{footer}</CardFooter>}
+      {footer && (
+        <CardFooter>
+          {footer}
+          {isLoading && (
+            <div className="absolute bottom-0 left-0 w-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
+              {isInitialized
+                ? `${backendMessage || 'Running step'}...`
+                : 'Initializing...'}
+              <LoadingSpinner size="large" />
+              {onCancelStep && (
+                <Button variant="secondary" onClick={onCancelStep}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          )}
+        </CardFooter>
+      )}
     </Card>
   );
 }

@@ -21,6 +21,7 @@ export interface FooterProps {
   totalNSteps: number;
   userParams: DownloadFileParams;
   stepName: string;
+  isLoading: boolean;
 }
 
 export const Footer = ({
@@ -33,6 +34,7 @@ export const Footer = ({
   totalNSteps,
   userParams,
   stepName,
+  isLoading,
 }: FooterProps) => {
   const {
     nextStep,
@@ -60,7 +62,7 @@ export const Footer = ({
       <div className="w-full flex justify-between gap-2">
         <div className="flex gap-2">
           <Button
-            disabled={currentStepIndex === 0}
+            disabled={currentStepIndex === 0 || isLoading}
             onClick={onPrevStep}
             size="sm"
             variant="secondary"
@@ -72,19 +74,25 @@ export const Footer = ({
             variant="ghost"
             size="sm"
             onClick={undoLastStep}
-            disabled={currentStepIndex === 0}
+            disabled={currentStepIndex === 0 || isLoading}
           >
             <ResetIcon className="mr-2" />
             Undo step
           </Button>
         </div>
 
-        <ExportStepMenu userParams={userParams} stepName={stepName} />
+        <ExportStepMenu
+          disabled={currentStepIndex === 0 || isLoading}
+          userParams={userParams}
+          stepName={stepName}
+        />
         <Button
           size="sm"
           onClick={onNextStep}
           disabled={
-            trueStepIndex >= totalNSteps - 1 || currentStepIndex > trueStepIndex
+            trueStepIndex >= totalNSteps - 1 ||
+            currentStepIndex > trueStepIndex ||
+            isLoading
           }
         >
           Next

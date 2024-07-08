@@ -457,7 +457,7 @@ def step_endpoint(
 
         async def streamer():
             yield CutTranscriptLinearWorkflowStreamingOutput(
-                partial_backend_output=PartialBackendOutput(value="Running step...")
+                partial_backend_output=PartialBackendOutput(value="Running step")
             ).model_dump_json()
             if is_local():
                 method = step_function.local

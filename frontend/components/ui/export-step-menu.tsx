@@ -19,11 +19,13 @@ import { DownloadFileParams } from '@/lib/types';
 interface DownloadButtonsProps {
   userParams: DownloadFileParams;
   stepName?: string;
+  disabled: boolean;
 }
 
 export default function ExportStepMenu({
   userParams,
   stepName,
+  disabled,
 }: DownloadButtonsProps) {
   const downloadParams: DownloadFileParams = {
     ...userParams,
@@ -33,24 +35,37 @@ export default function ExportStepMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button className="w-fit" variant="secondary" size="sm">
+        <Button
+          disabled={disabled}
+          className="w-fit"
+          variant="secondary"
+          size="sm"
+        >
           <DownloadIcon className="mr-2" />
           Export
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent>
-        <DropdownMenuItem onSelect={() => downloadVideo(downloadParams)}>
+        <DropdownMenuItem
+          disabled={disabled}
+          onSelect={() => downloadVideo(downloadParams)}
+        >
           Download video
         </DropdownMenuItem>
-        <DropdownMenuItem onSelect={() => downloadTimeline(downloadParams)}>
+        <DropdownMenuItem
+          disabled={disabled}
+          onSelect={() => downloadTimeline(downloadParams)}
+        >
           Download timeline
         </DropdownMenuItem>
         <DropdownMenuItem
+          disabled={disabled}
           onSelect={() => downloadTranscriptText(downloadParams)}
         >
           Download transcript
         </DropdownMenuItem>
         <DropdownMenuItem
+          disabled={disabled}
           onSelect={() => downloadSoundbitesText(downloadParams)}
         >
           Download soundbites transcript

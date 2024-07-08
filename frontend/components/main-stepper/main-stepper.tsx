@@ -16,7 +16,6 @@ import StepRenderer from '@/components/main-stepper/step-renderer';
 import { Button } from '@/components/ui/button';
 import { Step, Stepper } from '@/components/ui/stepper';
 import { FormSchema } from '@/components/ui/stepper-form';
-import { useToast } from '@/components/ui/use-toast';
 import { useStepperForm } from '@/contexts/stepper-form-context';
 import {
   StructuredInputFormProvider,
@@ -101,7 +100,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     null
   );
   const { stepperFormValues } = useStepperForm();
-  const { toast } = useToast();
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
     null
   );
@@ -509,17 +507,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     }
   }
 
-  useEffect(() => {
-    if (!backendMessage) return;
-    toast({
-      title: backendMessage,
-      // description: "Friday, February 10, 2023 at 5:57 PM",
-      // action: (
-      // <ToastAction altText="Goto schedule to undo">Undo</ToastAction>
-      // ),
-    });
-  }, [backendMessage, toast]);
-
   const workflowInitialized = project && latestState?.all_steps !== undefined;
   function onCancelStep() {
     throw new Error('not implemented');
@@ -573,6 +560,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                       onSubmit={advanceOrRetryStep}
                       isNewStep={trueStepIndex < index}
                       isLoading={isLoading}
+                      backendMessage={backendMessage}
                       isInitialized={workflowInitialized}
                       onCancelStep={onCancelStep}
                       footer={
@@ -586,6 +574,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                           totalNSteps={latestState.all_steps!.length}
                           userParams={userParams}
                           stepName={step.name}
+                          isLoading={isLoading}
                         />
                       }
                     />
