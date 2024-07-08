@@ -1,6 +1,8 @@
+import { ArrowUpIcon } from '@radix-ui/react-icons';
 import React, { FC } from 'react';
 import { z } from 'zod';
 
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Carousel,
@@ -20,6 +22,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { VideoStream } from '@/components/ui/video-stream';
+import { StructuredInputFormSchema } from '@/contexts/structured-input-form-context';
 import { OutputComponentProps } from '@/lib/types';
 import { removeEmptyVals } from '@/lib/utils';
 
@@ -41,7 +44,9 @@ const SoundbiteExamples: FC<{
                 <CardContent className="flex aspect-square items-center justify-center p-6">
                   <VideoStream
                     videoPath={
-                      videoPaths && videoPaths.length > i ? videoPaths[i] : ''
+                      videoPaths && videoPaths.length > index
+                        ? videoPaths[index]
+                        : ''
                     }
                   />
                   <Transcript text={soundbiteTranscript} />
@@ -61,26 +66,26 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
   value,
   exportResult,
   onSubmit,
+  isLoading,
   form,
 }) => {
   const soundbiteTranscripts = value;
   const soundbiteClips = exportResult?.soundbites_videos || [];
   const onSubmitWrapper = (data: z.infer<typeof StructuredInputFormSchema>) => {
+    console.log('submitting structured form');
     data.identify_key_soundbites.soundbite_selection = removeEmptyVals(
       data.identify_key_soundbites.soundbite_selection
     );
     onSubmit();
   };
-  console.log('soundbiteTranscripts', soundbiteTranscripts);
-  console.log('exportResult', exportResult);
-  console.log('soundbiteClips', soundbiteClips);
 
+  //form.handleSubmit(onSubmitWrapper)}
   // TODO wrap all these form inputs in a carousel
   return (
     <div className="relative p-3">
       <Form {...form}>
         <form
-          onSubmit={form.handleSubmit((data) => onSubmitWrapper(data))}
+          onSubmit={form.handleSubmit(onSubmitWrapper)}
           className="w-2/3 space-y-6"
         >
           {soundbiteTranscripts.map(([segmentIndex, text], index) => (
@@ -120,6 +125,10 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
               />
             </div>
           ))}
+          <Button disabled={isLoading} size="sm" type="submit">
+            <ArrowUpIcon className="mr-2" />
+            Update soundbites
+          </Button>
         </form>
       </Form>
     </div>

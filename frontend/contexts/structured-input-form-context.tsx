@@ -1,9 +1,9 @@
 import React, {ReactNode, createContext, useContext, useState, useEffect, useRef} from 'react';
-import { zodResolver } from '@hookform/resolvers/zod';
-import type { UseFormReturn } from "react-hook-form";
-import { useForm } from "react-hook-form";
+import {zodResolver} from '@hookform/resolvers/zod';
+import type {UseFormReturn} from "react-hook-form";
+import {useForm} from "react-hook-form";
 import {z} from 'zod';
-import { getFunctionCallResults } from '@/lib/api';
+import {getFunctionCallResults} from '@/lib/api';
 const POLL_INTERVAL = 5000;
 
 // TODO autogenerate these based on types in @/gen/openapi/api.ts
@@ -12,7 +12,7 @@ export const RemoveOffScreenSpeakersFormSchema = z.object({
   speaker_tag_mapping: z.record(z.string(), z.boolean()),
 });
 export const IdentifyKeySoundbitesInput = z.object({
-  soundbites_selection: z.record(z.number(), z.boolean()),
+  soundbite_selection: z.record(z.string(), z.boolean()),
 });
 
 export const StructuredInputFormSchema = z.object({
@@ -22,7 +22,7 @@ export const StructuredInputFormSchema = z.object({
 
 interface FormContextProps {
   form: UseFormReturn;
-  exportResult: Record<string,any> | null;
+  exportResult: Record<string, any> | null;
 }
 
 interface StructuredInputFormProviderProps {
@@ -32,17 +32,17 @@ interface StructuredInputFormProviderProps {
 }
 
 function setUndefinedToTrue(values: Record<string | int, any>) {
-    return Object.keys(values).reduce(
-      (acc, key) => {
-        acc[key] = (acc[key] === undefined || acc[key] === null) ? true : acc[key];
-        return acc;
-      },
-      {}
-    );
+  return Object.keys(values).reduce(
+    (acc, key) => {
+      acc[key] = (acc[key] === undefined || acc[key] === null) ? true : acc[key];
+      return acc;
+    },
+    {}
+  );
 }
 
 
-function createStructuredInputDefaultsFromOutputs(stepOutput: FrontendStepOutput, exportResult: Record<string,any> | null) {
+function createStructuredInputDefaultsFromOutputs(stepOutput: FrontendStepOutput, exportResult: Record<string, any> | null) {
   let defaultNameMapping = {};
   let defaultTagMapping = {};
   let defaultSoundbiteSelectionMapping = {};
@@ -83,7 +83,7 @@ function createStructuredInputDefaultsFromOutputs(stepOutput: FrontendStepOutput
   }
 }
 
-export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderProps> = ({ children, stepOutput, onFormDataChange }) => {
+export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderProps> = ({children, stepOutput, onFormDataChange}) => {
   const [exportResult, setExportResult] = useState<Record<string, any> | null>(
     stepOutput?.export_result || null
   );
@@ -158,7 +158,7 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
           currentValues.identify_key_soundbites = defaultValues.current.identify_key_soundbites;
         }
       } else {
-          currentValues.identify_key_soundbites = defaultValues.current.identify_key_soundbites;
+        currentValues.identify_key_soundbites = defaultValues.current.identify_key_soundbites;
       }
       onFormDataChange(currentValues);
       prevFormDataString.current = JSON.stringify(currentValues);

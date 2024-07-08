@@ -79,7 +79,11 @@ function StepRenderer({
             value={outputText}
             step={step}
           />
-          <StepOutput output={stepOutput} onSubmit={onOutputFormSubmit} />
+          <StepOutput
+            isLoading={isLoading}
+            output={stepOutput}
+            onSubmit={onOutputFormSubmit}
+          />
         </div>
       </CardContent>
       {footer && (

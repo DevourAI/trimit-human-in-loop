@@ -111,6 +111,7 @@ export type Video = {
 };
 
 export interface OutputComponentProps {
+  isLoading: boolean;
   value: any;
   exportResult: any;
   onSubmit: () => void;

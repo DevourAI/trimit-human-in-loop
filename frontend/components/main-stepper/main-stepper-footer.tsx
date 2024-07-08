@@ -89,7 +89,7 @@ export const Footer = ({
             variant="default"
           >
             <ArrowUpIcon className="mr-2" />
-            Submit
+            Run step
           </Button>
         </div>
 
