@@ -1046,7 +1046,7 @@ class CutTranscriptLinearWorkflow:
                     "on_screen_speakers": on_screen_speakers,
                     "on_screen_transcript": on_screen_transcript,
                 },
-                user_feedback_request=None,
+                user_feedback_request=f"Here is the updated transcript with tagged on screen speakers {on_screen_speakers}. Ready to move on?",
             ), True
             return
 
@@ -1106,7 +1106,7 @@ class CutTranscriptLinearWorkflow:
             transcript=self.on_screen_transcript.text,
             length_seconds=self.length_seconds,
             total_words=desired_words_from_length(self.length_seconds),
-            user_prompt=self.state.user_prompt,
+            user_prompt=step_input.user_prompt,
             from_cache=self.use_agent_output_cache,
             user_feedback_messages=step_input.prior_user_messages,
         ):
@@ -1173,7 +1173,7 @@ class CutTranscriptLinearWorkflow:
                     "current_soundbites": current_soundbites,
                     "original_soundbites": original_soundbites,
                 },
-                user_feedback_request=None,
+                user_feedback_request="Here are the updated soundbites according to your feedback. Ready to move on?",
             ), True
             return
 
@@ -1841,6 +1841,8 @@ class CutTranscriptLinearWorkflow:
                 structured_user_input=structured_user_input,
                 is_retry=True,
             )
+        if not force_retry:
+            return False, None
 
         assert self.state is not None
         _, substep = self.get_step_by_name(step_name, substep_name)
@@ -1914,6 +1916,8 @@ class CutTranscriptLinearWorkflow:
                 method = self._ask_llm_to_parse_user_prompt_for_story_retry
             elif "off_screen_speakers" in step_name:
                 method = self._ask_llm_to_parse_user_prompt_for_speaker_id_retry
+            # TODO force_retry should just be retry, and we should be clear that we're only calling the llm here
+            # if we were asked to retry
             output = None
             async for output, is_last in method(user_feedback=user_prompt):
                 if is_last:
@@ -1923,7 +1927,7 @@ class CutTranscriptLinearWorkflow:
                 f"retry step: {step_name}, retry_output: {output}, user_prompt: {user_prompt}"
             )
 
-            return force_retry or output, CutTranscriptLinearWorkflowStepInput(
+            return True, CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt,
                 is_retry=True,
                 structured_user_input=structured_user_input,

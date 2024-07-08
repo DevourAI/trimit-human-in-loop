@@ -70,6 +70,9 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
       data.identify_key_soundbites.soundbite_selection
     );
   };
+  console.log('soundbiteTranscripts', soundbiteTranscripts);
+  console.log('exportResult', exportResult);
+  console.log('soundbiteClips', soundbiteClips);
 
   // TODO wrap all these form inputs in a carousel
   return (

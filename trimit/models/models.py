@@ -920,12 +920,13 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     def user_prompt(self):
         if len(self.dynamic_state_step_order) == 0:
             return None
-        first_step_name = self.dynamic_state_step_order[0].name
-        first_substep_name = self.dynamic_state_step_order[0].substeps[0]
-        key = get_dynamic_state_key(first_step_name, first_substep_name)
-        if len(self.outputs[key]) == 0:
+        key = get_dynamic_state_key("generate_story", "generate_story")
+        if len(self.outputs.get(key, [])) == 0:
             return None
-        return self.outputs[key][-1].step_inputs.user_prompt
+        step_inputs = self.outputs[key][-1].step_inputs
+        if step_inputs is not None:
+            return step_inputs.user_prompt
+        return ""
 
     def stage_output_dir(self, stage):
         if self.run_output_dir is None:

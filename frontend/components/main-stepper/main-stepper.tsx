@@ -394,7 +394,14 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     if (trueStepIndex >= options.stepIndex) {
       retry = true;
     }
-    console.log('advanceOrRetryStep retry', retry);
+    console.log(
+      'advanceOrRetryStep retry',
+      retry,
+      'trueStepIndex',
+      trueStepIndex,
+      'advance_until',
+      options.stepIndex
+    );
 
     setCurrentStepIndex(options.stepIndex);
     setStepOutput(null);
@@ -418,7 +425,9 @@ export default function MainStepper({ projectId }: { projectId: string }) {
               stepOutput.full_conversation.length - 1
             ].value
           : '';
-        setCurrentStepIndex(stepIndexFromState(latestState));
+        console.log('finalState', finalState);
+        console.log('stepIndexFromFinalState', stepIndexFromState(finalState));
+        setCurrentStepIndex(stepIndexFromState(finalState));
         if (options.callback) {
           options.callback(aiMessage);
         }
