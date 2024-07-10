@@ -55,6 +55,7 @@ const VideoTable: React.FC<VideoTableProps> = ({
   videoProcessingStatuses,
   selectVideo,
 }) => {
+  console.log('uploadedVideos', uploadedVideos);
   return (
     <div className="rounded-md border">
       <Table>
@@ -73,7 +74,7 @@ const VideoTable: React.FC<VideoTableProps> = ({
                 <TableCell className="font-medium">{video.filename}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   <video width="320" height="240" controls>
-                    <source src={video.remoteUrl} type="video/mp4" />
+                    <source src={video.remote_url} type="video/mp4" />
                     <track kind="captions" />
                     Your browser does not support the video tag.
                   </video>

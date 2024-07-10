@@ -12,7 +12,7 @@ import {
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import { useStructuredInputForm } from '@/contexts/structured-input-form-context';
-import { FrontendStepOutput, StructuredUserInputInput } from '@/gen/openapi';
+import { FrontendStepOutput } from '@/gen/openapi';
 import { OutputComponentProps } from '@/lib/types';
 
 //const POLL_INTERVAL = 5000;
@@ -26,7 +26,8 @@ interface StepOutputProps {
   output: FrontendStepOutput;
   exportResult: Record<string, any> | null;
   exportCallId: string | null;
-  onSubmit: (formData: StructuredUserInputInput) => void;
+  onSubmit: () => void;
+  isLoading: boolean;
 }
 
 interface StepOutputItemProps {
@@ -35,8 +36,9 @@ interface StepOutputItemProps {
   output: any;
   index: number;
   exportResult: Record<string, any>;
-  onSubmit: (formData: StructuredUserInputInput) => void;
+  onSubmit: () => void;
   form: UseFormReturn;
+  isLoading: boolean;
 }
 
 const TranscriptOutput: FC<OutputComponentProps> = ({ value }) => {
@@ -61,6 +63,7 @@ const StepOutputItem: FC<StepOutputItemProps> = ({
   exportResult,
   onSubmit,
   form,
+  isLoading,
 }) => {
   const Component = outputComponentMapping[name];
   if (Component === undefined) {
@@ -83,13 +86,14 @@ const StepOutputItem: FC<StepOutputItemProps> = ({
           exportResult={exportResult}
           onSubmit={onSubmit}
           form={form}
+          isLoading={isLoading}
         />
       </AccordionContent>
     </AccordionItem>
   );
 };
 
-const StepOutput: FC<StepOutputProps> = ({ output, onSubmit }) => {
+const StepOutput: FC<StepOutputProps> = ({ output, onSubmit, isLoading }) => {
   // const [exportResult, setExportResult] = useState<Record<string, any> | null>(
   // output?.export_result || null
   // );
@@ -148,6 +152,7 @@ const StepOutput: FC<StepOutputProps> = ({ output, onSubmit }) => {
       ) : null}
       {Object.keys(output.step_outputs).map((key, index) => (
         <StepOutputItem
+          isLoading={isLoading}
           key={index}
           name={key}
           label={OUTPUT_LABEL_MAP[key] || key}

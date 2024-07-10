@@ -24,7 +24,6 @@ from trimit.backend.utils import (
     remove_soundbites,
     parse_partials_to_redo_from_agent_output,
     parse_relevant_user_feedback_list_from_agent_output,
-    add_complete_format,
     parse_stage_num_from_step_name,
     stage_key_for_step_name,
     get_agent_output_modal_or_local,
@@ -326,11 +325,7 @@ class CutTranscriptLinearWorkflow:
 
     @property
     def base_user_feedback_prompt(self):
-        formatted_inner_base_prompt = add_complete_format(
-            "\n\nDo you have any feedback to provide the AI assistant?",
-            ["bold", "yellow"],
-        )
-        return "{{ prefix }}" + formatted_inner_base_prompt
+        return "{{ prefix }}\n\nDo you have any feedback to provide the AI assistant?"
 
     @property
     def output_dir(self):
@@ -1046,7 +1041,7 @@ class CutTranscriptLinearWorkflow:
                     "on_screen_speakers": on_screen_speakers,
                     "on_screen_transcript": on_screen_transcript,
                 },
-                user_feedback_request=None,
+                user_feedback_request=f"Here is the updated transcript with tagged on screen speakers {on_screen_speakers}. Ready to move on?",
             ), True
             return
 
@@ -1106,7 +1101,7 @@ class CutTranscriptLinearWorkflow:
             transcript=self.on_screen_transcript.text,
             length_seconds=self.length_seconds,
             total_words=desired_words_from_length(self.length_seconds),
-            user_prompt=self.state.user_prompt,
+            user_prompt=step_input.user_prompt,
             from_cache=self.use_agent_output_cache,
             user_feedback_messages=step_input.prior_user_messages,
         ):
@@ -1173,7 +1168,7 @@ class CutTranscriptLinearWorkflow:
                     "current_soundbites": current_soundbites,
                     "original_soundbites": original_soundbites,
                 },
-                user_feedback_request=None,
+                user_feedback_request="Here are the updated soundbites according to your feedback. Ready to move on?",
             ), True
             return
 
@@ -1235,12 +1230,9 @@ class CutTranscriptLinearWorkflow:
         all_soundbites = sorted(all_soundbites, key=lambda x: x.chunk_index)
 
         soundbites_merged = Soundbites.merge(*all_soundbites)
-        soundbites_formatted = [
-            (i, add_complete_format(soundbite, ["bold", "green"]))
-            for i, soundbite in soundbites_merged.iter_text()
-        ]
         user_feedback_prompt = parse_prompt_template(
-            "soundbite_user_feedback_prompt", soundbites=soundbites_formatted
+            "soundbite_user_feedback_prompt",
+            soundbites=list(soundbites_merged.iter_text()),
         )
         yield CutTranscriptLinearWorkflowStepResults(
             outputs={
@@ -1471,6 +1463,7 @@ class CutTranscriptLinearWorkflow:
                 suffix="_soundbites",
                 prefix=f"{prefix}transcript_",
             )
+            print("Saving soundbites videos")
             soundbites_video_files = await save_soundbites_videos_to_disk(
                 video=self.video,
                 output_dir=self.soundbites_video_dir,
@@ -1479,7 +1472,9 @@ class CutTranscriptLinearWorkflow:
                 clip_extra_trim_seconds=self.clip_extra_trim_seconds,
                 prefix=f"{prefix}_" + "{}",
                 timeline_name=self.timeline_name,
+                verbose=False,
             )
+            print(f"Saved soundbites videos: {soundbites_video_files }")
             soundbites_timeline_file = create_fcp_7_xml_from_single_video_transcript(
                 video=self.video,
                 transcript=self.current_soundbites,
@@ -1785,6 +1780,39 @@ class CutTranscriptLinearWorkflow:
             internal_retry_num=result.internal_retry_num,
         )
 
+    async def redo_export_results(
+        self, step_name: str | None = None, substep_name: str | None = None
+    ):
+        assert self.state is not None
+
+        if step_name is not None:
+            if substep_name is None:
+                substep_name = self.steps.last_substep_name_for_step_name(step_name)
+            state_save_key = self.state.get_latest_dynamic_key_from(
+                step_name, substep_name
+            )
+        else:
+            state_save_key = self.state.get_latest_dynamic_key()
+        if state_save_key is None:
+            raise ValueError("could not get state_save_key")
+        substep = self.steps.substep_for_key(state_save_key)
+        if substep is None:
+            raise ValueError("could not get substep")
+        step_input = self.state.outputs[state_save_key][-1].step_inputs
+        if not isinstance(step_input, CutTranscriptLinearWorkflowStepInput):
+            assert isinstance(step_input, dict)
+            step_input = CutTranscriptLinearWorkflowStepInput(**step_input)
+        substep.input = step_input
+
+        print(f"redo_export_results state_save_key={state_save_key} substep={substep}")
+        if is_local():
+            await export_results_wrapper.local(self, state_save_key, substep, -1)
+            return None
+        else:
+            call = export_results_wrapper.spawn(self, state_save_key, substep, -1)
+            print(f"redo_export_results call={call}")
+            return call.object_id
+
     async def _save_export_result_to_step_output(
         self, state_save_key, export_result, retry_num
     ):
@@ -1841,6 +1869,8 @@ class CutTranscriptLinearWorkflow:
                 structured_user_input=structured_user_input,
                 is_retry=True,
             )
+        if not force_retry:
+            return False, None
 
         assert self.state is not None
         _, substep = self.get_step_by_name(step_name, substep_name)
@@ -1914,6 +1944,8 @@ class CutTranscriptLinearWorkflow:
                 method = self._ask_llm_to_parse_user_prompt_for_story_retry
             elif "off_screen_speakers" in step_name:
                 method = self._ask_llm_to_parse_user_prompt_for_speaker_id_retry
+            # TODO force_retry should just be retry, and we should be clear that we're only calling the llm here
+            # if we were asked to retry
             output = None
             async for output, is_last in method(user_feedback=user_prompt):
                 if is_last:
@@ -1923,7 +1955,7 @@ class CutTranscriptLinearWorkflow:
                 f"retry step: {step_name}, retry_output: {output}, user_prompt: {user_prompt}"
             )
 
-            return force_retry or output, CutTranscriptLinearWorkflowStepInput(
+            return True, CutTranscriptLinearWorkflowStepInput(
                 user_prompt=user_prompt,
                 is_retry=True,
                 structured_user_input=structured_user_input,
@@ -1932,31 +1964,19 @@ class CutTranscriptLinearWorkflow:
     def _create_user_feedback_prompt_from_modify_final_transcript(
         self, final_transcript: Transcript, desired_words: int, stage_num: int
     ):
-        user_feedback_prefix_list = []
-        user_feedback_prefix_list.append(
-            add_complete_format(
-                "\nTrimIt created the following transcript:", ["bold", "yellow"]
-            )
-        )
-        user_feedback_prefix_list.append(
-            "\n".join(
-                [
-                    add_complete_format(p.strip(), ["bold", "green"])
-                    for p in final_transcript.text.split(".")
-                ]
-            )
-        )
         is_excess = self._word_count_excess(final_transcript, desired_words)
         if is_excess:
             excess_words = final_transcript.kept_word_count - desired_words
             stage_length_seconds = self._get_stage_length_seconds(stage_num)
-            user_feedback_prefix_list.append(
-                f"Final transcript was too long by {excess_words} words for this stage with desired length "
+            return (
+                "\nTrimIt created a transcript you can see in the step outputs."
+                f"\nFinal transcript was too long by {excess_words} words for this stage with desired length "
                 f"{stage_length_seconds} ({desired_words} words) and we will work to cut it down further."
-                "Before we cut it down, do you have additional feedback to provide the AI assistant (and redo the creation using this feedback)?"
+                "\n\nBefore we cut it down, do you have additional feedback to provide the AI assistant (and redo the creation using this feedback)?"
             )
         return render_jinja_string(
-            self.base_user_feedback_prompt, prefix="\n".join(user_feedback_prefix_list)
+            self.base_user_feedback_prompt,
+            prefix="\nTrimIt created a transcript you can see in the step outputs.",
         )
 
     async def _id_on_screen_speakers(
@@ -2538,19 +2558,6 @@ class CutTranscriptLinearWorkflow:
         else:
             assert is_first_round
 
-        # return transcript, True, user_feedback
-        #  print(
-        #  add_complete_format(
-        #  '\nUsing transcript expansion tool to search for previously removed scenes that match "introduce; my name is"\n',
-        #  ["bold", "yellow"],
-        #  )
-        #  )
-        # TODO
-        #  tools = [
-        #  # this tool allows the agent to find previously removed segments of the transcript
-        #  # by passing in phrases of the kept segments nearby
-        #  create_transcript_expansion_lookup_tool(transcriptu)
-        #  ]
         preamble = parse_prompt_template(
             "modify_high_level_preamble",
             length_seconds=stage_length_seconds,

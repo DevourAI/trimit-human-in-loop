@@ -2,6 +2,7 @@
 import {
   ArrowLeftIcon,
   ArrowRightIcon,
+  ArrowUpIcon,
   ResetIcon,
 } from '@radix-ui/react-icons';
 import React, { useEffect } from 'react';
@@ -21,6 +22,8 @@ export interface FooterProps {
   totalNSteps: number;
   userParams: DownloadFileParams;
   stepName: string;
+  isLoading: boolean;
+  onSubmit: () => void;
 }
 
 export const Footer = ({
@@ -33,6 +36,8 @@ export const Footer = ({
   totalNSteps,
   userParams,
   stepName,
+  isLoading,
+  onSubmit,
 }: FooterProps) => {
   const {
     nextStep,
@@ -60,7 +65,7 @@ export const Footer = ({
       <div className="w-full flex justify-between gap-2">
         <div className="flex gap-2">
           <Button
-            disabled={currentStepIndex === 0}
+            disabled={currentStepIndex === 0 || isLoading}
             onClick={onPrevStep}
             size="sm"
             variant="secondary"
@@ -72,19 +77,34 @@ export const Footer = ({
             variant="ghost"
             size="sm"
             onClick={undoLastStep}
-            disabled={currentStepIndex === 0}
+            disabled={isLoading}
           >
             <ResetIcon className="mr-2" />
             Undo step
           </Button>
+          <Button
+            disabled={isLoading}
+            onClick={onSubmit}
+            size="sm"
+            variant="default"
+          >
+            <ArrowUpIcon className="mr-2" />
+            Run step
+          </Button>
         </div>
 
-        <ExportStepMenu userParams={userParams} stepName={stepName} />
+        <ExportStepMenu
+          disabled={isLoading}
+          userParams={userParams}
+          stepName={stepName}
+        />
         <Button
           size="sm"
           onClick={onNextStep}
           disabled={
-            trueStepIndex >= totalNSteps - 1 || currentStepIndex > trueStepIndex
+            trueStepIndex >= totalNSteps - 1 ||
+            currentStepIndex > trueStepIndex ||
+            isLoading
           }
         >
           Next

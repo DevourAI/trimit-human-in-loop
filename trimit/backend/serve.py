@@ -88,8 +88,8 @@ async def step_workflow_until_feedback_request(
         print(
             f"Finished step for iter {i}, existing_workflow_step_keys={get_existing_step_keys(workflow)}, user_feedback_request={user_feedback_request}"
         )
-        if user_feedback_request and (
-            not advance_until or advance_until in get_existing_step_keys(workflow)
+        if user_feedback_request or (
+            advance_until and advance_until in get_existing_step_keys(workflow)
         ):
             break
         i += 1

@@ -8,6 +8,7 @@ from torch import export
 import yaml
 
 from pydantic import EmailStr, BaseModel, Field
+from modal.call_graph import InputStatus
 from modal.functions import FunctionCall
 from modal import asgi_app, is_local, Dict
 from beanie import BulkWriter, PydanticObjectId
@@ -31,8 +32,9 @@ from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
 from trimit.backend.models import (
+    ExportResults,
+    CallId,
     CallStatus,
-    Cut,
     VideoProcessingStatus,
     UploadVideo,
     UploadedVideo,
@@ -45,6 +47,7 @@ from trimit.backend.models import (
     ExportableStepWrapper,
     StructuredUserInput,
 )
+from trimit.backend.utils import export_results_wrapper
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
@@ -294,13 +297,24 @@ async def get_all_outputs(
     return GetStepOutputs(outputs=await workflow.get_all_outputs())
 
 
-def check_call_status(modal_call_id, timeout: float = 0):
+def check_call_status(modal_call_id, timeout: float = 0.5, with_result=False):
     try:
         fc = FunctionCall.from_id(modal_call_id)
         try:
-            output = fc.get(timeout=timeout)
-            result = {"output": output["result"], "status": "done"}
-        except TimeoutError:
+            if with_result:
+                output = fc.get(timeout=timeout)
+                result = {"output": output["result"], "status": "done"}
+            else:
+
+                status_code = fc.get_call_graph()[0].status
+                status = "error"
+                if status_code == InputStatus.SUCCESS:
+                    status = "done"
+                elif status_code == InputStatus.PENDING:
+                    status = "pending"
+                result = {"status": status}
+        except TimeoutError as e:
+            # result = {"status": "error", "error": "Timeout"}
             result = {"status": "pending"}
     except Exception as e:
         if "not found" in str(e):
@@ -379,6 +393,7 @@ async def check_function_call_results(modal_call_ids: str, timeout: float = 0):
             for call_id in modal_call_ids_split
         ]
     )
+    print(statuses)
     return CheckFunctionCallResults(statuses=statuses)
 
 
@@ -457,7 +472,7 @@ def step_endpoint(
 
         async def streamer():
             yield CutTranscriptLinearWorkflowStreamingOutput(
-                partial_backend_output=PartialBackendOutput(value="Running step...")
+                partial_backend_output=PartialBackendOutput(value="Running step")
             ).model_dump_json()
             if is_local():
                 method = step_function.local
@@ -707,6 +722,55 @@ async def get_latest_state(
     #  )
 
 
+@web_app.get(
+    "/get_latest_export_results",
+    response_model=ExportResults,
+    response_model_exclude_unset=True,
+)
+async def get_latest_export_results(
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    step_name: str | None = None,
+    substep_name: str | None = None,
+):
+    if workflow is None:
+        raise HTTPException(status_code=400, detail="Must provide workflow_id")
+    assert workflow.state is not None
+
+    if step_name is None:
+        output = await workflow.get_last_output(with_load_state=False)
+        if output is None:
+            raise HTTPException(status_code=500, detail="output was None")
+    else:
+        if substep_name is None:
+            substep_name = workflow.steps.last_substep_name_for_step_name(step_name)
+        key = workflow.state.get_latest_dynamic_key_from(step_name, substep_name)
+        outputs = await workflow.get_output_for_keys([key], with_load_state=False)
+        output = outputs[0]
+
+    if output.export_result is None:
+        return ExportResults()
+    try:
+        return ExportResults(**output.export_result)
+    except Exception as e:
+        print(f"error casting {output.export_result} to ExportResults: {e}")
+        return ExportResults()
+
+
+@web_app.post("/redo_export_results", response_model=CallId)
+async def redo_export_results(
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    step_name: str | None = None,
+    substep_name: str | None = None,
+):
+    if workflow is None:
+        raise HTTPException(status_code=400, detail="Must provide workflow_id")
+    call_id = await workflow.redo_export_results(
+        step_name=step_name, substep_name=substep_name
+    )
+    assert isinstance(call_id, str)
+    return CallId(call_id=call_id)
+
+
 @web_app.get("/download_transcript_text")
 async def download_transcript_text(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
@@ -716,9 +780,7 @@ async def download_transcript_text(
 ):
 
     if workflow is None:
-        raise HTTPException(
-            status_code=400, detail="Must provide timeline name and length_seconds"
-        )
+        raise HTTPException(status_code=400, detail="Must provide workflow_id")
 
     if step_name is None:
         export_result = await workflow.most_recent_export_result(with_load_state=False)
@@ -737,7 +799,7 @@ async def download_transcript_text(
         )
 
     return FileResponse(
-        file_path, media_type="application/xml", filename=os.path.basename(file_path)
+        file_path, media_type="text/plain", filename=os.path.basename(file_path)
     )
 
 
@@ -767,6 +829,47 @@ async def download_soundbites_text(
     if not os.path.exists(file_path):
         raise HTTPException(
             status_code=500, detail=f"Soundbites not found at {file_path}"
+        )
+
+    return FileResponse(
+        file_path, media_type="text/plain", filename=os.path.basename(file_path)
+    )
+
+
+@web_app.get("/download_soundbites_timeline")
+async def download_soundbites_timeline(
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    step_name: str | None = None,
+    substep_name: str | None = None,
+    stream: bool = False,
+):
+
+    print("workflow:", workflow)
+    if workflow is None:
+        raise HTTPException(
+            status_code=400, detail="Must provide timeline name and length_seconds"
+        )
+    if step_name is None:
+        export_result = await workflow.most_recent_export_result(with_load_state=False)
+    else:
+        export_result = await workflow.export_result_for_step_substep_name(
+            step_name=step_name, substep_name=substep_name, with_load_state=False
+        )
+    print("export_result:", export_result)
+    file_path = export_result.get("soundbites_timeline")
+    print("file_path:", file_path)
+
+    if file_path is None:
+        print("no file path found")
+        raise HTTPException(status_code=500, detail="No soundbites timeline found")
+
+    if not isinstance(file_path, str):
+        print("file path not a string")
+        raise HTTPException(status_code=500, detail=f"file_path not a string")
+    if not os.path.exists(file_path):
+        print("file path doesn't exist")
+        raise HTTPException(
+            status_code=500, detail=f"Soundbites timeline not found at {file_path}"
         )
 
     return FileResponse(

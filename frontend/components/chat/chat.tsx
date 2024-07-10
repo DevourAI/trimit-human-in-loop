@@ -1,13 +1,11 @@
 'use client';
 
-import { ArrowUpIcon } from '@radix-ui/react-icons';
-import { FC, useEffect, useRef, useState } from 'react';
+import { FC, useEffect, useRef } from 'react';
 
 import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
-import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-interface Message {
+export interface Message {
   sender: 'Human' | 'AI';
   text: string;
 }
@@ -26,26 +24,20 @@ function ChatMessage({ message }: { message: Message }) {
 }
 
 interface ChatProps {
-  initialMessages: Message[];
-  onNewMessage: (
-    userMessage: string,
-    callback: (aiMessage: string) => void
-  ) => void;
-  onEmptySubmit: (callback: (aiMessage: string) => void) => void;
+  messages: Message[];
+  userMessage: string;
+  onSubmit: (options?: any) => void;
   isNewStep: boolean;
+  onChange: (userMessage: string) => void;
 }
 
 const Chat: FC<ChatProps> = ({
   isNewStep,
-  initialMessages,
-  onEmptySubmit,
-  onNewMessage,
+  messages,
+  userMessage,
+  onSubmit,
+  onChange,
 }) => {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
-  useEffect(() => {
-    setMessages(initialMessages);
-  }, [initialMessages]);
-  const [inputValue, setInputValue] = useState<string>('');
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
   const scrollToBottom = () => {
@@ -56,28 +48,12 @@ const Chat: FC<ChatProps> = ({
     scrollToBottom();
   }, [messages]);
 
-  const setAIMessageCallback = (aiMessage: string) => {
-    setMessages((prevMessages) => [
-      ...prevMessages,
-      { sender: 'AI', text: aiMessage },
-    ]);
-  };
   const handleSendMessage = () => {
-    if (inputValue.trim() === '') {
-      onEmptySubmit(setAIMessageCallback);
+    onSubmit();
+    if (userMessage.trim() === '') {
       return;
     }
-
-    const newMessage: Message = { sender: 'Human', text: inputValue };
-    setMessages((prevMessages) => [...prevMessages, newMessage]);
-    setInputValue('');
-
-    onNewMessage(newMessage.text, setAIMessageCallback);
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    handleSendMessage();
+    onChange('');
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -97,25 +73,15 @@ const Chat: FC<ChatProps> = ({
           : null}
         <div ref={messagesEndRef} />
       </div>
-      <form onSubmit={handleSubmit} className="flex space-x-2">
+      <form className="flex space-x-2">
         <div className="flex-1 relative">
           <AutosizeTextarea
-            value={inputValue}
-            onChange={(e) => setInputValue(e.target.value)}
+            value={userMessage}
+            onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Type your message..."
             className="w-full pr-12 h-auto max-h-48 resize-none"
           />
-
-          <Button
-            type="submit"
-            className="absolute right-1 bottom-1 rounded-full"
-            size="sm"
-            variant="secondary"
-          >
-            {isNewStep ? 'Submit' : 'Retry'}
-            <ArrowUpIcon />
-          </Button>
         </div>
       </form>
     </div>

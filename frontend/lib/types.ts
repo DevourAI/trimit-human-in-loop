@@ -95,10 +95,21 @@ export interface UploadVideoParams {
   timelineName: string;
 }
 
+export interface RedoExportResultParams {
+  workflow_id: string;
+  step_name?: string;
+  substep_name?: string;
+}
+
+export interface GetLatestExportResultParams {
+  workflow_id: string;
+  step_name?: string;
+  substep_name?: string;
+}
+
 export interface DownloadFileParams {
+  workflow_id: string;
   user_email: string;
-  timeline_name: string;
-  length_seconds: number;
   video_hash: string;
   step_name?: string;
   substep_name?: string;
@@ -111,8 +122,9 @@ export type Video = {
 };
 
 export interface OutputComponentProps {
+  isLoading: boolean;
   value: any;
   exportResult: any;
-  onSubmit: (formData: StructuredUserInputInput) => void;
+  onSubmit: () => void;
   form: UseFormReturn;
 }

@@ -4,6 +4,7 @@ from pydantic import BaseModel, Field, model_serializer
 from typing import Callable, Optional, Union, Any
 import pickle
 from trimit.utils.misc import union_list_of_intervals
+from trimit.utils.model_utils import get_step_substep_names_from_dynamic_state_key
 import copy
 
 
@@ -1839,6 +1840,22 @@ class GetStepOutputs(BaseModel):
     outputs: list[CutTranscriptLinearWorkflowStepOutput]
 
 
+class ExportResults(BaseModel):
+    video: str | None = None
+    video_timeline: str | None = None
+    soundbites_timeline: str | None = None
+    soundbites_text: str | None = None
+    soundbites_videos: list[str] | None = None
+    transcript_text: str | None = None
+    speaker_tagging_clips: dict[str, Any] | None = None
+    soundbites_transcript: str | None = None
+    transcript: str | None = None
+
+
+class CallId(BaseModel):
+    call_id: str
+
+
 class CallStatus(BaseModel):
     status: str = Field(..., description="'done', 'pending', or 'error'")
     call_id: str | None
@@ -1918,6 +1935,24 @@ class Steps(BaseModel):
         if substep_index >= len(self.steps[step_index].substeps):
             return None
         return self.steps[step_index].substeps[substep_index]
+
+    def last_substep_name_for_step_name(self, step_name):
+        steps = [s for s in self.steps if s.name == step_name]
+        if len(steps) == 0:
+            return None
+        step = steps[0]
+        return step.substeps[-1].name
+
+    def substep_for_key(self, key):
+        step_name, substep_name = get_step_substep_names_from_dynamic_state_key(key)
+        steps = [s for s in self.steps if s.name == step_name]
+        if len(steps) == 0:
+            return None
+        step = steps[0]
+        substeps = [s for s in step.substeps if s.name == substep_name]
+        if len(substeps) == 0:
+            return None
+        return substeps[0]
 
     def next_step_index(self, step_index, substep_index):
         if step_index >= len(self.steps):

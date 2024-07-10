@@ -1,6 +1,8 @@
+import { ArrowUpIcon } from '@radix-ui/react-icons';
 import React, { FC } from 'react';
 import { z } from 'zod';
 
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   Carousel,
@@ -21,6 +23,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { VideoStream } from '@/components/ui/video-stream';
+import { StructuredInputFormSchema } from '@/contexts/structured-input-form-context';
 import { OutputComponentProps } from '@/lib/types';
 import { removeEmptyVals } from '@/lib/utils';
 
@@ -52,6 +55,7 @@ export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
   value,
   exportResult,
   onSubmit,
+  isLoading,
   form,
 }) => {
   const speakerTaggingClips = exportResult?.speaker_tagging_clips || {};
@@ -62,6 +66,8 @@ export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
     data.remove_off_screen_speakers.speaker_tag_mapping = removeEmptyVals(
       data.remove_off_screen_speakers.speaker_tag_mapping
     );
+    // TODO does this actually change the form values?
+    onSubmit();
   };
 
   return (
@@ -121,6 +127,10 @@ export const OnScreenSpeakerIdentificationOutput: FC<OutputComponentProps> = ({
               />
             </div>
           ))}
+          <Button disabled={isLoading} size="sm" type="submit">
+            <ArrowUpIcon className="mr-2" />
+            Tag/modify on-screen speakers
+          </Button>
         </form>
       </Form>
     </div>

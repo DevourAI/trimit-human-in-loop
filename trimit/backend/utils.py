@@ -615,6 +615,7 @@ def find_leftover_transcript_offsets_fast(
     # then go to the next segment
     offsets = []
     segment_end_offset = 0
+    unmatched_segments = []
     for segment in all_segments_to_match:
         segment_start_offset, segment_end_offset = (
             find_leftover_transcript_offsets_fast_for_segment(
@@ -646,8 +647,11 @@ def find_leftover_transcript_offsets_fast(
             offsets.append((segment_start_offset, segment_end_offset))
             continue
         else:
-            breakpoint()
+            unmatched_segments.append(segment)
             print(f"Failed to find match for segment \"{' '.join(segment)}\"")
+    print(
+        f"len(unmatched_segments)={len(unmatched_segments)}, len(all_segments_to_match)={len(all_segments_to_match)}"
+    )
     if match_on_rest:
         last_offset = offsets[-1]
         if last_offset[-1] < len(transcript):

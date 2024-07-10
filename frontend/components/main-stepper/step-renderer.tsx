@@ -1,5 +1,6 @@
 import { ReactNode } from 'react';
 
+import { Message } from '@/components/chat/chat';
 import Chat from '@/components/chat/chat';
 import StepOutput from '@/components/main-stepper/step-output';
 import StepStreamingOutput from '@/components/main-stepper/step-streaming-output';
@@ -16,15 +17,15 @@ interface StepRendererProps {
   stepInputPrompt: string;
   footer?: ReactNode;
   isNewStep: boolean;
-  onRetry: (
-    stepIndex: number,
-    userMessage: string,
-    callback: (aiMessage: string) => void
-  ) => Promise<void>;
+  onSubmit: (options: any) => Promise<void>;
   stepIndex: number;
   isLoading: boolean;
   isInitialized: boolean;
   onCancelStep?: () => void;
+  backendMessage: string;
+  setUserMessage: (userMessage: string) => void;
+  userMessage: string;
+  chatMessages: Message[];
 }
 
 function StepRenderer({
@@ -39,49 +40,34 @@ function StepRenderer({
   isLoading,
   isInitialized,
   onCancelStep,
+  backendMessage,
+  userMessage,
+  setUserMessage,
+  chatMessages,
 }: StepRendererProps) {
-  const chatInitialMessages = stepInputPrompt
-    ? [{ sender: 'AI', text: stepInputPrompt }]
-    : [];
-  if (stepOutput?.full_conversation) {
-    stepOutput.full_conversation.forEach((msg) => {
-      chatInitialMessages.push({ sender: msg.role, text: msg.value });
-    });
-  }
-
   const outputTextDefaultOpen =
     stepOutput === null || !stepOutput.step_outputs?.length;
 
-  const onOutputFormSubmit = (data) => {
+  const onOutputFormSubmit = () => {
     // TODO should have a single submit button instead of two
     // and send chat message here
-    onSubmit({ stepIndex, userMesage: '', structuredUserInput: data });
+    onSubmit({ useStructuredInput: true });
   };
   return (
     <Card className="max-w-full shadow-none">
       <CardContent className="flex max-w-full p-0">
-        {isLoading && (
-          <div className="absolute top-0 left-0 w-full h-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
-            {isInitialized ? 'Running step...' : 'Initializing...'}
-            <LoadingSpinner size="large" />
-            {onCancelStep && (
-              <Button variant="secondary" onClick={onCancelStep}>
-                Cancel
-              </Button>
-            )}
-          </div>
-        )}
         <div className="w-1/2 p-4">
           <Heading className="mb-3" size="sm">
             Chat
           </Heading>
           <Chat
             isNewStep={isNewStep}
-            onNewMessage={(userMessage, callback) =>
-              onSubmit({ stepIndex, userMessage, callback })
-            }
-            onEmptySubmit={(callback) => onSubmit({ stepIndex, callback })}
-            initialMessages={chatInitialMessages}
+            onSubmit={onSubmit}
+            messages={chatMessages}
+            onChange={(userMessage: string) => {
+              setUserMessage(userMessage);
+            }}
+            userMessage={userMessage}
           />
         </div>
         <div className="w-1/2 border-l p-4">
@@ -93,10 +79,31 @@ function StepRenderer({
             value={outputText}
             step={step}
           />
-          <StepOutput output={stepOutput} onSubmit={onOutputFormSubmit} />
+          <StepOutput
+            isLoading={isLoading}
+            output={stepOutput}
+            onSubmit={onOutputFormSubmit}
+          />
         </div>
       </CardContent>
-      {footer && <CardFooter>{footer}</CardFooter>}
+      {footer && (
+        <CardFooter>
+          {footer}
+          {isLoading && (
+            <div className="absolute bottom-0 left-0 w-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
+              {isInitialized
+                ? `${backendMessage || 'Running step'}...`
+                : 'Initializing...'}
+              <LoadingSpinner size="large" />
+              {onCancelStep && (
+                <Button variant="secondary" onClick={onCancelStep}>
+                  Cancel
+                </Button>
+              )}
+            </div>
+          )}
+        </CardFooter>
+      )}
     </Card>
   );
 }
