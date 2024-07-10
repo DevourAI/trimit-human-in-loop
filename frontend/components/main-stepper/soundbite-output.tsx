@@ -78,7 +78,6 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
     onSubmit();
   };
 
-  console.log('exportResult', exportResult);
   //form.handleSubmit(onSubmitWrapper)}
   // TODO wrap all these form inputs in a carousel
   return (

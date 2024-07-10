@@ -147,3 +147,17 @@ async def test_create_longer_cut_video_from_transcript(
         output_dir=output_dir,
     )
     assert os.stat(cut_video_path).st_size > 0
+
+
+async def test_redo_export_results(workflow_15557970_after_first_step):
+    workflow = workflow_15557970_after_first_step
+    output = await workflow.get_last_output(with_load_state=True)
+    key = f"{output.step_name}.{output.substep_name}"
+    workflow.state.outputs[key][-1].export_result = {}
+    workflow.state.save()
+
+    output = await workflow.get_last_output(with_load_state=True)
+    assert output.export_result == {}
+    await workflow.redo_export_results()
+    output = await workflow.get_last_output(with_load_state=True)
+    assert output.export_result != {}

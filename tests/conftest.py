@@ -416,10 +416,9 @@ async def workflow_15557970_with_transcript_no_export(
 async def workflow_15557970_with_state_init(workflow_15557970_with_transcript):
     workflow = workflow_15557970_with_transcript
     output = None
-    async for output, _ in workflow.step("make me a video"):
+    async for output, _ in workflow.step(""):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert workflow.user_prompt == "make me a video"
     return workflow
 
 
@@ -430,10 +429,9 @@ async def workflow_15557970_with_state_init_no_export(
     workflow = workflow_15557970_with_transcript_no_export
 
     output = None
-    async for output, _ in workflow.step("make me a video"):
+    async for output, _ in workflow.step(""):
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
-    assert workflow.user_prompt == "make me a video"
     return workflow
 
 

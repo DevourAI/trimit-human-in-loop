@@ -1287,6 +1287,7 @@ class FrontendWorkflowProjection(BaseModel):
     timeline_name: str
     user_email: str
     video_hash: str
+    video_filename: str
     length_seconds: int
     nstages: int
 
@@ -1294,6 +1295,7 @@ class FrontendWorkflowProjection(BaseModel):
         projection = {
             "id": {"$toString": "$_id"},
             "video_hash": "$static_state.video.md5_hash",
+            "video_filename": "$static_state.video.high_res_user_file_path",
             "user_email": "$static_state.user.email",
             "timeline_name": "$static_state.timeline_name",
             "length_seconds": "$static_state.length_seconds",

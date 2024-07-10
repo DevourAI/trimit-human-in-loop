@@ -77,13 +77,13 @@ export const Footer = ({
             variant="ghost"
             size="sm"
             onClick={undoLastStep}
-            disabled={currentStepIndex === 0 || isLoading}
+            disabled={isLoading}
           >
             <ResetIcon className="mr-2" />
             Undo step
           </Button>
           <Button
-            disabled={currentStepIndex === 0 || isLoading}
+            disabled={isLoading}
             onClick={onSubmit}
             size="sm"
             variant="default"
@@ -94,7 +94,7 @@ export const Footer = ({
         </div>
 
         <ExportStepMenu
-          disabled={currentStepIndex === 0 || isLoading}
+          disabled={isLoading}
           userParams={userParams}
           stepName={stepName}
         />

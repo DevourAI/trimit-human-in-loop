@@ -1780,6 +1780,39 @@ class CutTranscriptLinearWorkflow:
             internal_retry_num=result.internal_retry_num,
         )
 
+    async def redo_export_results(
+        self, step_name: str | None = None, substep_name: str | None = None
+    ):
+        assert self.state is not None
+
+        if step_name is not None:
+            if substep_name is None:
+                substep_name = self.steps.last_substep_name_for_step_name(step_name)
+            state_save_key = self.state.get_latest_dynamic_key_from(
+                step_name, substep_name
+            )
+        else:
+            state_save_key = self.state.get_latest_dynamic_key()
+        if state_save_key is None:
+            raise ValueError("could not get state_save_key")
+        substep = self.steps.substep_for_key(state_save_key)
+        if substep is None:
+            raise ValueError("could not get substep")
+        step_input = self.state.outputs[state_save_key][-1].step_inputs
+        if not isinstance(step_input, CutTranscriptLinearWorkflowStepInput):
+            assert isinstance(step_input, dict)
+            step_input = CutTranscriptLinearWorkflowStepInput(**step_input)
+        substep.input = step_input
+
+        print(f"redo_export_results state_save_key={state_save_key} substep={substep}")
+        if is_local():
+            await export_results_wrapper.local(self, state_save_key, substep, -1)
+            return None
+        else:
+            call = export_results_wrapper.spawn(self, state_save_key, substep, -1)
+            print(f"redo_export_results call={call}")
+            return call.object_id
+
     async def _save_export_result_to_step_output(
         self, state_save_key, export_result, retry_num
     ):

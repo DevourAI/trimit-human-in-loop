@@ -3,6 +3,7 @@ import axios, { AxiosResponse } from 'axios';
 import {
   CheckFunctionCallResults,
   CutTranscriptLinearWorkflowStepOutput,
+  ExportResults,
   FrontendWorkflowProjection,
   UploadedVideo,
   UploadVideo,
@@ -12,8 +13,10 @@ import {
 import {
   DownloadFileParams,
   FrontendWorkflowState,
+  GetLatestExportResultParams,
   GetUploadedVideoParams,
   ListWorkflowParams,
+  RedoExportResultParams,
   RevertStepParams,
   RevertStepToParams,
   StepData,
@@ -389,15 +392,42 @@ export async function getUploadedVideos(
   return [];
 }
 
+export async function redoExportResults(
+  params: RedoExportResultParams
+): Promise<string> {
+  const workflowId = params.workflow_id;
+  const response = await postFetcherWithData(
+    `redo_export_results?workflow_id=${workflowId}`,
+    { step_name: params.step_name }
+  );
+  if (response) {
+    return response.call_id;
+  }
+  return '';
+}
+export async function getLatestExportResults(
+  params: GetLatestExportResultParams
+): Promise<ExportResults> {
+  const respData = (await fetcherWithParams('get_latest_export_results', {
+    workflow_id: params.workflow_id,
+    step_name: params.step_name,
+  })) as any;
+  delete respData.headers;
+  console.log('get_latest_export_results respData', respData);
+
+  return respData as ExportResults;
+}
+
 const endpointForFileType: Record<string, string> = {
   timeline: 'download_timeline',
   video: 'video',
   transcript_text: 'download_transcript_text',
   soundbites_text: 'download_soundbites_text',
+  soundbites_timeline: 'download_soundbites_timeline',
 };
 
 export async function downloadFile(params: DownloadFileParams): Promise<void> {
-  if (params.user_email === '' || !params.video_hash) return;
+  if (params.workflow_id === '' || !params.workflow_id) return;
   params.stream = false;
   const filetype = params.filetype;
   delete params.filetype;
@@ -419,7 +449,7 @@ export async function downloadFile(params: DownloadFileParams): Promise<void> {
   });
   const contentDisposition = response.headers['content-disposition'];
   // TODO add user file path to default filename
-  let filename = `trimit_${filetype}_for_user_${params.user_email}.mp4`; // Default filename
+  let filename = `trimit_${filetype}_for_user_email_${params.user_email}.mp4`; // Default filename
   if (contentDisposition) {
     const match = contentDisposition.match(/filename="(.+)"/);
     if (match && match.length > 1) {
@@ -444,6 +474,12 @@ export async function downloadTimeline(
   params: DownloadFileParams
 ): Promise<void> {
   await downloadFile({ ...params, filetype: 'timeline' });
+}
+
+export async function downloadSoundbitesTimeline(
+  params: DownloadFileParams
+): Promise<void> {
+  await downloadFile({ ...params, filetype: 'soundbites_timeline' });
 }
 
 export async function downloadTranscriptText(

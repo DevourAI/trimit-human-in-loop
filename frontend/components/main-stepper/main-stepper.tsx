@@ -1,5 +1,5 @@
 'use client';
-import { DownloadIcon, ReloadIcon } from '@radix-ui/react-icons';
+import { ReloadIcon } from '@radix-ui/react-icons';
 import { debounce } from 'lodash';
 import React, {
   useCallback,
@@ -283,9 +283,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       }
       let currentStep =
         currentStepIndex >= 0 ? latestState.all_steps[currentStepIndex] : null;
-      console.log('currentStepIndex', currentStepIndex);
-      console.log('currentStep', currentStep?.input_prompt);
-      console.log('stepInputPrompt', stepInputPrompt);
       setStepInputPrompt(currentStep?.input_prompt || '');
 
       if (isLoading) {
@@ -317,8 +314,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   useEffect(() => {
     setUserFeedbackRequest(stepOutput?.user_feedback_request || '');
 
-    console.log('full conversation', stepOutput?.full_conversation);
-    console.log('stepInputPrompt', stepInputPrompt);
     if (stepOutput === null) {
       setChatMessages([]);
       return;
@@ -331,7 +326,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         newMessages.push({ sender: msg.role, text: msg.value });
       });
     }
-    console.log('newMessages', newMessages);
     setChatMessages(newMessages);
   }, [stepOutput]);
 
@@ -454,8 +448,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
               stepOutput.full_conversation.length - 1
             ].value
           : '';
-        console.log('finalState', finalState);
-        console.log('stepIndexFromFinalState', stepIndexFromState(finalState));
         setCurrentStepIndex(stepIndexFromState(finalState));
         setAIMessageCallback(aiMessage);
       });
@@ -544,16 +536,12 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
-        Video: {project?.video_hash}
+        Video: {project?.video_filename}
         {workflowInitialized ? (
           <div className="flex gap-3 items-center">
             <Button variant="outline" onClick={restart} disabled={isLoading}>
               <ReloadIcon className="mr-2" />
               Restart
-            </Button>
-            <Button disabled={isLoading}>
-              <DownloadIcon className="mr-2" />
-              Export
             </Button>
           </div>
         ) : null}
@@ -563,6 +551,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         <StructuredInputFormProvider
           onFormDataChange={handleStructuredInputFormValueChange}
           stepOutput={stepOutput}
+          userParams={userParams}
         >
           <Stepper
             initialStep={currentStepIndex > -1 ? currentStepIndex : 0}
@@ -580,12 +569,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                       stepIndex={index}
                       stepInputPrompt={stepInputPrompt}
                       outputText={activePrompt} // TODO change activePrompt name to outputText
-                      stepOutput={
-                        latestState?.outputs?.length &&
-                        latestState.outputs.length > index
-                          ? latestState.outputs[index]
-                          : null
-                      }
+                      stepOutput={stepOutput}
                       chatMessages={chatMessages}
                       onSubmit={advanceOrRetryStep}
                       isNewStep={trueStepIndex < index}
