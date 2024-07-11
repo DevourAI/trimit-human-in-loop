@@ -1,6 +1,6 @@
 'use client';
-import {ReloadIcon} from '@radix-ui/react-icons';
-import {debounce} from 'lodash';
+import { ReloadIcon } from '@radix-ui/react-icons';
+import { debounce } from 'lodash';
 import React, {
   useCallback,
   useEffect,
@@ -9,20 +9,20 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import {z} from 'zod';
+import { z } from 'zod';
 
-import {Message} from '@/components/chat/chat';
-import {Footer} from '@/components/main-stepper/main-stepper-footer';
+import { Message } from '@/components/chat/chat';
+import { Footer } from '@/components/main-stepper/main-stepper-footer';
 import StepRenderer from '@/components/main-stepper/step-renderer';
-import {Button} from '@/components/ui/button';
-import {Step, Stepper} from '@/components/ui/stepper';
-import {FormSchema} from '@/components/ui/stepper-form';
-import {useStepperForm} from '@/contexts/stepper-form-context';
+import { Button } from '@/components/ui/button';
+import { Step, Stepper } from '@/components/ui/stepper';
+import { FormSchema } from '@/components/ui/stepper-form';
+import { useStepperForm } from '@/contexts/stepper-form-context';
 import {
   StructuredInputFormProvider,
   StructuredInputFormSchema,
 } from '@/contexts/structured-input-form-context';
-import {useUser} from '@/contexts/user-context';
+import { useUser } from '@/contexts/user-context';
 import {
   CutTranscriptLinearWorkflowStepOutput,
   CutTranscriptLinearWorkflowStepOutputExportResultValue,
@@ -40,8 +40,8 @@ import {
   revertStepToInBackend,
   step,
 } from '@/lib/api';
-import {decodeStreamAsJSON} from '@/lib/streams';
-import {RevertStepParams, RevertStepToParams} from '@/lib/types';
+import { decodeStreamAsJSON } from '@/lib/streams';
+import { RevertStepParams, RevertStepToParams } from '@/lib/types';
 
 function stepIndexFromState(state: FrontendWorkflowState): number {
   if (!state.all_steps) {
@@ -95,12 +95,12 @@ function stepOutputFromIndex(
  * - Handle stepping through steps
  * - Handle retrying / undoing
  */
-export default function MainStepper({projectId}: {projectId: string}) {
-  const {userData} = useUser();
+export default function MainStepper({ projectId }: { projectId: string }) {
+  const { userData } = useUser();
   const [project, setProject] = useState<FrontendWorkflowProjection | null>(
     null
   );
-  const {stepperFormValues} = useStepperForm();
+  const { stepperFormValues } = useStepperForm();
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
     null
   );
@@ -137,7 +137,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
   const setAIMessageCallback = (aiMessage: string) => {
     setChatMessages((prevMessages) => [
       ...prevMessages,
-      {sender: 'AI', text: aiMessage},
+      { sender: 'AI', text: aiMessage },
     ]);
   };
 
@@ -203,7 +203,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
 
   const handleStepStream = useCallback(
     async (reader: ReadableStreamDefaultReader) => {
-      activePromptDispatch({type: 'restart', value: ''});
+      activePromptDispatch({ type: 'restart', value: '' });
       const finalState: FrontendWorkflowState | null = await decodeStreamAsJSON(
         reader,
         (value: CutTranscriptLinearWorkflowStreamingOutput) => {
@@ -225,7 +225,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
           } else if (value?.partial_llm_output) {
             let output = value.partial_llm_output;
             if (output.chunk === null || output.chunk == 0) {
-              activePromptDispatch({type: 'append', value: output.value});
+              activePromptDispatch({ type: 'append', value: output.value });
               //  TODO: for some reason this is not triggering StepperForm+systemPrompt to reload
             }
           }
@@ -251,7 +251,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
       const stepData: StepData = {
         user_input:
           stepperFormValues.feedback !== undefined &&
-            stepperFormValues.feedback !== null
+          stepperFormValues.feedback !== null
             ? stepperFormValues.feedback
             : '',
         streaming: true,
@@ -319,19 +319,19 @@ export default function MainStepper({projectId}: {projectId: string}) {
       return;
     }
     const newMessages: Message[] = stepInputPrompt
-      ? [{sender: 'AI', text: stepInputPrompt}]
+      ? [{ sender: 'AI', text: stepInputPrompt }]
       : [];
     if (stepOutput?.full_conversation) {
       stepOutput.full_conversation.forEach((msg) => {
-        newMessages.push({sender: msg.role, text: msg.value});
+        newMessages.push({ sender: msg.role, text: msg.value });
       });
     }
     setChatMessages(newMessages);
-  }, [stepOutput]);
+  }, [stepOutput, stepInputPrompt]);
 
   type ActivePromptAction =
-    | {type: 'append'; value: string}
-    | {type: 'restart'; value: string};
+    | { type: 'append'; value: string }
+    | { type: 'restart'; value: string };
 
   // TODO change activePrompt name to outputText
   const [activePrompt, activePromptDispatch] = useReducer(
@@ -362,7 +362,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
         ...userParams,
       } as RevertStepToParams);
       if (success) {
-        activePromptDispatch({type: 'restart', value: ''});
+        activePromptDispatch({ type: 'restart', value: '' });
         const latestState = await getLatestState(userParams.workflow_id);
         setLatestState(latestState);
         setCurrentStepIndex(stepIndexFromState(latestState));
@@ -400,7 +400,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
     }
   }
   // TODO combine this method with the form once we have structured input
-  async function advanceOrRetryStep(options: {useStructuredInput: boolean}) {
+  async function advanceOrRetryStep(options: { useStructuredInput: boolean }) {
     // if (options.stepIndex === null || options.stepIndex === undefined) {
     // throw new Error('must provide stepIndex to advanceOrRetryStep');
     // }
@@ -445,8 +445,8 @@ export default function MainStepper({projectId}: {projectId: string}) {
           : null;
         const aiMessage = stepOutput?.full_conversation?.length
           ? stepOutput.full_conversation[
-            stepOutput.full_conversation.length - 1
-          ].value
+              stepOutput.full_conversation.length - 1
+            ].value
           : '';
         setCurrentStepIndex(stepIndexFromState(finalState));
         setAIMessageCallback(aiMessage);
@@ -458,7 +458,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
 
   async function restart() {
     setIsLoading(true);
-    activePromptDispatch({type: 'restart', value: ''});
+    activePromptDispatch({ type: 'restart', value: '' });
     setStepOutput(null);
     await resetWorkflow(userParams.workflow_id);
     const newState = await getLatestState(userParams.workflow_id);
@@ -469,7 +469,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
 
   async function revertStep(toBeforeRetries: boolean) {
     setIsLoading(true);
-    activePromptDispatch({type: 'restart', value: ''});
+    activePromptDispatch({ type: 'restart', value: '' });
     setStepOutput(null);
     await revertStepInBackend({
       to_before_retries: toBeforeRetries,
@@ -500,7 +500,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
       return;
     }
     setCurrentStepIndex(currentStepIndex - 1);
-    activePromptDispatch({type: 'restart', value: ''});
+    activePromptDispatch({ type: 'restart', value: '' });
     updateStepOutput(currentStepIndex - 1, latestState);
   }
   async function onNextStep() {
@@ -520,7 +520,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
     // we should update the conversation messages here
     // (currently activePromptDispatch but kasp is adding better conversation UX)
     // using the messages in latestState for this particular step
-    activePromptDispatch({type: 'restart', value: ''});
+    activePromptDispatch({ type: 'restart', value: '' });
     if (currentStepIndex + 1 <= trueStepIndex) {
       updateStepOutput(currentStepIndex + 1, latestState);
     } else {
@@ -556,7 +556,7 @@ export default function MainStepper({projectId}: {projectId: string}) {
           <Stepper
             initialStep={currentStepIndex > -1 ? currentStepIndex : 0}
             steps={latestState.all_steps.map((step: ExportableStepWrapper) => {
-              return {label: step.human_readable_name};
+              return { label: step.human_readable_name };
             })}
             orientation="vertical"
           >

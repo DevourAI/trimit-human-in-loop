@@ -5,12 +5,12 @@ import {
   ArrowUpIcon,
   ResetIcon,
 } from '@radix-ui/react-icons';
-import React, {useEffect} from 'react';
+import React, { useEffect } from 'react';
 
-import {Button} from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import ExportStepMenu from '@/components/ui/export-step-menu';
-import {useStepper} from '@/components/ui/stepper';
-import {DownloadFileParams} from '@/lib/types';
+import { useStepper } from '@/components/ui/stepper';
+import { DownloadFileParams } from '@/lib/types';
 
 export interface FooterProps {
   onPrevStep: () => void;
@@ -94,7 +94,8 @@ export const Footer = ({
           size="sm"
           onClick={onNextStep}
           disabled={
-            (trueStepIndex >= totalNSteps - 1 && currentStepIndex == trueStepIndex) ||
+            (trueStepIndex >= totalNSteps - 1 &&
+              currentStepIndex == trueStepIndex) ||
             currentStepIndex > trueStepIndex ||
             isLoading
           }
