@@ -327,7 +327,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       });
     }
     setChatMessages(newMessages);
-  }, [stepOutput]);
+  }, [stepOutput, stepInputPrompt]);
 
   type ActivePromptAction =
     | { type: 'append'; value: string }

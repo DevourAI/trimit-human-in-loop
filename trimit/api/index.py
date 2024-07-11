@@ -793,10 +793,10 @@ async def download_transcript_text(
     if file_path is None:
         raise HTTPException(status_code=500, detail="No transcript found")
     assert isinstance(file_path, str)
-    if not os.path.exists(file_path):
-        raise HTTPException(
-            status_code=500, detail=f"Transcript not found at {file_path}"
-        )
+    #  if not os.path.exists(file_path):
+    #  raise HTTPException(
+    #  status_code=500, detail=f"Transcript not found at {file_path}"
+    #  )
 
     return FileResponse(
         file_path, media_type="text/plain", filename=os.path.basename(file_path)
@@ -952,9 +952,9 @@ async def stream_video(
     if video_path is None:
         raise HTTPException(status_code=400, detail="No video found")
     assert isinstance(video_path, str)
-    if not os.path.exists(video_path):
-        print(f"Video not found at {video_path}")
-        raise HTTPException(status_code=400, detail=f"Video not found at {video_path}")
+    #  if not os.path.exists(video_path):
+    #  print(f"Video not found at {video_path}")
+    #  raise HTTPException(status_code=400, detail=f"Video not found at {video_path}")
     extension = os.path.splitext(video_path)[1]
     media_type = f"video/{extension[1:]}"
     if not stream:

@@ -674,7 +674,7 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     max_word_extra_threshold: int = 50
     clip_extra_trim_seconds: float = 0.1
     use_agent_output_cache: bool = True
-    max_iterations: int = 3
+    max_iterations: int = 6
     ask_user_for_feedback_every_iteration: bool = False
     max_total_soundbites: int = 15
     num_speaker_tagging_samples: int = 3

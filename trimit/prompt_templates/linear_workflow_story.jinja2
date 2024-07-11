@@ -1,10 +1,10 @@
 You will be provided with a transcript of a video interview created by Whisper.
-This transcript will hopefully only contain the on-screen speaker's responses, some of the interviewer's questions might be mistakenly included.
-Our overall goal is to cut down the whole video to a {{ length_seconds }} second narrative that we can use as a customer testimonial.
-At 130 words per minute, this is approximately {{ total_words }} words.
+This transcript will hopefully only contain the on-screen speaker's responses, though some of the interviewer's questions might be mistakenly included.
+Our overall goal is to cut down the whole video to a {{ length_seconds }} second narrative with a sense of drama, flow, and cohesion following the principles that make a compelling story.
+This narrative will eventually be used as a {{ video_type }} video.
+At 130 words per minute, the desired length is approximately {{ total_words }} words.
+Your immediate goal, and what your output to this prompt should be, is to create a short, chapter-ized story or outline for a first pass of this video, which will then be crafted to match the story by cutting down the A-roll interview footage.
 Do not include any B-roll or voiceover in your story.
-Your goal is to provide an outline for a first pass using only A-roll interview footage from the scenes provided.
-Provide a short narrative story or outline that we can refer to when cutting the video to keep the vision intact as we edit.
 Enclose your story with <story></story> XML-style tags.
 
 The user provided the following prompt to guide you in your creation:
@@ -14,7 +14,7 @@ The user provided the following prompt to guide you in your creation:
 </user_prompt>
 
 {% if user_feedback_messages %}
-The user provided the following feedback on the last draft(s):
+The user also provided the following feedback on the last draft(s):
 {% for user_feedback in user_feedback_messages %}
 <user_feedback>
 {{ user_feedback }}
