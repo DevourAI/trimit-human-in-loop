@@ -262,12 +262,9 @@ async def get_agent_output(
     if from_cache and cache_key in AGENT_OUTPUT_CACHE:
         last_output, outputs = AGENT_OUTPUT_CACHE[cache_key]
         for _output in outputs:
-            yield PartialLLMOutput(value=_output), False
-        if isinstance(last_output, str):
-            yield FinalLLMOutput(str_value=last_output), True
-        else:
-            assert isinstance(last_output, dict)
-            yield FinalLLMOutput(json_value=last_output), True
+            yield _output, False
+        assert isinstance(last_output, FinalLLMOutput)
+        yield last_output, True
         return
 
     async_gen = get_agent_output_no_cache(
@@ -277,29 +274,21 @@ async def get_agent_output(
         schema=schema,
         rules=rules,
         model=model,
-        stream=stream,
-        return_formatted=return_formatted,
         images=images,
         **context,
     )
-    if stream:
-        outputs = []
-        async for output_chunk in async_gen:
-            if isinstance(output_chunk, str):
-                yield PartialLLMOutput(value=output_chunk), False
-            outputs.append(output_chunk)
-        output = None
-        if len(outputs):
-            output = outputs.pop(-1)
-    else:
-        output, outputs = await async_gen.__anext__()
+    outputs = []
+    async for output_chunk in async_gen:
+        if isinstance(output_chunk, PartialLLMOutput):
+            yield output_chunk, False
+        outputs.append(output_chunk)
+    output = None
+    if len(outputs):
+        output = outputs.pop(-1)
 
+    assert isinstance(output, FinalLLMOutput)
     AGENT_OUTPUT_CACHE[cache_key] = (output, outputs)
-    if isinstance(output, str):
-        yield FinalLLMOutput(str_value=output), True
-    else:
-        assert isinstance(output, dict)
-        yield FinalLLMOutput(json_value=output), True
+    yield output, True
 
 
 @rate_limited(0.5)
@@ -310,8 +299,6 @@ async def get_agent_output_no_cache(
     schema: dict | None = None,
     rules: list[Rule] | None = None,
     model: str = "gpt-4o",
-    stream: bool = True,
-    return_formatted: bool = False,
     images: list[bytes] | None = None,
     **context,
 ):
@@ -332,36 +319,19 @@ async def get_agent_output_no_cache(
     if json_mode:
         if not schema:
             raise ValueError("Must provide schema for JSON output")
-        agent = create_structured_agent(schema, rules=rules, model=model, stream=stream)
+        agent = create_structured_agent(schema, rules=rules, model=model, stream=True)
     else:
-        agent = create_agent(summary=False, rules=rules, model=model, stream=stream)
+        agent = create_agent(summary=False, rules=rules, model=model, stream=True)
     agent.add_task(task)
 
-    if stream:
-        agent = Stream(agent)
-
-        async def run_fn():
-            for artifact in agent.run():
-                yield artifact.value
-
-    else:
-
-        async def run_fn():
-            agent.run()
-            yield agent.task.output.value
+    agent = Stream(agent)
 
     outputs = []
-    formatted_outputs = []
-    async for raw, formatted in format_text_wrapper(run_fn()):
-        if stream:
-            if return_formatted:
-                yield formatted
-            else:
-                yield raw
-        outputs.append(raw)
-        formatted_outputs.append(formatted)
+    for artifact in agent.run():
+        yield PartialLLMOutput(value=artifact.value)
+        outputs.append(artifact.value)
     output = "".join(outputs)
-    if not output and stream:
+    if not output:
         output = agent.structure.task.output.value
     if json_mode:
         try:
@@ -371,10 +341,9 @@ async def get_agent_output_no_cache(
                 output = output.split("```json")[1]
                 output = output.split("```")[0]
                 output = json.loads(output)
-    if stream:
-        yield output
+        yield FinalLLMOutput(json_value=output)
     else:
-        yield output, formatted_outputs
+        yield FinalLLMOutput(str_value=output)
 
 
 async def find_leftover_transcript_offsets_using_llm(

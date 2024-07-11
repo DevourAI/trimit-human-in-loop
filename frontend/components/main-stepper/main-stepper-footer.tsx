@@ -5,12 +5,12 @@ import {
   ArrowUpIcon,
   ResetIcon,
 } from '@radix-ui/react-icons';
-import React, { useEffect } from 'react';
+import React, {useEffect} from 'react';
 
-import { Button } from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
 import ExportStepMenu from '@/components/ui/export-step-menu';
-import { useStepper } from '@/components/ui/stepper';
-import { DownloadFileParams } from '@/lib/types';
+import {useStepper} from '@/components/ui/stepper';
+import {DownloadFileParams} from '@/lib/types';
 
 export interface FooterProps {
   onPrevStep: () => void;
@@ -54,14 +54,6 @@ export const Footer = ({
 
   return (
     <>
-      {hasCompletedAllSteps && (
-        <div className="h-40 flex items-center justify-center my-4 border bg-secondary text-primary rounded-md">
-          <h3 className="text-xl">
-            TrimIt finished editing your video, but feel free to provide
-            additional feedback or go back to previous steps
-          </h3>
-        </div>
-      )}
       <div className="w-full flex justify-between gap-2">
         <div className="flex gap-2">
           <Button
@@ -102,7 +94,7 @@ export const Footer = ({
           size="sm"
           onClick={onNextStep}
           disabled={
-            trueStepIndex >= totalNSteps - 1 ||
+            (trueStepIndex >= totalNSteps - 1 && currentStepIndex == trueStepIndex) ||
             currentStepIndex > trueStepIndex ||
             isLoading
           }

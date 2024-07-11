@@ -118,7 +118,7 @@ async def step(
     if advance_until is not None and substep_name is None and step_name is None:
         step = workflow.steps[advance_until]
         step_name = step.name
-        substep_name = step.substeps[-1].name
+        substep_name = step.substeps[0].name
         print(f"set step_name={step_name} substep_name={substep_name}")
 
     step_workflow_advance_until = None

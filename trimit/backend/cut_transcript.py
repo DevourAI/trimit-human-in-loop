@@ -1096,6 +1096,8 @@ class CutTranscriptLinearWorkflow:
 
         prompt = load_prompt_template_as_string("linear_workflow_story")
         output = ""
+        print("generate story user_prompt:", step_input.user_prompt)
+        print("generate story user_feedback_messages:", step_input.prior_user_messages)
         async for output, is_last in get_agent_output_modal_or_local(
             prompt,
             transcript=self.on_screen_transcript.text,
@@ -1104,6 +1106,7 @@ class CutTranscriptLinearWorkflow:
             user_prompt=step_input.user_prompt,
             from_cache=self.use_agent_output_cache,
             user_feedback_messages=step_input.prior_user_messages,
+            video_type="customer testimonial",
         ):
             if not is_last:
                 yield output, is_last
@@ -1392,6 +1395,7 @@ class CutTranscriptLinearWorkflow:
                 if not is_last:
                     yield output, is_last
             assert isinstance(output, CutTranscriptLinearWorkflowStepResults)
+            output.internal_retry_num = i
             if output.outputs:
                 modified_transcript = output.outputs["current_transcript"]
                 stage_num = parse_stage_num_from_step_name(step_input.step_name)
@@ -1402,12 +1406,12 @@ class CutTranscriptLinearWorkflow:
                 if not self._word_count_excess(
                     modified_transcript, self._desired_words_for_stage(stage_num)
                 ):
-                    output.internal_retry_num = i
                     yield output, True
                     return
             else:
                 print("No output from modify_transcript_holistically")
         assert isinstance(output, CutTranscriptLinearWorkflowStepResults)
+        print(f"Reached maximum iterations on modify_holistically: {iterations}")
         yield output, True
 
     async def export_results(self, step_input: CutTranscriptLinearWorkflowStepInput):
