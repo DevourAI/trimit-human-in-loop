@@ -5,7 +5,7 @@ import {
   FrontendWorkflowState,
 } from '@/gen/openapi/api';
 
-const MAX_READ_FAILURES = 10;
+const MAX_READ_FAILURES = 100;
 
 // Function to create a chunk decoder using TextDecoder
 export function createChunkDecoder() {

@@ -130,3 +130,14 @@ def get_s3_key(current_user, upload_datetime, filename):
 def get_audio_file_path(current_user, upload_datetime, filename, volume_dir=VOLUME_DIR):
     audio_folder = get_audio_folder(volume_dir, current_user.email, upload_datetime)
     return audio_folder / filename
+
+
+async def async_copy(src, dst):
+    async with aiofiles.open(src, "rb") as src_file:
+        os.makedirs(os.path.dirname(dst), exist_ok=True)
+        async with aiofiles.open(dst, "wb") as dst_file:
+            while True:
+                data = await src_file.read(64 * 1024)  # Read in chunks of 64KB
+                if not data:
+                    break
+                await dst_file.write(data)

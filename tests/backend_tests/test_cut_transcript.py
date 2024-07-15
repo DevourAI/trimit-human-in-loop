@@ -21,7 +21,11 @@ from trimit.backend.models import (
     SpeakerTaggingSegmentModification,
 )
 
-from trimit.backend.serve import step_workflow_until_feedback_request, step
+from trimit.backend.serve import (
+    step_workflow_until_feedback_request,
+    step,
+    step_workflow_ignoring_feedback_request,
+)
 
 import os
 import pytest
@@ -1114,3 +1118,226 @@ async def test_step_advance_until_int(workflow_3909774043_with_transcript_no_exp
         ].step_inputs.user_prompt
         == "new_input"
     )
+
+
+async def test_run_no_db_save(workflow_3909774043_with_transcript):
+    workflow = workflow_3909774043_with_transcript
+
+    user_input = "make me a video"
+    expected_step_names = [
+        "init_state",
+        "remove_off_screen_speakers",
+        "generate_story",
+        "identify_key_soundbites",
+        "cut_partial_transcripts_with_critiques",
+        "modify_transcript_holistically",
+        "cut_partial_transcripts_with_critiques",
+        "modify_transcript_holistically",
+        "end",
+    ]
+
+    step_outputs = []
+    str_outputs_by_step = {}
+    step_info_outputs_by_step = {}
+
+    str_outputs = []
+    step_info_outputs = []
+    final_llm_outputs = []
+    async for output, is_last in step_workflow_ignoring_feedback_request(
+        workflow,
+        user_input=user_input,
+        load_state=False,
+        save_state_to_db=False,
+        async_export=False,
+    ):
+        if is_last:
+            assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+            step_outputs.append(output)
+            step_key = f"{output.step_name}.{output.substep_name}"
+            str_outputs_by_step[step_key] = str_outputs
+            step_info_outputs_by_step[step_key] = step_info_outputs
+            str_outputs = []
+            step_info_outputs = []
+        else:
+            assert isinstance(
+                output, (PartialLLMOutput, FinalLLMOutput, PartialBackendOutput)
+            )
+            if (
+                isinstance(output, PartialBackendOutput)
+                and output.current_substep is not None
+            ):
+                step_info_outputs.append(output.current_substep)
+            elif isinstance(output, PartialLLMOutput):
+                str_outputs.append(output)
+            elif isinstance(output, FinalLLMOutput):
+                final_llm_outputs.append(output)
+    assert len(step_outputs)
+
+    if len(step_outputs) < len(expected_step_names):
+        assert (
+            await workflow.get_last_substep(with_load_state=False)
+        ).name == expected_step_names[len(step_outputs) - 1]
+        if len(step_outputs) < len(expected_step_names) - 1:
+            assert (
+                await workflow.get_next_substep(with_load_state=False)
+            ).name == expected_step_names[len(step_outputs)]
+        else:
+            assert await workflow.get_next_substep(with_load_state=False) is None
+    else:
+        # last step will never be "end", we always return the last real step we ran
+        assert (
+            await workflow.get_last_substep(with_load_state=False)
+        ).name == expected_step_names[-2]
+        assert await workflow.get_next_substep(with_load_state=False) is None
+    assert step_outputs[-1].done
+    assert all(isinstance(o.value, str) for o in str_outputs)
+    assert all(f"{o.name}" == e for o, e in zip(step_info_outputs, expected_step_names))
+    assert len(final_llm_outputs) == 0
+    assert len(step_outputs) == len(expected_step_names)
+    assert [s.substep_name == e for s, e in zip(step_outputs, expected_step_names)]
+
+    # try after we finish
+    result = None
+    async for result, is_last in workflow.step(
+        "", load_state=False, save_state_to_db=False, async_export=False
+    ):
+        pass
+    assert result is not None
+    assert result.step_name == "stage_1_generate_transcript"
+    assert result.substep_name == "modify_transcript_holistically"
+    step_outputs.append(result)
+
+    speaker_tagging_output = (
+        await workflow.get_output_for_keys(
+            ["preprocess_video.remove_off_screen_speakers"], with_load_state=False
+        )
+    )[0]
+    speaker_tagging_clips = speaker_tagging_output.export_result[
+        "speaker_tagging_clips"
+    ]
+    assert len(speaker_tagging_clips) == 2
+    assert "SPEAKER_00" in speaker_tagging_clips
+    assert "SPEAKER_01" in speaker_tagging_clips
+
+    soundbites_output = (
+        await workflow.get_output_for_keys(
+            ["identify_key_soundbites.identify_key_soundbites"], with_load_state=False
+        )
+    )[0]
+    assert "hypothetical" not in " ".join(
+        [
+            s.value
+            for s in str_outputs_by_step[
+                "identify_key_soundbites.identify_key_soundbites"
+            ]
+        ]
+    )
+    output_files = soundbites_output.export_result
+    for file_key in [
+        "soundbites_transcript",
+        "soundbites_text",
+        "soundbites_videos",
+        "soundbites_timeline",
+    ]:
+        assert file_key in output_files
+        if isinstance(output_files[file_key], list):
+            for f in output_files[file_key]:
+                assert os.stat(f).st_size > 0
+        else:
+            assert os.stat(output_files[file_key]).st_size > 0
+
+    output = await workflow.get_last_output_before_end(with_load_state=False)
+    output_files = output.export_result
+    for file_key in ["video_timeline", "transcript", "transcript_text"]:
+        assert file_key in output_files
+        if isinstance(output_files[file_key], list):
+            for f in output_files[file_key]:
+                assert os.stat(f).st_size > 0
+        else:
+            assert os.stat(output_files[file_key]).st_size > 0
+
+    all_outputs = await workflow.get_all_outputs(
+        only_last_substep=False, with_load_state=False
+    )
+    assert all(
+        "video_timeline" in substep_output.export_result
+        for substep_output in all_outputs
+        if substep_output.substep_name
+        in ("remove_off_screen_speakers", "modify_transcript_holistically")
+    )
+    assert all(
+        "video_timeline" not in substep_output.export_result
+        for substep_output in all_outputs
+        if substep_output.substep_name
+        not in ("end", "remove_off_screen_speakers", "modify_transcript_holistically")
+    )
+
+    output_for_steps = await workflow.get_output_for_keys(
+        [
+            "stage_0_generate_transcript.modify_transcript_holistically",
+            "stage_1_generate_transcript.cut_partial_transcripts_with_critiques",
+            "stage_1_generate_transcript.modify_transcript_holistically",
+        ],
+        with_load_state=False,
+    )
+    step0_tl_file = output_for_steps[0].export_result.get("video_timeline")
+    assert step0_tl_file and os.stat(step0_tl_file).st_size > 0
+
+    first_stage_transcript = Transcript.load_from_state(
+        output_for_steps[0].step_outputs["current_transcript_state"]
+    )
+    assert_under_word_count_threshold(workflow, first_stage_transcript, 0)
+    second_stage_transcript = Transcript.load_from_state(
+        output_for_steps[2].step_outputs["current_transcript_state"]
+    )
+    assert_under_word_count_threshold(workflow, second_stage_transcript, 1)
+
+    assert len(workflow.story) == 1977
+    assert workflow.story == step_outputs[2].step_outputs["story"]
+
+    for output_idx, step_key in zip(
+        [3, 5, 7],
+        [
+            "identify_key_soundbites.identify_key_soundbites",
+            "stage_0_generate_transcript.modify_transcript_holistically",
+            "stage_1_generate_transcript.modify_transcript_holistically",
+        ],
+    ):
+        parent_obj = Soundbites.load_from_state(
+            step_outputs[output_idx].step_outputs["current_soundbites_state"]
+        )
+        assert [
+            (
+                Soundbite.from_dict_with_parent_obj(parent_obj=parent_obj, **sb)
+                if isinstance(sb, dict)
+                else Soundbite.from_dict_with_parent_obj(
+                    parent_obj=parent_obj,
+                    start_segment_index=sb.start_segment_index,
+                    start_word_index=sb.start_word_index,
+                    end_segment_index=sb.end_segment_index,
+                    end_word_index=sb.end_word_index,
+                )
+            )
+            for sb in workflow.state.outputs[step_key][-1].step_outputs[
+                "current_soundbites_state"
+            ]["soundbites"]
+        ] == parent_obj.soundbites
+
+    for output_idx, retry_num, step_key in zip(
+        [5, 7, 9],
+        [-1, 0, -1],
+        [
+            "stage_0_generate_transcript.modify_transcript_holistically",
+            "stage_1_generate_transcript.modify_transcript_holistically",
+        ],
+    ):
+        assert (
+            Transcript.load_from_state(
+                workflow.state.outputs[step_key][retry_num].step_outputs[
+                    "current_transcript_state"
+                ]
+            ).kept_word_count
+            == Transcript.load_from_state(
+                step_outputs[output_idx].step_outputs["current_transcript_state"]
+            ).kept_word_count
+        )

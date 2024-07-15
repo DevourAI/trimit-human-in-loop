@@ -473,6 +473,23 @@ class CutTranscriptLinearWorkflow:
         stage_lengths[-1] = self.length_seconds
         return stage_lengths
 
+    @property
+    def export_flags(self):
+        assert self.state is not None
+        return self.state.export_flags
+
+    async def set_all_export_to_false(self):
+        assert self.state is not None
+        await self.state.set_all_export_to_false()
+
+    async def set_export_flags(self, **export_flags):
+        assert self.state is not None
+        await self.state.set_export_flags(**export_flags)
+
+    async def revert_export_flags(self):
+        assert self.state is not None
+        await self.state.revert_export_flags()
+
     async def most_recent_export_result(self, with_load_state=True):
         last_output = await self.get_last_output_before_end(
             with_load_state=with_load_state
@@ -579,10 +596,10 @@ class CutTranscriptLinearWorkflow:
                         user_feedback=True,
                         chunked_feedback=False,
                         export_transcript=True,
-                        export_soundbites=False,
+                        export_soundbites=True,
                         export_video=True,
                         export_timeline=True,
-                        export_speaker_tagging=False,
+                        export_speaker_tagging=True,
                     ),
                 ],
             )
@@ -637,6 +654,8 @@ class CutTranscriptLinearWorkflow:
 
     async def get_latest_frontend_state(
         self,
+        volume_dir: str,
+        asset_dir: str,
         with_load_state=True,
         #  with_outputs=False,
         #  with_all_steps=True,
@@ -646,7 +665,7 @@ class CutTranscriptLinearWorkflow:
             await self.load_state()
         if self.state is None:
             raise ValueError("state is None")
-        return FrontendWorkflowState.from_workflow(self)
+        return await FrontendWorkflowState.from_workflow(self, volume_dir, asset_dir)
         #  last_step_obj = await self.get_last_substep_with_user_feedback(
         #  with_load_state=with_load_state
         #  )
@@ -918,6 +937,20 @@ class CutTranscriptLinearWorkflow:
             await task
         print(f"Saved state for step {current_step.name}.{current_substep.name}")
         return step_output_parsed
+
+    async def set_most_recent_output_export_call_id(
+        self, call_id: str, save_to_db: bool = True, use_session: bool = True
+    ):
+        assert self.state is not None
+        key = self.state.get_latest_dynamic_key()
+        if key is None:
+            return
+        step_output = self._get_output_for_key(key)
+        step_output.export_call_id = call_id
+        await self.state.set_current_step_output_atomic(
+            key, step_output, save_to_db=save_to_db, use_session=use_session
+        )
+        await self.load_state()
 
     async def step(
         self,
@@ -1442,7 +1475,6 @@ class CutTranscriptLinearWorkflow:
             and substep.export_speaker_tagging
             and self.raw_transcript is not None
         )
-
         output_dir = self.step_output_dir(step_input.step_name, step_input.substep_name)
         output_files = {}
         prefix = f"{Path(self.video.high_res_user_file_path).stem}_{step_input.substep_name}_"
@@ -1497,6 +1529,7 @@ class CutTranscriptLinearWorkflow:
                 output_files["soundbites_text"] = soundbites_text_file
 
         if export_timeline:
+            print("export_results() exporting timeline")
             yield "Exporting timeline", False
             # TODO can make this async gen and pass partial output
             video_timeline_file = create_fcp_7_xml_from_single_video_transcript(
@@ -1529,6 +1562,7 @@ class CutTranscriptLinearWorkflow:
             output_files["speaker_tagging_clips"] = (
                 await self._export_speaker_tagging_samples(output_dir, prefix)
             )
+        print("export_results() output_files", output_files)
         yield output_files, True
 
     #### HELPER FUNCTIONS ####
@@ -1785,7 +1819,10 @@ class CutTranscriptLinearWorkflow:
         )
 
     async def redo_export_results(
-        self, step_name: str | None = None, substep_name: str | None = None
+        self,
+        step_name: str | None = None,
+        substep_name: str | None = None,
+        local: bool = False,
     ):
         assert self.state is not None
 
@@ -1809,9 +1846,11 @@ class CutTranscriptLinearWorkflow:
         substep.input = step_input
 
         print(f"redo_export_results state_save_key={state_save_key} substep={substep}")
-        if is_local():
-            await export_results_wrapper.local(self, state_save_key, substep, -1)
-            return None
+        if local or is_local():
+            results = await export_results_wrapper.local(
+                self, state_save_key, substep, -1
+            )
+            return results
         else:
             call = export_results_wrapper.spawn(self, state_save_key, substep, -1)
             print(f"redo_export_results call={call}")

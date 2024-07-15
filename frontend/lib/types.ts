@@ -16,9 +16,9 @@ export interface CreateNewWorkflowParams {
 
 export interface StepData {
   user_input: string;
-  streaming: boolean;
-  force_restart: boolean;
-  ignore_running_workflows: boolean;
+  streaming?: boolean;
+  force_restart?: boolean;
+  ignore_running_workflows?: boolean;
   retry_step?: boolean;
 }
 
@@ -77,10 +77,6 @@ export interface StepInfo extends StepItem {
   substeps: SubStepInfo[];
 }
 
-export interface StepData {
-  stepArray: StepInfo[];
-}
-
 export interface UserState {
   all_steps: StepInfo[];
   next_step: StepInfo;
@@ -127,4 +123,5 @@ export interface OutputComponentProps {
   exportResult: any;
   onSubmit: () => void;
   form: UseFormReturn;
+  allowModification: boolean;
 }

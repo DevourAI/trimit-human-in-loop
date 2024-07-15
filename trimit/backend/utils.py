@@ -1218,6 +1218,7 @@ async def export_results_wrapper(workflow, state_save_key, current_substep, retr
     await workflow._save_export_result_to_step_output(
         state_save_key, export_result, retry_num
     )
+    print("export_results_wrapper results", export_result)
     return {"result": export_result}
 
 

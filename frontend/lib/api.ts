@@ -268,6 +268,19 @@ export async function step(
   });
 }
 
+export async function run(
+  workflowId: string,
+  data: StepData,
+  streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
+): Promise<void> {
+  const params = { workflow_id: workflowId };
+  await postJSONFetcherWithStreamingResponse(`${API_URL}/run`, {
+    params,
+    data,
+    streamReaderCallback,
+  });
+}
+
 export async function listWorkflows(
   params: ListWorkflowParams
 ): Promise<FrontendWorkflowProjection[]> {

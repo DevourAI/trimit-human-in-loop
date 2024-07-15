@@ -7,11 +7,16 @@ from trimit.backend.conf import (
     WORKFLOWS_DICT_NAME,
     RUNNING_WORKFLOWS_DICT_NAME,
 )
-from trimit.backend.models import StructuredUserInput
+from trimit.backend.models import (
+    PartialBackendOutput,
+    PartialLLMOutput,
+    StructuredUserInput,
+    FinalLLMOutput,
+)
 from trimit.models.models import StepNotYetReachedError
 from trimit.utils.model_utils import get_dynamic_state_key
 from .image import image
-from modal import Dict
+from modal import Dict, is_local
 import asyncio
 
 app_kwargs = dict(
@@ -93,6 +98,65 @@ async def step_workflow_until_feedback_request(
         ):
             break
         i += 1
+
+
+async def step_workflow_ignoring_feedback_request(
+    workflow: "CutTranscriptLinearWorkflow",
+    user_input: str | None = None,
+    structured_user_input: StructuredUserInput | None = None,
+    load_state=True,
+    save_state_to_db=True,
+    async_export=True,
+    export_intermediate=False,
+    stream_raw=False,
+):
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
+    from trimit.models import maybe_init_mongo
+
+    await maybe_init_mongo()
+    if load_state:
+        await workflow.load_state()
+
+    prev_exports = {}
+    if not export_intermediate:
+        prev_exports = workflow.export_flags
+        await workflow.set_all_export_to_false()
+    while True:
+        result = None
+        step_user_input = ""
+        next_substep = await workflow.get_next_substep(with_load_state=False)
+        if next_substep and next_substep.name == "generate_story":
+            step_user_input = user_input or ""
+        async for result, is_last in workflow.step(
+            step_user_input,
+            structured_user_input=structured_user_input,
+            load_state=load_state,
+            save_state_to_db=save_state_to_db,
+            async_export=async_export,
+            retry_step=False,
+        ):
+            if not hasattr(result, "done") or not result.done:
+                if isinstance(result, (PartialLLMOutput, FinalLLMOutput)):
+                    if stream_raw:
+                        yield result, is_last
+                else:
+                    yield result, is_last
+
+        if not isinstance(result, CutTranscriptLinearWorkflowStepOutput):
+            yield CutTranscriptLinearWorkflowStepOutput(
+                step_name="", substep_name="", done=False, error="No steps ran"
+            ), True
+            return
+
+        assert isinstance(result, CutTranscriptLinearWorkflowStepOutput)
+        if result.done:
+            break
+    if not export_intermediate:
+        yield PartialBackendOutput(value="Exporting results"), False
+        await workflow.revert_export_flags()
+        results = await workflow.redo_export_results(local=True)
+        result.export_result = results
+    yield result, True
 
 
 @app.function(**app_kwargs)
@@ -177,6 +241,53 @@ async def step(
     #  ), True
     #  except StopAsyncIteration:
     #  return
+
+
+@app.function(**app_kwargs)
+async def run(
+    workflow: "trimit.backend.cut_transcript.CutTranscriptLinearWorkflow",
+    user_input: str | None = None,
+    structured_user_input: StructuredUserInput | None = None,
+    ignore_running_workflows: bool = False,
+    async_export: bool = True,
+    load_state: bool = True,
+    save_state_to_db: bool = True,
+    export_intermediate: bool = False,
+):
+    from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
+    from trimit.models import maybe_init_mongo
+
+    await maybe_init_mongo()
+    await workflow.restart_state()
+    id = str(workflow.id)
+
+    if not ignore_running_workflows:
+        if id in workflows:
+            if running_workflows.get(id, False):
+                yield CutTranscriptLinearWorkflowStepOutput(
+                    step_name="",
+                    substep_name="",
+                    done=False,
+                    error="Workflow already running",
+                ), True
+                return
+        else:
+            workflows[id] = workflow
+    running_workflows[id] = True
+    gen = step_workflow_ignoring_feedback_request(
+        workflow=workflow,
+        user_input=user_input,
+        structured_user_input=structured_user_input,
+        async_export=async_export,
+        load_state=load_state,
+        save_state_to_db=save_state_to_db,
+        export_intermediate=export_intermediate,
+        stream_raw=False,
+    )
+
+    async for output in gen:
+        yield output
+    running_workflows[id] = False
 
 
 @app.local_entrypoint()

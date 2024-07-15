@@ -1,8 +1,10 @@
 'use client';
 
+import { ArrowUpIcon } from '@radix-ui/react-icons';
 import { FC, useEffect, useRef } from 'react';
 
 import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
+import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
 export interface Message {
@@ -27,16 +29,16 @@ interface ChatProps {
   messages: Message[];
   userMessage: string;
   onSubmit: (options?: any) => void;
-  isNewStep: boolean;
   onChange: (userMessage: string) => void;
+  isLoading: boolean;
 }
 
 const Chat: FC<ChatProps> = ({
-  isNewStep,
   messages,
   userMessage,
   onSubmit,
   onChange,
+  isLoading,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
@@ -79,11 +81,16 @@ const Chat: FC<ChatProps> = ({
             value={userMessage}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Type your message..."
+            placeholder="Describe what you want to create..."
             className="w-full pr-12 h-auto max-h-48 resize-none"
           />
         </div>
       </form>
+
+      <Button variant="default" onClick={onSubmit} disabled={isLoading}>
+        <ArrowUpIcon className="mr-2" />
+        Generate video
+      </Button>
     </div>
   );
 };

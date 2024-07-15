@@ -3,6 +3,7 @@ import type { UseFormReturn } from 'react-hook-form';
 
 import { OnScreenSpeakerIdentificationOutput } from '@/components/main-stepper/on-screen-speaker-identification-output';
 import { SoundbiteOutput } from '@/components/main-stepper/soundbite-output';
+import { VideoOutput } from '@/components/main-stepper/video-output';
 import {
   Accordion,
   AccordionContent,
@@ -17,7 +18,7 @@ import { OutputComponentProps } from '@/lib/types';
 
 //const POLL_INTERVAL = 5000;
 const OUTPUT_LABEL_MAP = {
-  current_transcript_text: 'Current Transcript',
+  current_transcript_text: 'Current Video & Transcript',
   on_screen_speakers: 'On Screen Speakers',
   current_soundbites_iter_text: 'Key Selects',
 };
@@ -28,6 +29,7 @@ interface StepOutputProps {
   exportCallId: string | null;
   onSubmit: () => void;
   isLoading: boolean;
+  allowModification: boolean;
 }
 
 interface StepOutputItemProps {
@@ -39,17 +41,15 @@ interface StepOutputItemProps {
   onSubmit: () => void;
   form: UseFormReturn;
   isLoading: boolean;
+  allowModification: boolean;
 }
 
-const TranscriptOutput: FC<OutputComponentProps> = ({ value }) => {
-  return <div className="mt-1">Transcript: {value}</div>;
-};
 const StoryOutput: FC<OutputComponentProps> = ({ value }) => {
   return <div className="mt-1">Story: {value}</div>;
 };
 
 const outputComponentMapping = {
-  current_transcript_text: TranscriptOutput,
+  current_transcript_text: VideoOutput,
   current_soundbites_iter_text: SoundbiteOutput,
   on_screen_speakers: OnScreenSpeakerIdentificationOutput,
   story: StoryOutput,
@@ -64,6 +64,7 @@ const StepOutputItem: FC<StepOutputItemProps> = ({
   onSubmit,
   form,
   isLoading,
+  allowModification,
 }) => {
   const Component = outputComponentMapping[name];
   if (Component === undefined) {
@@ -87,13 +88,19 @@ const StepOutputItem: FC<StepOutputItemProps> = ({
           onSubmit={onSubmit}
           form={form}
           isLoading={isLoading}
+          allowModification={allowModification}
         />
       </AccordionContent>
     </AccordionItem>
   );
 };
 
-const StepOutput: FC<StepOutputProps> = ({ output, onSubmit, isLoading }) => {
+const StepOutput: FC<StepOutputProps> = ({
+  output,
+  onSubmit,
+  isLoading,
+  allowModification,
+}) => {
   // const [exportResult, setExportResult] = useState<Record<string, any> | null>(
   // output?.export_result || null
   // );
@@ -150,7 +157,7 @@ const StepOutput: FC<StepOutputProps> = ({ output, onSubmit, isLoading }) => {
           Computing streamable/downloadable results
         </LoadingSpinner>
       ) : null}
-      {Object.keys(output.step_outputs).map((key, index) => (
+      {Object.keys(output.step_outputs || []).map((key, index) => (
         <StepOutputItem
           isLoading={isLoading}
           key={index}
@@ -161,6 +168,7 @@ const StepOutput: FC<StepOutputProps> = ({ output, onSubmit, isLoading }) => {
           exportResult={exportResult}
           onSubmit={onSubmit}
           form={form}
+          allowModification={allowModification}
         />
       ))}
     </Accordion>
