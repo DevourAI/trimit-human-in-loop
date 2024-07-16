@@ -482,6 +482,10 @@ class CutTranscriptLinearWorkflow:
         assert self.state is not None
         await self.state.set_all_export_to_false()
 
+    async def set_all_export_to_true(self):
+        assert self.state is not None
+        await self.state.set_all_export_to_true()
+
     async def set_export_flags(self, **export_flags):
         assert self.state is not None
         await self.state.set_export_flags(**export_flags)

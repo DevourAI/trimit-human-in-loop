@@ -49,7 +49,7 @@ from trimit.backend.models import (
     ExportableStepWrapper,
     StructuredUserInput,
 )
-from trimit.backend.utils import export_results_wrapper
+from trimit.backend.utils import AGENT_OUTPUT_CACHE, export_results_wrapper
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
@@ -63,7 +63,7 @@ from trimit.utils.fs_utils import (
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_workflow
-from trimit.app import app, get_volume_dir, S3_BUCKET
+from trimit.app import app, get_volume_dir, S3_BUCKET, volume
 from trimit.models import (
     maybe_init_mongo,
     Video,
@@ -632,6 +632,8 @@ def run(
                     )
                 await asyncio.sleep(0)
             print("loading last state")
+            AGENT_OUTPUT_CACHE.close()
+            await volume.reload()
             latest_state = await workflow.get_latest_frontend_state(
                 volume_dir=get_volume_dir(),
                 asset_dir=ASSETS_DIR,
@@ -640,9 +642,6 @@ def run(
                 #  with_all_steps=True,
                 #  only_last_substep_outputs=True,
             )
-            print("copying export results to public assets dir")
-            await copy_export_results_to_public_assets_dir(latest_state)
-            print("done copying, os.listdir('/assets')", os.listdir("/assets"))
             yield CutTranscriptLinearWorkflowStreamingOutput(
                 final_state=latest_state
             ).model_dump_json()

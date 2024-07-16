@@ -950,6 +950,14 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             self.prev_export_flags[key] = val
         await self.save()
 
+    async def set_all_export_to_true(self):
+        for key, val in self.export_flags.items():
+            setattr(self.static_state, key, True)
+            if self.prev_export_flags is None:
+                self.prev_export_flags = {}
+            self.prev_export_flags[key] = val
+        await self.save()
+
     async def revert_export_flags(self):
         if not self.prev_export_flags:
             print("prev export flags not set, returning")
@@ -1379,12 +1387,12 @@ async def map_export_result_to_asset_path(
         wait=wait_fixed(0.1) + wait_random(0, 1),
         retry=retry_if_exception_type(FileNotFoundError),
     )
-    async def retry_task(task):
-        return await task
+    async def retry_task(method, *args):
+        return await method(*args)
 
-    async def retry_without_raising(task):
+    async def retry_without_raising(method, *args):
         try:
-            return await retry_task(task)
+            return await retry_task(method, *args)
         except RetryError as e:
             print(f"RetryError, not raising: {e}")
             return None
@@ -1394,7 +1402,7 @@ async def map_export_result_to_asset_path(
             asset_filepath = os.path.join(
                 assets_dir, os.path.relpath(result, volume_dir)
             )
-            copy_tasks.append(retry_without_raising(async_copy(result, asset_filepath)))
+            copy_tasks.append(retry_without_raising(async_copy, result, asset_filepath))
             mapped_export_result[filekey] = asset_filepath
         elif isinstance(result, list):
             asset_filepaths = []
@@ -1403,7 +1411,7 @@ async def map_export_result_to_asset_path(
                     assets_dir, os.path.relpath(filepath, volume_dir)
                 )
                 copy_tasks.append(
-                    retry_without_raising(async_copy(filepath, asset_filepath))
+                    retry_without_raising(async_copy, filepath, asset_filepath)
                 )
                 asset_filepaths.append(asset_filepath)
             mapped_export_result[filekey] = asset_filepaths
@@ -1416,7 +1424,7 @@ async def map_export_result_to_asset_path(
                             assets_dir, os.path.relpath(filepath, volume_dir)
                         )
                         copy_tasks.append(
-                            retry_without_raising(async_copy(filepath, asset_filepath))
+                            retry_without_raising(async_copy, filepath, asset_filepath)
                         )
                         asset_filepaths[result_key].append(asset_filepath)
                 mapped_export_result[filekey] = asset_filepaths

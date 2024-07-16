@@ -153,8 +153,11 @@ async def step_workflow_ignoring_feedback_request(
             break
     if not export_intermediate:
         yield PartialBackendOutput(value="Exporting results"), False
-        await workflow.revert_export_flags()
+        # await workflow.revert_export_flags()
+        print("setting all export to true")
+        await workflow.set_all_export_to_true()
         results = await workflow.redo_export_results(local=True)
+        print("new export results", results)
         result.export_result = results
     yield result, True
 

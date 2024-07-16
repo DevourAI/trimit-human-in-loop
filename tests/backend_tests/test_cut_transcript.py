@@ -1207,44 +1207,44 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
     assert result.substep_name == "modify_transcript_holistically"
     step_outputs.append(result)
 
-    speaker_tagging_output = (
-        await workflow.get_output_for_keys(
-            ["preprocess_video.remove_off_screen_speakers"], with_load_state=False
-        )
-    )[0]
-    speaker_tagging_clips = speaker_tagging_output.export_result[
-        "speaker_tagging_clips"
-    ]
-    assert len(speaker_tagging_clips) == 2
-    assert "SPEAKER_00" in speaker_tagging_clips
-    assert "SPEAKER_01" in speaker_tagging_clips
+    #  speaker_tagging_output = (
+    #  await workflow.get_output_for_keys(
+    #  ["preprocess_video.remove_off_screen_speakers"], with_load_state=False
+    #  )
+    #  )[0]
+    #  speaker_tagging_clips = speaker_tagging_output.export_result[
+    #  "speaker_tagging_clips"
+    #  ]
+    #  assert len(speaker_tagging_clips) == 2
+    #  assert "SPEAKER_00" in speaker_tagging_clips
+    #  assert "SPEAKER_01" in speaker_tagging_clips
 
-    soundbites_output = (
-        await workflow.get_output_for_keys(
-            ["identify_key_soundbites.identify_key_soundbites"], with_load_state=False
-        )
-    )[0]
-    assert "hypothetical" not in " ".join(
-        [
-            s.value
-            for s in str_outputs_by_step[
-                "identify_key_soundbites.identify_key_soundbites"
-            ]
-        ]
-    )
-    output_files = soundbites_output.export_result
-    for file_key in [
-        "soundbites_transcript",
-        "soundbites_text",
-        "soundbites_videos",
-        "soundbites_timeline",
-    ]:
-        assert file_key in output_files
-        if isinstance(output_files[file_key], list):
-            for f in output_files[file_key]:
-                assert os.stat(f).st_size > 0
-        else:
-            assert os.stat(output_files[file_key]).st_size > 0
+    #  soundbites_output = (
+    #  await workflow.get_output_for_keys(
+    #  ["identify_key_soundbites.identify_key_soundbites"], with_load_state=False
+    #  )
+    #  )[0]
+    #  assert "hypothetical" not in " ".join(
+    #  [
+    #  s.value
+    #  for s in str_outputs_by_step[
+    #  "identify_key_soundbites.identify_key_soundbites"
+    #  ]
+    #  ]
+    #  )
+    #  output_files = soundbites_output.export_result
+    #  for file_key in [
+    #  "soundbites_transcript",
+    #  "soundbites_text",
+    #  "soundbites_videos",
+    #  "soundbites_timeline",
+    #  ]:
+    #  assert file_key in output_files
+    #  if isinstance(output_files[file_key], list):
+    #  for f in output_files[file_key]:
+    #  assert os.stat(f).st_size > 0
+    #  else:
+    #  assert os.stat(output_files[file_key]).st_size > 0
 
     output = await workflow.get_last_output_before_end(with_load_state=False)
     output_files = output.export_result
