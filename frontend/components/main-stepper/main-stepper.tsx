@@ -41,7 +41,7 @@ import {
   step,
 } from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
-import { RevertStepParams, RevertStepToParams } from '@/lib/types';
+import { RevertStepParams, RevertStepToParams, StepData } from '@/lib/types';
 
 function stepIndexFromState(state: FrontendWorkflowState): number {
   if (!state.all_steps) {
@@ -88,6 +88,22 @@ function stepOutputFromIndex(
   return state.outputs[stepIndex];
 }
 
+function mappedExportResultFromIndex(
+  stepIndex: number,
+  state: FrontendWorkflowState
+): CutTranscriptLinearWorkflowStepOutput {
+  if (!state.all_steps) {
+    throw new Error('state does not contain all_steps');
+  }
+  if (!state.mapped_export_result) {
+    throw new Error('state does not contain mapped_export_result');
+  }
+  if (stepIndex > state.mapped_export_result.length || stepIndex < 0) {
+    throw new Error('stepIndex out of bounds');
+  }
+  return state.mapped_export_result[stepIndex];
+}
+
 /**
  * Main stepper component.
  * - Get all steps and maintain their state
@@ -115,6 +131,10 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   >({});
   const [latestExportCallId, setLatestExportCallId] = useState<string>('');
   const [stepOutput, setStepOutput] = useState<FrontendStepOutput | null>(null);
+  const [mappedExportResult, setMappedExportResult] = useState<Record<
+    string,
+    any
+  > | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [backendMessage, setBackendMessage] = useState<string>('');
   const [currentStepFormValues, setCurrentStepFormValues] = useState<
@@ -162,7 +182,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       setProject(project);
     }
     if (projectId) {
-      fetchAndSetProject(projectId);
+      fetchAndSetProject();
     }
   }, [projectId]);
   useEffect(() => {
@@ -191,6 +211,11 @@ export default function MainStepper({ projectId }: { projectId: string }) {
 
         if (data.outputs && data.outputs.length) {
           setStepOutput(data.outputs[data.outputs.length - 1]);
+        }
+        if (data.mapped_export_result && data.mapped_export_result.length) {
+          setMappedExportResult(
+            data.mapped_export_result[data.mapped_export_result.length - 1]
+          );
         }
       }
       setLatestState(data);
@@ -237,6 +262,14 @@ export default function MainStepper({ projectId }: { projectId: string }) {
           ? finalState.outputs[finalState.outputs.length - 1]
           : null
       );
+      setMappedExportResult(
+        finalState?.mapped_export_result?.length
+          ? finalState.mapped_export_result[
+              finalState.mapped_export_result.length - 1
+            ]
+          : null
+      );
+
       setIsLoading(false);
       return finalState;
     },
@@ -248,6 +281,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       setIsLoading(true);
       setCurrentStepIndex(stepIndex);
       setStepOutput(null);
+      setMappedExportResult(null);
       const stepData: StepData = {
         user_input:
           stepperFormValues.feedback !== undefined &&
@@ -426,6 +460,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
 
     //setCurrentStepIndex(options.stepIndex);
     setStepOutput(null);
+    setMappedExportResult(null);
     const stepData: StepData = {
       user_input: userMessage || '',
       structured_user_input: options.useStructuredInput
@@ -460,6 +495,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     setIsLoading(true);
     activePromptDispatch({ type: 'restart', value: '' });
     setStepOutput(null);
+    setMappedExportResult(null);
     await resetWorkflow(userParams.workflow_id);
     const newState = await getLatestState(userParams.workflow_id);
     setLatestState(newState);
@@ -471,6 +507,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     setIsLoading(true);
     activePromptDispatch({ type: 'restart', value: '' });
     setStepOutput(null);
+    setMappedExportResult(null);
     await revertStepInBackend({
       to_before_retries: toBeforeRetries,
       workflow_id: userParams.workflow_id,
@@ -493,6 +530,13 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       console.error(error);
     }
     setStepOutput(stepOutput);
+    let mappedExportResult: Record<string, any> | null = null;
+    try {
+      mappedExportResult = mappedExportResultFromIndex(stepIndex, state);
+    } catch (error) {
+      console.error(error);
+    }
+    setMappedExportResult(mappedExportResult);
   }
 
   async function onPrevStep() {
@@ -525,6 +569,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       updateStepOutput(currentStepIndex + 1, latestState);
     } else {
       setStepOutput(null);
+      setMappedExportResult(null);
     }
   }
 
@@ -551,6 +596,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         <StructuredInputFormProvider
           onFormDataChange={handleStructuredInputFormValueChange}
           stepOutput={stepOutput}
+          mappedExportResult={mappedExportResult}
           userParams={userParams}
         >
           <Stepper

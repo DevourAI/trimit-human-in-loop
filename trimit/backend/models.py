@@ -1701,19 +1701,19 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
             raise ValueError(
                 f"Cannot merge outputs of different steps: {self.substep_name} and {other.substep_name}"
             )
-        self.done = self.done or other.done
+        self.done = other.done or self.done
         self.user_feedback_request = (
-            self.user_feedback_request or other.user_feedback_request
+            other.user_feedback_request or self.user_feedback_request
         )
         self.partial_user_feedback_request = (
-            self.partial_user_feedback_request or other.partial_user_feedback_request
+            other.partial_user_feedback_request or self.partial_user_feedback_request
         )
-        self.step_inputs = self.step_inputs or other.step_inputs
-        self.step_outputs = self.step_outputs or other.step_outputs
-        self.export_result = self.export_result or other.export_result
-        self.export_call_id = self.export_call_id or other.export_call_id
-        self.error = self.error or other.error
-        self.retry = self.retry or other.retry
+        self.step_inputs = other.step_inputs or self.step_inputs
+        self.step_outputs = other.step_outputs or self.step_outputs
+        self.export_result = other.export_result or self.export_result
+        self.export_call_id = other.export_call_id or self.export_call_id
+        self.error = other.error or self.error
+        self.retry = other.retry or self.retry
 
 
 class CurrentStepInfo(BaseModel):

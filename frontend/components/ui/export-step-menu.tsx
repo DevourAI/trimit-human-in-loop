@@ -1,15 +1,15 @@
-import { DownloadIcon } from '@radix-ui/react-icons';
+import {DownloadIcon} from '@radix-ui/react-icons';
 import * as React from 'react';
 
-import { Button } from '@/components/ui/button';
+import {Button} from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { LoadingSpinner } from '@/components/ui/loading-spinner';
-import { useStructuredInputForm } from '@/contexts/structured-input-form-context';
+import {LoadingSpinner} from '@/components/ui/loading-spinner';
+import {useStructuredInputForm} from '@/contexts/structured-input-form-context';
 import {
   downloadSoundbitesText,
   downloadSoundbitesTimeline,
@@ -17,7 +17,7 @@ import {
   downloadTranscriptText,
   downloadVideo,
 } from '@/lib/api';
-import { DownloadFileParams } from '@/lib/types';
+import {DownloadFileParams} from '@/lib/types';
 
 interface DownloadButtonsProps {
   userParams: DownloadFileParams;
@@ -35,7 +35,7 @@ export default function ExportStepMenu({
     step_name: stepName,
   };
 
-  const { exportResult } = useStructuredInputForm();
+  const {exportResult} = useStructuredInputForm();
   const fileKeysToNames = {
     video: 'Video',
     video_timeline: 'Video Timeline',
@@ -69,40 +69,6 @@ export default function ExportStepMenu({
     soundbites_text: downloadSoundbitesText,
     soundbites_timeline: downloadSoundbitesTimeline,
   };
-
-  const videoLoading = !exportResult || exportResult.video === null;
-  const videoFound =
-    !videoLoading &&
-    exportResult.video !== null &&
-    exportResult.video !== undefined;
-
-  console.log('exportResult', exportResult);
-  const timelineLoading = !exportResult || exportResult.video_timeline === null;
-  const timelineFound =
-    !timelineLoading &&
-    exportResult.video_timeline !== null &&
-    exportResult.video_timeline !== undefined;
-
-  const transcriptTextLoading =
-    !exportResult || exportResult.transcript_text === null;
-  const transcriptTextFound =
-    !transcriptTextLoading &&
-    exportResult.transcript_text !== null &&
-    exportResult.transcript_text !== undefined;
-
-  const soundbitesTextLoading =
-    !exportResult || exportResult.soundbites_text === null;
-  const soundbitesTextFound =
-    !soundbitesTextLoading &&
-    exportResult.soundbites_text !== null &&
-    exportResult.soundbites_text !== undefined;
-
-  const soundbitesTimelineLoading =
-    !exportResult || exportResult.soundbites_timeline === null;
-  const soundbitesTimelineFound =
-    !soundbitesTimelineLoading &&
-    exportResult.soundbites_timeline !== null &&
-    exportResult.soundbites_timeline !== undefined;
 
   console.log('disabled', disabled);
   console.log('loadingStatus', loadingStatus);

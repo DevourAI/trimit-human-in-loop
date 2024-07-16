@@ -1,4 +1,5 @@
 import os
+from collections import defaultdict
 import re
 import asyncio
 import json
@@ -28,6 +29,7 @@ from fastapi import (
     Depends,
     Body,
 )
+from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
@@ -47,7 +49,7 @@ from trimit.backend.models import (
     ExportableStepWrapper,
     StructuredUserInput,
 )
-from trimit.backend.utils import export_results_wrapper
+from trimit.backend.utils import AGENT_OUTPUT_CACHE, export_results_wrapper
 from trimit.utils import conf
 from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
@@ -56,11 +58,12 @@ from trimit.utils.fs_utils import (
     get_volume_file_path,
     get_s3_key,
     get_audio_file_path,
+    async_copy,
 )
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_workflow
-from trimit.app import app, get_volume_dir, S3_BUCKET
+from trimit.app import app, get_volume_dir, S3_BUCKET, volume
 from trimit.models import (
     maybe_init_mongo,
     Video,
@@ -89,6 +92,7 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 video_processing_call_ids = Dict.from_name(
     VIDEO_PROCESSING_CALL_IDS_DICT_NAME, create_if_missing=True
 )
+ASSETS_DIR = "/assets"
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
@@ -135,6 +139,9 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
 web_app = FastAPI()
 web_app.add_middleware(SessionMiddleware, secret_key=os.environ["AUTH_SECRET_KEY"])
 web_app.add_middleware(DynamicCORSMiddleware)
+if not is_local():
+    os.makedirs(ASSETS_DIR, exist_ok=True)
+    web_app.mount(ASSETS_DIR, StaticFiles(directory=ASSETS_DIR), name="static")
 
 
 app_kwargs = dict(
@@ -297,6 +304,16 @@ async def get_all_outputs(
     return GetStepOutputs(outputs=await workflow.get_all_outputs())
 
 
+def find_fc_node_from_graph(graph, call_id):
+    if graph.function_call_id == call_id:
+        return graph
+    for child in graph.children:
+        matching_child_node = find_fc_node_from_graph(child, call_id)
+        if matching_child_node:
+            return matching_child_node
+    return None
+
+
 def check_call_status(modal_call_id, timeout: float = 0.5, with_result=False):
     try:
         fc = FunctionCall.from_id(modal_call_id)
@@ -305,13 +322,16 @@ def check_call_status(modal_call_id, timeout: float = 0.5, with_result=False):
                 output = fc.get(timeout=timeout)
                 result = {"output": output["result"], "status": "done"}
             else:
-
-                status_code = fc.get_call_graph()[0].status
                 status = "error"
-                if status_code == InputStatus.SUCCESS:
-                    status = "done"
-                elif status_code == InputStatus.PENDING:
-                    status = "pending"
+                matching_node = find_fc_node_from_graph(
+                    fc.get_call_graph()[0], modal_call_id
+                )
+                if matching_node:
+                    status_code = matching_node.status
+                    if status_code == InputStatus.SUCCESS:
+                        status = "done"
+                    elif status_code == InputStatus.PENDING:
+                        status = "pending"
                 result = {"status": status}
         except TimeoutError as e:
             # result = {"status": "error", "error": "Timeout"}
@@ -320,6 +340,7 @@ def check_call_status(modal_call_id, timeout: float = 0.5, with_result=False):
         if "not found" in str(e):
             result = {"status": "done"}
         else:
+            print("unknown error:", e)
             result = {"status": "error", "error": str(e)}
     return CallStatus(call_id=modal_call_id, **result)
 
@@ -422,6 +443,10 @@ class StepInput(BaseModel):
         None,
         description="Advance steps until this step index is reached, or revert step to before this index and rerun step at this index",
     )
+    export_intermediate: bool = Field(
+        False,
+        description="For run(), if True this will export the output of intermediate steps to disk",
+    )
 
 
 @web_app.post(
@@ -458,7 +483,7 @@ def step_endpoint(
         "user_input": step_input.user_input,
         "structured_user_input": step_input.structured_user_input,
         "ignore_running_workflows": step_input.ignore_running_workflows,
-        "async_export": os.environ.get("ASYNC_EXPORT", False),
+        "async_export": os.environ.get("ASYNC_EXPORT", True),
         "retry_step": step_input.retry_step,
         "advance_until": step_input.advance_until,
     }
@@ -512,15 +537,114 @@ def step_endpoint(
                     )
                 await asyncio.sleep(0)
             latest_state = await workflow.get_latest_frontend_state(
+                volume_dir=get_volume_dir(),
+                asset_dir=ASSETS_DIR,
                 with_load_state=True,
                 #  with_outputs=True,
                 #  with_all_steps=True,
                 #  only_last_substep_outputs=True,
             )
-            if last_result is not None:
-                yield CutTranscriptLinearWorkflowStreamingOutput(
-                    final_state=latest_state
-                ).model_dump_json()
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                final_state=latest_state
+            ).model_dump_json()
+
+        return StreamingResponse(streamer(), media_type="text/event-stream")
+
+
+@web_app.post(
+    "/run",
+    response_model=CutTranscriptLinearWorkflowStreamingOutput,
+    tags=["Steps"],
+    summary="Run entire workflow start to finish",
+    description="""
+This method returns a strongly typed `StreamingResponse`, where each chunk will be proper JSON.
+The chunk JSONs are each "instances" of the `CutTranscriptLinearWorkflowStreamingOutput` wrapper class.
+The wrapper class includes several type variants, only one of which will be non-null at a time.
+
+The method will call the underlying `step()` method of the workflow repeatedly until all steps have been run.
+Along the way, partial output will be streamed to the client.
+These partial outputs include responses from the backend (`partial_backend_output: PartialBackendOutput`) and responses from the LLM (`partial_llm_output: PartialLLMOutput`).
+While present in the wrapper class, the client should not expect to receive `FinalLLMOutput` on the frontend, as that is parsed by the backend for further processing.
+The last output of every substep is of type `CutTranscriptLinearWorkflowStepOutput`,
+which is also the type that is returned by the API in methods like `/get_step_outputs` and `/get_all_outputs`.
+The last output this method produces is always `FrontendWorkflowState`, which includes the entire state of the workflow.
+""",
+)
+def run(
+    step_input: StepInput,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+):
+    if workflow is None:
+        raise HTTPException(
+            status_code=400, detail="necessary workflow params not provided"
+        )
+    run_params = {
+        "workflow": workflow,
+        "user_input": step_input.user_input,
+        "structured_user_input": step_input.structured_user_input,
+        "ignore_running_workflows": step_input.ignore_running_workflows,
+        "async_export": os.environ.get("ASYNC_EXPORT", True),
+        "export_intermediate": step_input.export_intermediate,
+    }
+    print("run_params", run_params)
+    from trimit.backend.serve import run as run_function
+
+    print(f"Running with params: {run_params}")
+    if not step_input.streaming:
+        run_function.spawn(**run_params)
+    else:
+
+        async def streamer():
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                partial_backend_output=PartialBackendOutput(value="Running step")
+            ).model_dump_json()
+            if is_local():
+                method = run_function.local
+            else:
+                method = run_function.remote_gen.aio
+
+            last_result = None
+            async for partial_result, is_last in method(**run_params):
+                if last_result is not None:
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_step_output=last_result
+                    ).model_dump_json()
+                    last_result = None
+                if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
+                    if not is_last:
+                        raise ValueError(
+                            "step result should be CutTranscriptLinearWorkflowStepOutput if is_last is True"
+                        )
+                    if partial_result.user_feedback_request:
+                        last_result = partial_result
+                elif isinstance(partial_result, PartialLLMOutput):
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_llm_output=partial_result
+                    ).model_dump_json()
+                elif isinstance(partial_result, PartialBackendOutput):
+                    yield CutTranscriptLinearWorkflowStreamingOutput(
+                        partial_backend_output=partial_result
+                    ).model_dump_json()
+                else:
+                    raise HTTPException(
+                        status_code=500,
+                        detail=f"Unparseable response from internal step function: {partial_result}",
+                    )
+                await asyncio.sleep(0)
+            print("loading last state")
+            AGENT_OUTPUT_CACHE.close()
+            await volume.reload()
+            latest_state = await workflow.get_latest_frontend_state(
+                volume_dir=get_volume_dir(),
+                asset_dir=ASSETS_DIR,
+                with_load_state=True,
+                #  with_outputs=True,
+                #  with_all_steps=True,
+                #  only_last_substep_outputs=True,
+            )
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                final_state=latest_state
+            ).model_dump_json()
 
         return StreamingResponse(streamer(), media_type="text/event-stream")
 
@@ -715,7 +839,9 @@ async def get_latest_state(
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
 
-    return await workflow.get_latest_frontend_state(with_load_state=False)
+    return await workflow.get_latest_frontend_state(
+        volume_dir=get_volume_dir(), asset_dir=ASSETS_DIR, with_load_state=False
+    )
     #  with_outputs=with_outputs,
     #  with_all_steps=with_all_steps,
     #  only_last_substep_outputs=only_last_substep_outputs,
@@ -730,30 +856,33 @@ async def get_latest_state(
 async def get_latest_export_results(
     workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
     step_name: str | None = None,
-    substep_name: str | None = None,
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Must provide workflow_id")
     assert workflow.state is not None
 
-    if step_name is None:
-        output = await workflow.get_last_output(with_load_state=False)
-        if output is None:
-            raise HTTPException(status_code=500, detail="output was None")
-    else:
-        if substep_name is None:
-            substep_name = workflow.steps.last_substep_name_for_step_name(step_name)
-        key = workflow.state.get_latest_dynamic_key_from(step_name, substep_name)
-        outputs = await workflow.get_output_for_keys([key], with_load_state=False)
-        output = outputs[0]
-
-    if output.export_result is None:
-        return ExportResults()
-    try:
-        return ExportResults(**output.export_result)
-    except Exception as e:
-        print(f"error casting {output.export_result} to ExportResults: {e}")
-        return ExportResults()
+    state = await workflow.get_latest_frontend_state(
+        volume_dir=get_volume_dir(), asset_dir=ASSETS_DIR
+    )
+    output_index = -1
+    if state.outputs[-1].step_name == "end":
+        output_index = -2
+    if step_name is not None:
+        matching_output_index = [
+            i for i, o in enumerate(state.outputs) if o.step_name == step_name
+        ]
+        if len(matching_output_index) == 0:
+            raise HTTPException(
+                status_code=400,
+                detail=f"could not find output for step_name={step_name}",
+            )
+        output_index = matching_output_index[0]
+    if output_index >= len(state.mapped_export_result):
+        raise HTTPException(
+            status_code=500,
+            detail="mapped_export_result does not contain desired output",
+        )
+    return state.mapped_export_result[output_index]
 
 
 @web_app.post("/redo_export_results", response_model=CallId)

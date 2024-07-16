@@ -1,10 +1,13 @@
 'use client';
 import { useRouter, useSearchParams } from 'next/navigation';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Suspense } from 'react';
 
 import AppShell from '@/components/layout/app-shell';
 import MainStepper from '@/components/main-stepper/main-stepper';
+import OneButtonGenerate from '@/components/one-button-generate';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { StepperFormProvider } from '@/contexts/stepper-form-context';
 import { useUser } from '@/contexts/user-context';
 
@@ -13,6 +16,7 @@ function BuilderInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const projectId = searchParams.get('projectId') || '';
+  const [easyMode, setEasyMode] = useState<boolean>(true);
 
   useEffect(() => {
     if (!isLoggedIn && !isLoading) {
@@ -27,7 +31,17 @@ function BuilderInner() {
   }
   return (
     <StepperFormProvider>
-      <MainStepper projectId={projectId} />
+      <Switch
+        id="easy-mode"
+        checked={easyMode}
+        onCheckedChange={() => setEasyMode(!easyMode)}
+      />
+      <Label htmlFor="easy-mode">Easy Mode</Label>
+      {easyMode ? (
+        <OneButtonGenerate projectId={projectId} />
+      ) : (
+        <MainStepper projectId={projectId} />
+      )}
     </StepperFormProvider>
   );
 }

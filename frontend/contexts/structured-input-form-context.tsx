@@ -30,6 +30,7 @@ interface FormContextProps {
 interface StructuredInputFormProviderProps {
   children: ReactNode;
   stepOutput: FrontendStepOutput | null;
+  mappedExportResult: Record<string, any> | null;
   onFormDataChange: (values: z.infer<typeof StructuredInputFormSchema>) => void;
   userParams: DownloadFileParams
 }
@@ -86,20 +87,21 @@ function createStructuredInputDefaultsFromOutputs(stepOutput: FrontendStepOutput
   }
 }
 
-export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderProps> = ({children, stepOutput, userParams, onFormDataChange}) => {
+export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderProps> = ({children, stepOutput, mappedExportResult, userParams, onFormDataChange}) => {
   const [exportCallId, setExportCallId] = useState<string>('');
   const newExportCallId = useRef<boolean>(false);
+  const exportResultDone = useRef<boolean>(
+    mappedExportResult !== undefined && mappedExportResult !== null && Object.keys(mappedExportResult).length > 0
+  );
   useEffect(() => {
     if (stepOutput?.export_call_id && !newExportCallId.current) {
       console.log("setting export call id to stepOutput", stepOutput?.export_call_id);
       setExportCallId(stepOutput.export_call_id);
+      exportResultDone.current = false;
     }
   }, [stepOutput?.export_call_id]);
   const [exportResult, setExportResult] = useState<Record<string, any> | null>(
     stepOutput?.export_result || null
-  );
-  const exportResultDone = useRef<boolean>(
-    stepOutput?.export_result !== undefined && stepOutput?.export_result !== null && Object.keys(stepOutput.export_result).length > 0
   );
   const timeoutId = useRef<NodeJS.Timeout | null>(null);
   const isComponentMounted = useRef<boolean>(true);
@@ -136,16 +138,17 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
     };
 
     if (stepOutput?.export_call_id && !exportResultDone.current) {
+      console.log("poll for statuses");
       pollForStatuses();
-    } else if (stepOutput?.export_result) {
-      setExportResult(stepOutput.export_result);
+    } else if (mappedExportResult) {
+      setExportResult(mappedExportResult);
     }
     return () => {
       if (timeoutId.current) {
         clearTimeout(timeoutId.current);
       }
     };
-  }, [exportCallId, stepOutput?.export_result]);
+  }, [exportCallId, mappedExportResult]);
 
 
 

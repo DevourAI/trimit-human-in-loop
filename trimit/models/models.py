@@ -1,12 +1,21 @@
 import datetime
+from collections import defaultdict
+import asyncio
 from pathlib import Path
 import json
 import hashlib
 import os
-from typing import Optional, NamedTuple
+from typing import Optional, NamedTuple, Any
 import copy
 
-from tenacity import retry, stop_after_attempt, wait_fixed, wait_random
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_fixed,
+    wait_random,
+    RetryError,
+    retry_if_exception_type,
+)
 from bson.dbref import DBRef
 from pymongo import IndexModel
 import pymongo
@@ -36,6 +45,8 @@ from trimit.utils.model_utils import (
     get_partial_transcription,
     scene_name_from_video,
 )
+
+from trimit.utils.fs_utils import async_copy
 
 
 class StepNotYetReachedError(ValueError):
@@ -863,6 +874,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
     dynamic_state_retries: dict[str, bool] = {}
     dynamic_state_step_order: list[StepKey] = []
     outputs: dict[str, list[CutTranscriptLinearWorkflowStepOutput]] = {}
+    prev_export_flags: dict[str, bool] | None = None
 
     class Settings:
         name = "CutTranscriptLinearWorkflowState"
@@ -895,6 +907,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             "current_soundbites_state",
             "run_output_dir",
             "soundbites_output_dir",
+            "prev_export_flags",
         ]
         fields_to_merge = ["outputs", "output_files"]
         # TODO figure out what to do with dynamic_state_step_order and dynamic_state_retries
@@ -915,6 +928,49 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                 f"Attempt to set unknown key {key} with value {value} to state"
             )
         setattr(self, key, value)
+
+    @property
+    def export_flags(self):
+        keys = [
+            "export_transcript_text",
+            "export_transcript",
+            "export_soundbites",
+            "export_soundbites_text",
+            "export_timeline",
+            "export_video",
+            "export_speaker_tagging",
+        ]
+        return {k: getattr(self.static_state, k) for k in keys}
+
+    async def set_all_export_to_false(self):
+        for key, val in self.export_flags.items():
+            setattr(self.static_state, key, False)
+            if self.prev_export_flags is None:
+                self.prev_export_flags = {}
+            self.prev_export_flags[key] = val
+        await self.save()
+
+    async def set_all_export_to_true(self):
+        for key, val in self.export_flags.items():
+            setattr(self.static_state, key, True)
+            if self.prev_export_flags is None:
+                self.prev_export_flags = {}
+            self.prev_export_flags[key] = val
+        await self.save()
+
+    async def revert_export_flags(self):
+        if not self.prev_export_flags:
+            print("prev export flags not set, returning")
+            return
+        await self.set_export_flags(**self.prev_export_flags)
+
+    async def set_export_flags(self, **export_flags):
+        for key in self.export_flags:
+            val = export_flags.get(key)
+            if not isinstance(val, bool):
+                raise ValueError(f"export flag value must be boolean: {key}={val}")
+            setattr(self.static_state, key, val)
+        await self.save()
 
     @property
     def user_prompt(self):
@@ -1149,6 +1205,9 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             return None
         step = self.dynamic_state_step_order[-1]
         step_name = step.name
+        if step_name == "end":
+            step = self.dynamic_state_step_order[-2]
+            step_name = step.name
         substep_name = step.substeps[-1]
         return get_dynamic_state_key(step_name, substep_name)
 
@@ -1314,6 +1373,69 @@ class FrontendStepOutput(CutTranscriptLinearWorkflowStepOutput):
         )
 
 
+async def map_export_result_to_asset_path(
+    export_result, volume_dir: str, assets_dir: str
+):
+    copy_tasks = []
+    if export_result is None:
+        return {}
+
+    mapped_export_result = {}
+
+    @retry(
+        stop=stop_after_attempt(5),
+        wait=wait_fixed(0.1) + wait_random(0, 1),
+        retry=retry_if_exception_type(FileNotFoundError),
+    )
+    async def retry_task(method, *args):
+        return await method(*args)
+
+    async def retry_without_raising(method, *args):
+        try:
+            return await retry_task(method, *args)
+        except RetryError as e:
+            print(f"RetryError, not raising: {e}")
+            return None
+
+    for filekey, result in export_result.items():
+        if isinstance(result, str):
+            asset_filepath = os.path.join(
+                assets_dir, os.path.relpath(result, volume_dir)
+            )
+            copy_tasks.append(retry_without_raising(async_copy, result, asset_filepath))
+            mapped_export_result[filekey] = asset_filepath
+        elif isinstance(result, list):
+            asset_filepaths = []
+            for filepath in result:
+                asset_filepath = os.path.join(
+                    assets_dir, os.path.relpath(filepath, volume_dir)
+                )
+                copy_tasks.append(
+                    retry_without_raising(async_copy, filepath, asset_filepath)
+                )
+                asset_filepaths.append(asset_filepath)
+            mapped_export_result[filekey] = asset_filepaths
+        elif isinstance(result, dict):
+            if isinstance(list(result.values())[0], list):
+                asset_filepaths = defaultdict(list)
+                for result_key, result_vals in result.items():
+                    for filepath in result_vals:
+                        asset_filepath = os.path.join(
+                            assets_dir, os.path.relpath(filepath, volume_dir)
+                        )
+                        copy_tasks.append(
+                            retry_without_raising(async_copy, filepath, asset_filepath)
+                        )
+                        asset_filepaths[result_key].append(asset_filepath)
+                mapped_export_result[filekey] = asset_filepaths
+            else:
+                print("dont know how to handle export result:", result)
+        else:
+            print("dont know how to handle export result:", result)
+    await asyncio.gather(*copy_tasks)
+    return mapped_export_result
+
+
 class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
     outputs: list[FrontendStepOutput] = Field(
         [],
@@ -1321,23 +1443,36 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
     )
     all_steps: list[ExportableStepWrapper]
     static_state: FrontendWorkflowStaticState
+    mapped_export_result: list[dict[str, Any]] = Field(
+        [],
+        description="export result file paths in web server's asset directory, available to be served",
+    )
 
     @classmethod
-    def from_workflow(cls, workflow):
+    async def from_workflow(cls, workflow, volume_dir, asset_dir):
         backend_state = workflow.state
         frontend_outputs = []
+        mapped_export_result_tasks = []
         for step in backend_state.dynamic_state_step_order:
             substep = step.substeps[-1]
             step_key = get_dynamic_state_key(step.name, substep)
             outputs = backend_state.outputs[step_key]
             frontend_output = FrontendStepOutput.from_backend_outputs(outputs)
             frontend_outputs.append(frontend_output)
+            mapped_export_result_tasks.append(
+                map_export_result_to_asset_path(
+                    frontend_output.export_result, volume_dir, asset_dir
+                )
+            )
+        mapped_export_result = await asyncio.gather(*mapped_export_result_tasks)
+
         return cls(
             outputs=frontend_outputs,
             all_steps=workflow.steps.to_exportable(),
             static_state=FrontendWorkflowStaticState.from_backend_static_state(
                 backend_state.static_state
             ),
+            mapped_export_result=mapped_export_result,
             **backend_state.model_dump(exclude=["static_state", "outputs"]),
         )
 

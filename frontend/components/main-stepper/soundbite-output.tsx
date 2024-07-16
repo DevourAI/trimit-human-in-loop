@@ -3,14 +3,6 @@ import React, { FC } from 'react';
 import { z } from 'zod';
 
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
-import {
-  Carousel,
-  CarouselContent,
-  CarouselItem,
-  CarouselNext,
-  CarouselPrevious,
-} from '@/components/ui/carousel';
 import {
   Form,
   FormControl,
@@ -30,48 +22,20 @@ const Transcript: FC<{ text: string }> = ({ text }) => {
   return <p>{text}</p>;
 };
 
-const SoundbiteExamples: FC<{
-  videoPaths: string[];
-  soundbiteTranscripts: string[];
-}> = ({ videoPaths }) => {
-  return (
-    <Carousel className="w-full max-w-xs">
-      <CarouselContent>
-        {soundbiteTranscripts.map((soundbiteTranscript, index) => (
-          <CarouselItem key={index}>
-            <div className="p-1">
-              <Card>
-                <CardContent className="flex aspect-square items-center justify-center p-6">
-                  <VideoStream
-                    videoPath={
-                      videoPaths && videoPaths.length > index
-                        ? videoPaths[index]
-                        : ''
-                    }
-                  />
-                  <Transcript text={soundbiteTranscript} />
-                </CardContent>
-              </Card>
-            </div>
-          </CarouselItem>
-        ))}
-      </CarouselContent>
-      <CarouselPrevious />
-      <CarouselNext />
-    </Carousel>
-  );
-};
-
 export const SoundbiteOutput: FC<OutputComponentProps> = ({
   value,
   exportResult,
   onSubmit,
   isLoading,
   form,
+  allowModification,
 }) => {
   const soundbiteTranscripts = value;
   const soundbiteClips = exportResult?.soundbites_videos || [];
   const onSubmitWrapper = (data: z.infer<typeof StructuredInputFormSchema>) => {
+    if (!allowModification) {
+      return;
+    }
     data.identify_key_soundbites.soundbite_selection = removeEmptyVals(
       data.identify_key_soundbites.soundbite_selection
     );
@@ -97,18 +61,22 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
                   return (
                     <FormItem>
                       <FormControl>
-                        <Switch
-                          id={`identify_key_soundbites.soundbite_selection.${segmentIndex}`}
-                          checked={field.value}
-                          onCheckedChange={field.onChange}
-                        />
+                        {allowModification ? (
+                          <Switch
+                            id={`identify_key_soundbites.soundbite_selection.${segmentIndex}`}
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        ) : null}
                       </FormControl>
                       <FormMessage />
-                      <Label
-                        htmlFor={`identify_key_soundbites.soundbite_selection.${segmentIndex}`}
-                      >
-                        {field.value ? 'Keep' : 'Remove'}
-                      </Label>
+                      {allowModification ? (
+                        <Label
+                          htmlFor={`identify_key_soundbites.soundbite_selection.${segmentIndex}`}
+                        >
+                          {field.value ? 'Keep' : 'Remove'}
+                        </Label>
+                      ) : null}
 
                       <VideoStream
                         videoPath={
@@ -124,10 +92,12 @@ export const SoundbiteOutput: FC<OutputComponentProps> = ({
               />
             </div>
           ))}
-          <Button disabled={isLoading} size="sm" type="submit">
-            <ArrowUpIcon className="mr-2" />
-            Update soundbites
-          </Button>
+          {allowModification ? (
+            <Button disabled={isLoading} size="sm" type="submit">
+              <ArrowUpIcon className="mr-2" />
+              Update soundbites
+            </Button>
+          ) : null}
         </form>
       </Form>
     </div>
