@@ -25,7 +25,10 @@ export const WorkflowCreationFormSchema = z.object({
   timeline_name: z
     .string()
     .min(2, { message: 'Project name must be at least 2 characters.' }),
-  length_seconds: z.number().default(DEFAULT_LENGTH_SECONDS),
+  length_seconds: z.preprocess(
+    (val) => parseInt(val as string, 10),
+    z.number().default(DEFAULT_LENGTH_SECONDS)
+  ),
   nstages: z.number().min(1).max(2).default(DEFAULT_N_STAGES),
   video_hash: z.string(),
 });
