@@ -1207,19 +1207,29 @@ def stage_key_for_step_name(step_name, stage_num):
     container_idle_timeout=30,
 )
 async def export_results_wrapper(workflow, state_save_key, current_substep, retry_num):
+    output = None
+    async for output in export_results_wrapper_gen(
+        workflow, state_save_key, current_substep, retry_num
+    ):
+        continue
+    return output
+
+
+async def export_results_wrapper_gen(
+    workflow, state_save_key, current_substep, retry_num
+):
     from trimit.models import maybe_init_mongo
 
     await maybe_init_mongo()
     print(f"Exporting results for step {state_save_key}")
     export_result = None
-    async for export_result, _ in workflow.export_results(current_substep.input):
-        continue
+    async for export_result in workflow.export_results(current_substep.input):
+        yield export_result
     assert export_result is not None
     await workflow._save_export_result_to_step_output(
         state_save_key, export_result, retry_num
     )
     print("export_results_wrapper results", export_result)
-    return {"result": export_result}
 
 
 def linearize_and_dedupe_offsets(offsets: list["OffsetToCut"]):

@@ -208,7 +208,7 @@ export default function OneButtonGenerate({
           <CardFooter>
             {isLoading && (
               <div className="w-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
-                {`${backendMessage || 'Running step'}...`}
+                {`${backendMessage || 'Interacting with AI'}...`}
                 <LoadingSpinner size="large" />
               </div>
             )}

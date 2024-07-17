@@ -113,13 +113,13 @@ async def step_workflow_ignoring_feedback_request(
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
 
+    yield PartialBackendOutput(value="Initializing data"), False
     await maybe_init_mongo()
     if load_state:
         await workflow.load_state()
 
-    prev_exports = {}
     if not export_intermediate:
-        prev_exports = workflow.export_flags
+        yield PartialBackendOutput(value="Setting up express mode"), False
         await workflow.set_all_export_to_false()
     while True:
         result = None
@@ -127,6 +127,10 @@ async def step_workflow_ignoring_feedback_request(
         next_substep = await workflow.get_next_substep(with_load_state=False)
         if next_substep and next_substep.name == "generate_story":
             step_user_input = user_input or ""
+        human_readable_name = ""
+        if next_substep and next_substep.step:
+            human_readable_name = next_substep.step.human_readable_name
+        yield PartialBackendOutput(value=f"Running step {human_readable_name}"), False
         async for result, is_last in workflow.step(
             step_user_input,
             structured_user_input=structured_user_input,
@@ -152,13 +156,15 @@ async def step_workflow_ignoring_feedback_request(
         if result.done:
             break
     if not export_intermediate:
-        yield PartialBackendOutput(value="Exporting results"), False
         # await workflow.revert_export_flags()
         print("setting all export to true")
+        yield PartialBackendOutput(value="Exporting results"), False
         await workflow.set_all_export_to_true()
-        results = await workflow.redo_export_results(local=True)
-        print("new export results", results)
-        result.export_result = results
+        output = None
+        async for output in workflow.redo_export_results(local=True):
+            yield output, False
+        print("new export results", output)
+        result.export_result = output
     yield result, True
 
 

@@ -28,6 +28,7 @@ from trimit.backend.utils import (
     stage_key_for_step_name,
     get_agent_output_modal_or_local,
     export_results_wrapper,
+    export_results_wrapper_gen,
 )
 from trimit.export.utils import get_new_integer_file_name_in_dir
 from trimit.utils.async_utils import async_passthrough_gen
@@ -62,6 +63,7 @@ from trimit.backend.models import (
     PartialBackendOutput,
     PartialLLMOutput,
     FinalLLMOutput,
+    CallId,
     RemoveOffScreenSpeakersInput,
     StructuredUserInput,
     Transcript,
@@ -75,7 +77,9 @@ from trimit.backend.models import (
     CurrentStepInfo,
     CutTranscriptLinearWorkflowStepResults,
     Steps,
+    ExportResults,
 )
+from trimit.app import volume
 
 
 END_STEP_NAME = "end"
@@ -1000,11 +1004,6 @@ class CutTranscriptLinearWorkflow:
             current_substep, CurrentStepInfo
         ), f"current_substep: {current_substep}"
 
-        yield PartialBackendOutput(
-            value="Retrieved current substep",
-            current_substep=current_substep.to_exportable(),
-        ), False
-
         assert current_substep.input is not None
 
         step_output_parsed = None
@@ -1483,7 +1482,7 @@ class CutTranscriptLinearWorkflow:
         output_files = {}
         prefix = f"{Path(self.video.high_res_user_file_path).stem}_{step_input.substep_name}_"
         if export_transcript:
-            yield "Exporting transcript", False
+            yield PartialBackendOutput(value="Exporting transcript")
             transcript_file, transcript_text_file = save_transcript_to_disk(
                 output_dir=output_dir,
                 transcript=self.current_transcript,
@@ -1495,7 +1494,7 @@ class CutTranscriptLinearWorkflow:
                 output_files["transcript_text"] = transcript_text_file
 
         if export_soundbites:
-            yield "Exporting soundbites", False
+            yield PartialBackendOutput(value="Exporting soundbites transcript")
             soundbites_file, soundbites_text_file = save_transcript_to_disk(
                 output_dir=output_dir,
                 transcript=self.current_soundbites,
@@ -1504,6 +1503,7 @@ class CutTranscriptLinearWorkflow:
                 prefix=f"{prefix}transcript_",
             )
             print("Saving soundbites videos")
+            yield PartialBackendOutput(value="Exporting soundbites videos")
             soundbites_video_files = await save_soundbites_videos_to_disk(
                 video=self.video,
                 output_dir=self.soundbites_video_dir,
@@ -1515,6 +1515,7 @@ class CutTranscriptLinearWorkflow:
                 verbose=False,
             )
             print(f"Saved soundbites videos: {soundbites_video_files }")
+            yield PartialBackendOutput(value="Exporting soundbites timeline")
             soundbites_timeline_file = create_fcp_7_xml_from_single_video_transcript(
                 video=self.video,
                 transcript=self.current_soundbites,
@@ -1534,7 +1535,7 @@ class CutTranscriptLinearWorkflow:
 
         if export_timeline:
             print("export_results() exporting timeline")
-            yield "Exporting timeline", False
+            yield PartialBackendOutput(value="Exporting timeline")
             # TODO can make this async gen and pass partial output
             video_timeline_file = create_fcp_7_xml_from_single_video_transcript(
                 video=self.video,
@@ -1549,7 +1550,7 @@ class CutTranscriptLinearWorkflow:
             output_files["video_timeline"] = video_timeline_file
 
         if export_video:
-            yield "Exporting video", False
+            yield PartialBackendOutput(value="Exporting video")
             # TODO can make this async gen and pass partial output
             cut_video_path = await create_cut_video_from_transcript(
                 video=self.video,
@@ -1563,11 +1564,16 @@ class CutTranscriptLinearWorkflow:
             output_files["video"] = cut_video_path
 
         if export_speaker_tagging:
+            yield PartialBackendOutput(value="Exporting speaker tagging clips")
             output_files["speaker_tagging_clips"] = (
                 await self._export_speaker_tagging_samples(output_dir, prefix)
             )
         print("export_results() output_files", output_files)
-        yield output_files, True
+        try:
+            await volume.commit()
+        except TypeError:
+            pass
+        yield ExportResults(**output_files)
 
     #### HELPER FUNCTIONS ####
 
@@ -1851,14 +1857,14 @@ class CutTranscriptLinearWorkflow:
 
         print(f"redo_export_results state_save_key={state_save_key} substep={substep}")
         if local or is_local():
-            results = await export_results_wrapper.local(
+            async for output in export_results_wrapper_gen(
                 self, state_save_key, substep, -1
-            )
-            return results
+            ):
+                yield output
         else:
             call = export_results_wrapper.spawn(self, state_save_key, substep, -1)
             print(f"redo_export_results call={call}")
-            return call.object_id
+            yield CallId(call_id=call.object_id)
 
     async def _save_export_result_to_step_output(
         self, state_save_key, export_result, retry_num

@@ -1621,6 +1621,18 @@ class CutTranscriptLinearWorkflowStepResults(BaseModel):
     )
 
 
+class ExportResults(BaseModel):
+    video: str | None = None
+    video_timeline: str | None = None
+    soundbites_timeline: str | None = None
+    soundbites_text: str | None = None
+    soundbites_videos: list[str] | None = None
+    transcript_text: str | None = None
+    speaker_tagging_clips: dict[str, Any] | None = None
+    soundbites_transcript: str | None = None
+    transcript: str | None = None
+
+
 class CutTranscriptLinearWorkflowStepOutput(BaseModel):
     step_name: str
     substep_name: str
@@ -1641,7 +1653,7 @@ class CutTranscriptLinearWorkflowStepOutput(BaseModel):
         None,
         description="the produced outputs from this step that were saved to the workflow's state",
     )
-    export_result: dict[str, str | list[str] | dict[str, list[str]]] | None = Field(
+    export_result: ExportResults | None = Field(
         None,
         description="the files produced by this step. May be None if files are not ready yet. In that case, poll for them to be ready using export_call_id and then call /get_step_outputs",
     )
@@ -1838,18 +1850,6 @@ class PartialBackendOutput(BaseModel):
 
 class GetStepOutputs(BaseModel):
     outputs: list[CutTranscriptLinearWorkflowStepOutput]
-
-
-class ExportResults(BaseModel):
-    video: str | None = None
-    video_timeline: str | None = None
-    soundbites_timeline: str | None = None
-    soundbites_text: str | None = None
-    soundbites_videos: list[str] | None = None
-    transcript_text: str | None = None
-    speaker_tagging_clips: dict[str, Any] | None = None
-    soundbites_transcript: str | None = None
-    transcript: str | None = None
 
 
 class CallId(BaseModel):

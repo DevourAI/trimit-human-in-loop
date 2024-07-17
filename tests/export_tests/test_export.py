@@ -4,6 +4,7 @@ from trimit.export import (
     save_soundbites_videos_to_disk,
 )
 from trimit.backend.utils import match_output_to_actual_transcript_fast
+from trimit.backend.models import ExportResults
 from trimit.models import maybe_init_mongo
 from trimit.utils.model_utils import (
     get_generated_video_folder,
@@ -158,6 +159,9 @@ async def test_redo_export_results(workflow_15557970_after_first_step):
 
     output = await workflow.get_last_output(with_load_state=True)
     assert output.export_result == {}
-    await workflow.redo_export_results()
+    new_output = None
+    async for new_output in workflow.redo_export_results():
+        continue
+    assert isinstance(new_output, ExportResults)
     output = await workflow.get_last_output(with_load_state=True)
     assert output.export_result != {}
