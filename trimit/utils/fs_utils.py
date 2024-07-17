@@ -134,6 +134,9 @@ def get_audio_file_path(current_user, upload_datetime, filename, volume_dir=VOLU
 
 async def async_copy(src, dst):
     async with aiofiles.open(src, "rb") as src_file:
+        if os.path.exists(dst):
+            print("DST FILE ALREADY EXISTS, returning", dst)
+            return
         os.makedirs(os.path.dirname(dst), exist_ok=True)
         async with aiofiles.open(dst, "wb") as dst_file:
             while True:

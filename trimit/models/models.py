@@ -1397,7 +1397,8 @@ async def map_export_result_to_asset_path(
             print(f"RetryError, not raising: {e}")
             return None
 
-    for filekey, result in export_result.items():
+    for filekey in export_result.model_fields_set:
+        result = getattr(export_result, filekey)
         if isinstance(result, str):
             asset_filepath = os.path.join(
                 assets_dir, os.path.relpath(result, volume_dir)
@@ -1429,10 +1430,15 @@ async def map_export_result_to_asset_path(
                         asset_filepaths[result_key].append(asset_filepath)
                 mapped_export_result[filekey] = asset_filepaths
             else:
-                print("dont know how to handle export result:", result)
+                print(
+                    f"dont know how to handle export result for filekey {filekey}: {result}"
+                )
         else:
-            print("dont know how to handle export result:", result)
+            print(
+                f"dont know how to handle export result for filekey {filekey}: {result}"
+            )
     await asyncio.gather(*copy_tasks)
+    print("mapped_export_result", mapped_export_result)
     return mapped_export_result
 
 

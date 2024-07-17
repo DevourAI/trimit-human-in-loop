@@ -530,6 +530,10 @@ def step_endpoint(
                     yield CutTranscriptLinearWorkflowStreamingOutput(
                         partial_backend_output=partial_result
                     ).model_dump_json()
+                elif isinstance(partial_result, ExportResults):
+                    continue
+                elif isinstance(partial_result, CallId):
+                    continue
                 else:
                     raise HTTPException(
                         status_code=500,
@@ -625,15 +629,27 @@ def run(
                     yield CutTranscriptLinearWorkflowStreamingOutput(
                         partial_backend_output=partial_result
                     ).model_dump_json()
+                elif isinstance(partial_result, ExportResults):
+                    pass
+                elif isinstance(partial_result, CallId):
+                    pass
                 else:
-                    raise HTTPException(
-                        status_code=500,
-                        detail=f"Unparseable response from internal step function: {partial_result}",
+                    print("partial_result", partial_result)
+                    print("typeof partial_result", type(partial_result))
+                    print(
+                        f"Unparseable response from internal step function: {partial_result}"
                     )
+                    #  raise HTTPException(
+                    #  status_code=500,
+                    #  detail=f"Unparseable response from internal step function: {partial_result}",
+                    #  )
                 await asyncio.sleep(0)
             print("loading last state")
             AGENT_OUTPUT_CACHE.close()
-            await volume.reload()
+            try:
+                await volume.reload()
+            except TypeError:
+                pass
             latest_state = await workflow.get_latest_frontend_state(
                 volume_dir=get_volume_dir(),
                 asset_dir=ASSETS_DIR,
@@ -838,6 +854,12 @@ async def get_latest_state(
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
+    print("os.listdir(ASSETS_DIR):", os.listdir(ASSETS_DIR))
+    AGENT_OUTPUT_CACHE.close()
+    try:
+        await volume.reload()
+    except TypeError:
+        pass
 
     return await workflow.get_latest_frontend_state(
         volume_dir=get_volume_dir(), asset_dir=ASSETS_DIR, with_load_state=False
@@ -860,6 +882,13 @@ async def get_latest_export_results(
     if workflow is None:
         raise HTTPException(status_code=400, detail="Must provide workflow_id")
     assert workflow.state is not None
+
+    print("os.listdir(ASSETS_DIR):", os.listdir(ASSETS_DIR))
+    AGENT_OUTPUT_CACHE.close()
+    try:
+        await volume.reload()
+    except TypeError:
+        pass
 
     state = await workflow.get_latest_frontend_state(
         volume_dir=get_volume_dir(), asset_dir=ASSETS_DIR
@@ -893,11 +922,14 @@ async def redo_export_results(
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Must provide workflow_id")
-    call_id = await workflow.redo_export_results(
+    output = None
+    async for output in workflow.redo_export_results(
         step_name=step_name, substep_name=substep_name
-    )
-    assert isinstance(call_id, str)
-    return CallId(call_id=call_id)
+    ):
+        continue
+    assert isinstance(output, CallId)
+    assert isinstance(output.call_id, str)
+    return output
 
 
 @web_app.get("/download_transcript_text")
