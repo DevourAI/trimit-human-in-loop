@@ -1,15 +1,15 @@
-import {DownloadIcon} from '@radix-ui/react-icons';
+import { DownloadIcon } from '@radix-ui/react-icons';
 import * as React from 'react';
 
-import {Button} from '@/components/ui/button';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import {LoadingSpinner} from '@/components/ui/loading-spinner';
-import {useStructuredInputForm} from '@/contexts/structured-input-form-context';
+import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { useStructuredInputForm } from '@/contexts/structured-input-form-context';
 import {
   downloadSoundbitesText,
   downloadSoundbitesTimeline,
@@ -17,7 +17,7 @@ import {
   downloadTranscriptText,
   downloadVideo,
 } from '@/lib/api';
-import {DownloadFileParams} from '@/lib/types';
+import { DownloadFileParams } from '@/lib/types';
 
 interface DownloadButtonsProps {
   userParams: DownloadFileParams;
@@ -35,7 +35,7 @@ export default function ExportStepMenu({
     step_name: stepName,
   };
 
-  const {exportResult} = useStructuredInputForm();
+  const { exportResult } = useStructuredInputForm();
   const fileKeysToNames = {
     video: 'Video',
     video_timeline: 'Video Timeline',
