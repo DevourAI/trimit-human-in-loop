@@ -8,7 +8,7 @@ import { uploadVideo as uploadVideoAPI } from '@/lib/api';
 
 interface UploadVideoProps {
   userEmail: string;
-  setVideoHash: (hash: string) => void;
+  setVideoDetails: (hash: string, filename: string) => void;
   videoProcessingStatuses: { [key: string]: { status: string } };
   setVideoProcessingStatuses: (statuses: {
     [key: string]: { status: string };
@@ -17,7 +17,7 @@ interface UploadVideoProps {
 
 export default function UploadVideo({
   userEmail,
-  setVideoHash,
+  setVideoDetails,
   videoProcessingStatuses,
   setVideoProcessingStatuses,
 }: UploadVideoProps) {
@@ -48,7 +48,7 @@ export default function UploadVideo({
             ...videoProcessingStatuses,
             ...newEntries,
           });
-          setVideoHash(respData.video_hashes[0]);
+          setVideoDetails(respData.video_hashes[0], file.name);
         }
       } catch (error) {
         console.error('Error uploading video', error);

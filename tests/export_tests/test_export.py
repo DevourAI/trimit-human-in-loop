@@ -3,6 +3,7 @@ from trimit.export import (
     create_cut_video_from_transcript,
     save_soundbites_videos_to_disk,
 )
+from trimit.export.email import send_email_with_export_results
 from trimit.backend.utils import match_output_to_actual_transcript_fast
 from trimit.backend.models import ExportResults
 from trimit.models import maybe_init_mongo
@@ -165,3 +166,16 @@ async def test_redo_export_results(workflow_15557970_after_first_step):
     assert isinstance(new_output, ExportResults)
     output = await workflow.get_last_output(with_load_state=True)
     assert output.export_result != {}
+
+
+def test_send_email_with_export_results():
+    export_results = ExportResults(
+        video_timeline="tests/fixtures/export_results/timeline.xml",
+        video="tests/fixtures/export_results/video.mp4",
+        transcript="tests/fixtures/export_results/transcript.p",
+        transcript_text="tests/fixtures/export_results/transcript.txt",
+        soundbites_videos=["1", "2"],
+    )
+    response = send_email_with_export_results("ben@trimit.ai", export_results)
+    assert response.status_code == 202
+    assert response.body == b""

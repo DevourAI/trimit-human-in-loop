@@ -10,10 +10,10 @@ import type { GetUploadedVideoParams, Video } from '@/lib/types';
 const POLL_INTERVAL = 5000;
 
 interface VideoSelectorProps {
-  setVideoHash: (hash: string) => void;
+  setVideoDetails: (hash: string, filename: string) => void;
 }
 
-export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
+export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
   const { userData } = useUser();
   const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
   const [uploadedVideos, setUploadedVideos] = useState<Video[]>([]);
@@ -104,10 +104,11 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
   }, [userData.email]);
 
   useEffect(() => {
-    if (selectedVideo?.hash) {
-      setVideoHash(selectedVideo.hash);
+    console.log('selectedVideo', selectedVideo);
+    if (selectedVideo?.video_hash) {
+      setVideoDetails(selectedVideo.video_hash, selectedVideo.filename);
     }
-  }, [selectedVideo, setVideoHash]);
+  }, [selectedVideo, setVideoDetails]);
 
   return (
     <div className="grid gap-3">
@@ -120,7 +121,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
         <>
           <UploadVideo
             userEmail={userData.email}
-            setVideoHash={setVideoHash}
+            setVideoDetails={setVideoDetails}
             videoProcessingStatuses={videoProcessingStatuses}
             setVideoProcessingStatuses={setVideoProcessingStatuses}
           />
@@ -128,6 +129,7 @@ export default function VideoSelector({ setVideoHash }: VideoSelectorProps) {
             uploadedVideos={uploadedVideos}
             videoProcessingStatuses={videoProcessingStatuses}
             selectVideo={setSelectedVideo}
+            currentlySelectedVideoHash={selectedVideo?.video_hash}
           />
         </>
       )}
