@@ -912,12 +912,10 @@ class CutTranscriptLinearWorkflow:
                 )
             )
         elif not async_export:
-            export_result, is_last = None, False
-            async for export_result, is_last in self.export_results(
-                current_substep.input
-            ):
+            export_result = None
+            async for export_result in self.export_results(current_substep.input):
                 continue
-            assert export_result is not None and is_last
+            assert export_result is not None
         else:
             call = export_results_wrapper.spawn(
                 self, state_save_key, current_substep, retry_num
@@ -969,7 +967,6 @@ class CutTranscriptLinearWorkflow:
         async_export=True,
         retry_step=False,
     ):
-        print("stepping with structured_user_input", structured_user_input)
         if load_state:
             await self.load_state()
         assert self.state is not None
@@ -1008,7 +1005,9 @@ class CutTranscriptLinearWorkflow:
 
         step_output_parsed = None
         result = None
-        print(f"Running step {current_step.name}.{current_substep.name}")
+        print(
+            f"Running step {current_step.name}.{current_substep.name} with input {current_substep.input}"
+        )
         async for result, is_last in current_substep.method(current_substep.input):
             if not is_last:
                 yield result, False
@@ -1132,8 +1131,12 @@ class CutTranscriptLinearWorkflow:
 
         prompt = load_prompt_template_as_string("linear_workflow_story")
         output = ""
-        print("generate story user_prompt:", step_input.user_prompt)
-        print("generate story user_feedback_messages:", step_input.prior_user_messages)
+        video_type = "customer testimonial"
+        if (
+            step_input.structured_user_input
+            and step_input.structured_user_input.video_type
+        ):
+            video_type = step_input.structured_user_input.video_type
         async for output, is_last in get_agent_output_modal_or_local(
             prompt,
             transcript=self.on_screen_transcript.text,
@@ -1142,7 +1145,7 @@ class CutTranscriptLinearWorkflow:
             user_prompt=step_input.user_prompt,
             from_cache=self.use_agent_output_cache,
             user_feedback_messages=step_input.prior_user_messages,
-            video_type="customer testimonial",
+            video_type=video_type,
         ):
             if not is_last:
                 yield output, is_last
@@ -1569,10 +1572,11 @@ class CutTranscriptLinearWorkflow:
                 await self._export_speaker_tagging_samples(output_dir, prefix)
             )
         print("export_results() output_files", output_files)
-        try:
-            await volume.commit()
-        except TypeError:
-            pass
+        if not is_local():
+            try:
+                await volume.commit()
+            except TypeError:
+                pass
         yield ExportResults(**output_files)
 
     #### HELPER FUNCTIONS ####
@@ -1762,6 +1766,7 @@ class CutTranscriptLinearWorkflow:
             step_name=next_step.name,
             substep_name=next_substep.name,
             prior_conversation=[],
+            structured_user_input=structured_user_input,
         )
         # TODO next_substep should reference next_step so we can just return next_substep
         # instead of needing both of these

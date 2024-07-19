@@ -40,6 +40,9 @@ export default function OneButtonGenerate({
   const [newVideoHash, setNewVideoHash] = useState<string>('');
   const [newVideoFilename, setNewVideoFilename] = useState<string>('');
   const [lengthSeconds, setLengthSeconds] = useState<number | null>(120);
+  const [videoType, setVideoType] = useState<string | null>(
+    'customer testimonial'
+  );
 
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
     null
@@ -140,6 +143,7 @@ export default function OneButtonGenerate({
       user_email: userParams.user_email,
       video_hash: newVideoHash,
       length_seconds: lengthSeconds,
+      structured_user_input: { video_type: videoType },
     };
     console.log('runData', runData, 'userParams', userParams);
     if (userParams.workflow_id === null) {
@@ -184,10 +188,17 @@ export default function OneButtonGenerate({
         <VideoSelector setVideoDetails={handleVideoSelected} />
         <Label htmlFor="lengthSeconds">Desired length of video (seconds)</Label>
         <Input
+          id="lengthSeconds"
           value={lengthSeconds || ''}
           onChange={(e) =>
             setLengthSeconds(e.target.value ? parseFloat(e.target.value) : null)
           }
+        />
+        <Label htmlFor="videoType">Video type</Label>
+        <Input
+          id="videoType"
+          value={videoType || ''}
+          onChange={(e) => setVideoType(e.target.value)}
         />
         <div className="flex gap-3 w-full justify-between mb-3 items-center">
           Video: {newVideoFilename || 'None selected'}

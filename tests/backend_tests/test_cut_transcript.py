@@ -1149,6 +1149,7 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
         load_state=False,
         save_state_to_db=False,
         async_export=False,
+        structured_user_input=StructuredUserInput(video_type="sales video"),
     ):
         if is_last:
             assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)

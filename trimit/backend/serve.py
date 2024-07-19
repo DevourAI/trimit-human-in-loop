@@ -265,6 +265,7 @@ async def run(
     save_state_to_db: bool = True,
     export_intermediate: bool = False,
 ):
+    print("serve.py run structured_user_input", structured_user_input)
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
 
