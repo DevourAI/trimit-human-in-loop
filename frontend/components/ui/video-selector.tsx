@@ -5,8 +5,9 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import UploadVideo from '@/components/ui/upload-video';
 import VideoTable from '@/components/ui/video-table';
 import { useUser } from '@/contexts/user-context';
+import { UploadedVideo } from '@/gen/openapi/api';
 import { getUploadedVideos, getVideoProcessingStatuses } from '@/lib/api';
-import type { GetUploadedVideoParams, Video } from '@/lib/types';
+import type { GetUploadedVideoParams } from '@/lib/types';
 
 const POLL_INTERVAL = 5000;
 
@@ -16,8 +17,10 @@ interface VideoSelectorProps {
 
 export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
   const { userData } = useUser();
-  const [selectedVideo, setSelectedVideo] = useState<Video | null>(null);
-  const [uploadedVideos, setUploadedVideos] = useState<Video[]>([]);
+  const [selectedVideo, setSelectedVideo] = useState<UploadedVideo | null>(
+    null
+  );
+  const [uploadedVideos, setUploadedVideos] = useState<UploadedVideo[]>([]);
   const [videoProcessingStatuses, setVideoProcessingStatuses] = useState<
     Record<string, { status: string }>
   >({});
@@ -42,7 +45,8 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
           user_email: userData.email,
         } as GetUploadedVideoParams);
 
-        setUploadedVideos(videos as Video[]);
+        setUploadedVideos(videos as UploadedVideo[]);
+        if (videos.length > 0) setSelectedVideo(videos[0]);
       } catch (error) {
         console.error('Error fetching uploaded videos:', error);
       } finally {

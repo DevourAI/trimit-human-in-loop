@@ -427,7 +427,6 @@ export async function getLatestExportResults(
     step_name: params.step_name,
   })) as any;
   delete respData.headers;
-  console.log('get_latest_export_results respData', respData);
 
   return respData as ExportResults;
 }

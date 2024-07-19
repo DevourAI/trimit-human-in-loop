@@ -28,13 +28,17 @@ def in_ignore_extensions(file_path: str) -> bool:
     return any(file_path.endswith(ext) for ext in ignore_extensions)
 
 
-def send_email_with_export_results(user_email: str, export_results: ExportResults):
+def send_email_with_export_results(
+    workflow_id: str, user_email: str, export_results: ExportResults
+):
     sg = sendgrid.SendGridAPIClient(api_key=os.environ["SENDGRID_API_KEY"])
+    workflow_id = workflow_id
+    video_builder_page_link = f"https://app.trimit.ai/builder?projectId={workflow_id}"
     message = Mail(
         from_email=os.environ["TRIMIT_FROM_EMAIL_ADDRESS"],
         to_emails=user_email,
         subject="Your Trimit video edits are Ready!",
-        html_content="<strong>TrimIt created the video edits in the attached files for you.</strong>",
+        html_content=f'<strong>TrimIt created the video edits in the attached files for you. You can also stream/edit the video <a href="{video_builder_page_link}">here</a></strong>',
     )
 
     for field in export_results.model_fields:
@@ -64,7 +68,4 @@ def send_email_with_export_results(user_email: str, export_results: ExportResult
     except Exception as e:
         print(e)
     else:
-        print(response.status_code)
-        print(response.body)
-        print(response.headers)
         return response

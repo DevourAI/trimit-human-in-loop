@@ -21,10 +21,6 @@ const links = [
     href: '/builder',
   },
   {
-    label: 'Videos',
-    href: '/videos',
-  },
-  {
     label: 'Projects',
     href: '/projects',
   },

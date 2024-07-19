@@ -5,6 +5,12 @@ import { FC, useEffect, useRef } from 'react';
 
 import { AutosizeTextarea } from '@/components/ui/autosize-textarea';
 import { Button } from '@/components/ui/button';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 export interface Message {
@@ -31,9 +37,13 @@ interface ChatProps {
   onSubmit: (options?: any) => void;
   onChange: (userMessage: string) => void;
   isLoading: boolean;
+  disabled?: boolean;
+  disabledMessage?: string;
 }
 
 const Chat: FC<ChatProps> = ({
+  disabled,
+  disabledMessage,
   messages,
   userMessage,
   onSubmit,
@@ -65,6 +75,17 @@ const Chat: FC<ChatProps> = ({
     }
   };
 
+  const generateButton = (
+    <Button
+      variant="default"
+      onClick={onSubmit}
+      disabled={isLoading || disabled}
+    >
+      <ArrowUpIcon className="mr-2" />
+      Generate video
+    </Button>
+  );
+
   return (
     <div className="w-full">
       <div className="mb-6 max-h-48 overflow-y-auto space-y-4">
@@ -87,10 +108,20 @@ const Chat: FC<ChatProps> = ({
         </div>
       </form>
 
-      <Button variant="default" onClick={onSubmit} disabled={isLoading}>
-        <ArrowUpIcon className="mr-2" />
-        Generate video
-      </Button>
+      {disabled ? (
+        <TooltipProvider>
+          <Tooltip delayDuration={0}>
+            <TooltipTrigger asChild>
+              <div className="inline-block">{generateButton}</div>
+            </TooltipTrigger>
+            <TooltipContent>
+              <p>{disabledMessage}</p>
+            </TooltipContent>
+          </Tooltip>
+        </TooltipProvider>
+      ) : (
+        generateButton
+      )}
     </div>
   );
 };

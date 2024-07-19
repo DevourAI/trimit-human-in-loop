@@ -1585,7 +1585,6 @@ class StructuredUserInput(BaseModel):
 
     remove_off_screen_speakers: RemoveOffScreenSpeakersInput | None = None
     identify_key_soundbites: IdentifyKeySoundbitesInput | None = None
-    video_type: str | None = None
 
 
 class CutTranscriptLinearWorkflowStepInput(BaseModel):

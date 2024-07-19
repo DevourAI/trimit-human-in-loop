@@ -166,7 +166,7 @@ async def step_workflow_ignoring_feedback_request(
             yield output, False
         print("new export results", output)
         result.export_result = output
-        send_email_with_export_results(workflow.user.email, output)
+        send_email_with_export_results(str(workflow.id), workflow.user.email, output)
     yield result, True
 
 
