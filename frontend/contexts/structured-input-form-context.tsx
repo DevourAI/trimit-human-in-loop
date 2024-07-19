@@ -95,7 +95,6 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
   );
   useEffect(() => {
     if (stepOutput?.export_call_id && !newExportCallId.current) {
-      console.log("setting export call id to stepOutput", stepOutput?.export_call_id);
       setExportCallId(stepOutput.export_call_id);
       exportResultDone.current = false;
     }
@@ -110,18 +109,15 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
   useEffect(() => {
     async function checkAndSetExportResultStatus() {
       if (isPolling.current) return; // Ensure only one polling request in flight
+      if (!userParams.workflow_id) return;
       isPolling.current = true;
-      console.log('exportCallId', exportCallId);
       const statuses: Array<any> = exportCallId.length > 0 ? (await getFunctionCallResults([exportCallId]) as Array<any>) : [] as Array<any>;
       if (statuses[0] && statuses[0].status === 'done') {
         const newExportResults = await getLatestExportResults({step_name: stepOutput?.step_name, ...userParams});
-        console.log("got new export results", newExportResults);
         setExportResult(newExportResults);
         exportResultDone.current = true;
       } else if (statuses[0] && statuses[0].status == 'error') {
-        console.log('export error:', statuses[0]);
         await redoExportResults({step_name: stepOutput?.step_name, ...userParams}).then((result) => {
-          console.log("got redo export result call id:", result);
           setExportCallId(result);
           newExportCallId.current = true;
         });
@@ -138,7 +134,6 @@ export const StructuredInputFormProvider: React.FC<StructuredInputFormProviderPr
     };
 
     if (stepOutput?.export_call_id && !exportResultDone.current) {
-      console.log("poll for statuses");
       pollForStatuses();
     } else if (mappedExportResult) {
       setExportResult(mappedExportResult);

@@ -176,6 +176,8 @@ def test_send_email_with_export_results():
         transcript_text="tests/fixtures/export_results/transcript.txt",
         soundbites_videos=["1", "2"],
     )
-    response = send_email_with_export_results("ben@trimit.ai", export_results)
+    response = send_email_with_export_results(
+        "86461740d2a347bea5acc0c7", "benjaminschreck93@gmail.com", export_results
+    )
     assert response.status_code == 202
     assert response.body == b""

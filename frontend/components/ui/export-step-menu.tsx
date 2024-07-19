@@ -70,10 +70,6 @@ export default function ExportStepMenu({
     soundbites_timeline: downloadSoundbitesTimeline,
   };
 
-  console.log('disabled', disabled);
-  console.log('loadingStatus', loadingStatus);
-  console.log('foundStatus', foundStatus);
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>

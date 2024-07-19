@@ -16,12 +16,12 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import type { Video } from '@/lib/types';
+import { UploadedVideo } from '@/gen/openapi/api';
 
 interface VideoTableProps {
-  uploadedVideos: Video[];
+  uploadedVideos: UploadedVideo[];
   videoProcessingStatuses: { [key: string]: { status: string } };
-  selectVideo: (video: Video) => void;
+  selectVideo: (video: UploadedVideo) => void;
   currentlySelectedVideoHash?: string;
 }
 
@@ -75,7 +75,7 @@ const VideoTable: React.FC<VideoTableProps> = ({
           </TableHeader>
           <TableBody>
             {uploadedVideos.length ? (
-              uploadedVideos.map((video: Video) => (
+              uploadedVideos.map((video: UploadedVideo) => (
                 <TableRow
                   key={video.filename}
                   data-state={
@@ -94,9 +94,9 @@ const VideoTable: React.FC<VideoTableProps> = ({
                     </video>
                   </TableCell>
                   <TableCell className="font-medium">
-                    {videoProcessingStatuses[video.hash]
+                    {videoProcessingStatuses[video.video_hash]
                       ? getStatusBadge(
-                          videoProcessingStatuses[video.hash].status
+                          videoProcessingStatuses[video.video_hash].status
                         )
                       : getStatusBadge('done')}
                   </TableCell>

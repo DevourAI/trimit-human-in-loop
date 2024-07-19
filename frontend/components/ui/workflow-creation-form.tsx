@@ -25,6 +25,7 @@ export const WorkflowCreationFormSchema = z.object({
   timeline_name: z
     .string()
     .min(2, { message: 'Project name must be at least 2 characters.' }),
+  video_type: z.string(),
   length_seconds: z.preprocess(
     (val) => parseInt(val as string, 10),
     z.number().default(DEFAULT_LENGTH_SECONDS)
@@ -42,7 +43,6 @@ interface WorkflowCreationFormProps {
 }
 export function WorkflowCreationForm({
   isLoading,
-  userEmail,
   availableVideos,
   onSubmit,
   onCancelStep,
@@ -105,6 +105,21 @@ export function WorkflowCreationForm({
               return (
                 <FormItem>
                   <FormLabel>Desired length of video (seconds)</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+          <FormField
+            control={form.control}
+            name="video_type"
+            render={({ field }) => {
+              return (
+                <FormItem>
+                  <FormLabel>Video type</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>

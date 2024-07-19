@@ -4,7 +4,14 @@ import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import Chat from '@/components/chat/chat';
 import { Message } from '@/components/chat/chat';
 import StepOutput from '@/components/main-stepper/step-output';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import ExportStepMenu from '@/components/ui/export-step-menu';
 import { Heading } from '@/components/ui/heading';
 import { Input } from '@/components/ui/input';
@@ -23,6 +30,12 @@ import {
 import { getLatestState, getWorkflowDetails, run } from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
 
+const videoTypeExamples = [
+  'Customer testimonial',
+  'Promotional sales',
+  'Product review',
+  'Travel vlog',
+];
 export default function OneButtonGenerate({
   projectId,
 }: {
@@ -40,9 +53,12 @@ export default function OneButtonGenerate({
   const [newVideoHash, setNewVideoHash] = useState<string>('');
   const [workflowId, setWorkflowId] = useState<string>('');
   const [newVideoFilename, setNewVideoFilename] = useState<string>('');
+  const [projectName, setProjectName] = useState<string>('');
   const [lengthSeconds, setLengthSeconds] = useState<number | null>(120);
+  const [cancelStepStream, setCancelStepStream] = useState<boolean>(false);
+
   const [videoType, setVideoType] = useState<string | null>(
-    'customer testimonial'
+    videoTypeExamples[0]
   );
 
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
@@ -60,7 +76,6 @@ export default function OneButtonGenerate({
   }, [project]);
 
   const userParams = useMemo(() => {
-    console.log('workflowId', workflowId);
     return {
       user_email: userData.email,
       workflow_id: workflowId,
@@ -69,17 +84,32 @@ export default function OneButtonGenerate({
   }, [userData.email, workflowId, newVideoHash]);
 
   useEffect(() => {
+    if (!latestState) return;
+    if (latestState.outputs && latestState.outputs.length) {
+      // TODO do a check here that last step is "end"
+      setStepOutput(latestState.outputs[latestState.outputs.length - 2]);
+    }
+    if (
+      latestState.mapped_export_result &&
+      latestState.mapped_export_result.length
+    ) {
+      setMappedExportResult(
+        latestState.mapped_export_result[
+          latestState.mapped_export_result.length - 2
+        ]
+      );
+    }
+    if (latestState.static_state) {
+      setProjectName(latestState.static_state.timeline_name);
+      setNewVideoHash(latestState.static_state.video_hash);
+      setLengthSeconds(latestState.static_state.length_seconds);
+    }
+  }, [latestState]);
+  useEffect(() => {
     async function fetchLatestState() {
       if (!userParams.workflow_id) return;
       const data = await getLatestState(userParams.workflow_id);
       if (!data || Object.keys(data).length === 0) return;
-      if (data.outputs && data.outputs.length) {
-        // TODO do a check here that last step is "end"
-        setStepOutput(data.outputs[data.outputs.length - 2]);
-        setMappedExportResult(
-          data.mapped_export_result[data.mapped_export_result.length - 2]
-        );
-      }
       setLatestState(data);
     }
     fetchLatestState();
@@ -107,6 +137,11 @@ export default function OneButtonGenerate({
       const finalState: FrontendWorkflowState | null = await decodeStreamAsJSON(
         reader,
         (value: CutTranscriptLinearWorkflowStreamingOutput) => {
+          if (cancelStepStream) {
+            setCancelStepStream(false);
+            reader.cancel();
+            return;
+          }
           if (value && value.workflow_id && value.workflow_id !== workflowId) {
             setWorkflowId(value.workflow_id);
           }
@@ -121,26 +156,16 @@ export default function OneButtonGenerate({
           }
         }
       );
+      if (cancelStepStream) {
+        setCancelStepStream(false);
+        return;
+      }
       if (finalState?.id) setWorkflowId(finalState.id);
       setLatestState(finalState);
-      setStepOutput(
-        finalState?.outputs?.length
-          ? finalState.outputs[finalState.outputs.length - 2]
-          : null
-      );
-      setMappedExportResult(
-        finalState?.mapped_export_result?.length
-          ? finalState.mapped_export_result[
-              finalState.mapped_export_result.length - 2
-            ]
-          : null
-      );
-
       setIsLoading(false);
-      console.log('final state', finalState);
       return finalState;
     },
-    [workflowId]
+    [workflowId, cancelStepStream]
   );
 
   async function runWorkflow() {
@@ -157,14 +182,12 @@ export default function OneButtonGenerate({
       user_email: userParams.user_email,
       video_hash: newVideoHash,
       length_seconds: lengthSeconds,
+      timeline_name: projectName,
       structured_user_input: { video_type: videoType },
     };
-    console.log('runData', runData, 'userParams', userParams);
     try {
       await run(userParams.workflow_id, runData, async (reader) => {
-        console.log('streaming callback');
         const finalState = await handleStepStream(reader);
-        console.log('final state in streaming callback', finalState);
         // TODO change backend to not send "end" state
         const _stepOutput = finalState?.outputs?.length
           ? finalState.outputs[finalState.outputs.length - 2]
@@ -192,6 +215,22 @@ export default function OneButtonGenerate({
     setNewVideoFilename(filename);
     setWorkflowId('');
   };
+
+  const restart = () => {
+    setWorkflowId('');
+    setStepOutput(null);
+    setMappedExportResult(null);
+    setBackendMessage('');
+    setChatMessages([]);
+    setProjectName('');
+    setLengthSeconds(120);
+    setVideoType(videoTypeExamples[0]);
+    setLatestState(null);
+    setMappedExportResult(null);
+    setCancelStepStream(true);
+    setIsLoading(false);
+  };
+
   return (
     <StructuredInputFormProvider
       onFormDataChange={() => {}}
@@ -229,12 +268,47 @@ export default function OneButtonGenerate({
               <Label htmlFor="videoType">Video type</Label>
             </div>
             <div className="w-1/2 border-l p-4">
+              <div className="flex items-center">
+                <Input
+                  id="videoType"
+                  value={videoType || ''}
+                  onChange={(e) => {
+                    setWorkflowId('');
+                    setVideoType(e.target.value);
+                  }}
+                />
+
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline">Examples</Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent>
+                    {videoTypeExamples.map((videoType: string) => (
+                      <DropdownMenuItem
+                        key={videoType}
+                        onSelect={() => setVideoType(videoType)}
+                      >
+                        {videoType}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="max-w-full shadow-none">
+          <CardContent className="flex max-w-full p-0">
+            <div className="w-1/2 p-4">
+              <Label htmlFor="workflowName">Project name (optional)</Label>
+            </div>
+            <div className="w-1/2 border-l p-4">
               <Input
-                id="videoType"
-                value={videoType || ''}
+                id="projectName"
+                value={projectName || ''}
                 onChange={(e) => {
                   setWorkflowId('');
-                  setVideoType(e.target.value);
+                  setProjectName(e.target.value);
                 }}
               />
             </div>
@@ -248,6 +322,8 @@ export default function OneButtonGenerate({
               </Heading>
               <Chat
                 onSubmit={runWorkflow}
+                disabled={!newVideoHash}
+                disabledMessage={'Must select a video first'}
                 isLoading={isLoading}
                 messages={chatMessages}
                 onChange={(userMessage: string) => {
@@ -273,12 +349,16 @@ export default function OneButtonGenerate({
               ) : null}
             </div>
           </CardContent>
+
           <CardFooter>
             {isLoading && (
               <div className="w-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
                 <Heading size="sm">
                   We&apos;ll email you when the video is done.
                 </Heading>
+                <Button variant="default" onClick={restart}>
+                  Start Over
+                </Button>
                 {`${backendMessage || 'Interacting with AI'}...`}
                 <LoadingSpinner size="large" />
               </div>

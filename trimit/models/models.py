@@ -678,6 +678,7 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     volume_dir: str
     output_folder: str
     length_seconds: int
+    video_type: str = "Customer testimonial"
 
     nstages: int = 2
     first_pass_length: int = 6 * 60
@@ -783,6 +784,10 @@ class StepOrderMixin(BaseModel):
         return self.static_state.first_pass_length
 
     @property
+    def video_type(self):
+        return self.static_state.video_type
+
+    @property
     def nstages(self):
         return self.static_state.nstages
 
@@ -886,7 +891,17 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                     ("static_state.timeline_name", pymongo.ASCENDING),
                 ],
                 unique=True,
-            )
+            ),
+            IndexModel(
+                [
+                    ("static_state.user.email", pymongo.ASCENDING),
+                    ("static_state.video_type", pymongo.ASCENDING),
+                    ("static_state.video.length_seconds", pymongo.ASCENDING),
+                    ("static_state.video.md5_hash", pymongo.ASCENDING),
+                    ("static_state.timeline_name", pymongo.ASCENDING),
+                ],
+                unique=True,
+            ),
         ]
 
     def __init__(self, **data):

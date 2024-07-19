@@ -562,6 +562,8 @@ class RunInput(StepInput):
     user_email: EmailStr | None = None
     length_seconds: int | None = None
     video_hash: str | None = None
+    timeline_name: str | None = None
+    video_type: str | None = None
 
 
 @web_app.post(
@@ -600,10 +602,12 @@ async def run(
                 status_code=400, detail="necessary workflow params not provided"
             )
 
+        print("run_input", run_input)
         state = await CutTranscriptLinearWorkflowState.recreate_from_video_hash(
             video_hash=run_input.video_hash,
             user_email=run_input.user_email,
-            timeline_name=str(uuid.uuid4()),
+            timeline_name=run_input.timeline_name or str(uuid.uuid4()),
+            video_type=run_input.video_type or "",
             volume_dir=get_volume_dir(),
             output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
             length_seconds=run_input.length_seconds,
@@ -611,6 +615,7 @@ async def run(
         )
         await state.save()
         workflow = CutTranscriptLinearWorkflow(state=state)
+        print("workflow.timeline_name", workflow.timeline_name)
 
     run_params = {
         "workflow": workflow,
@@ -796,6 +801,7 @@ async def workflows(
     timeline_name: str = Form(...),
     length_seconds: int = Form(...),
     nstages: int = Form(2),
+    video_type: str | None = Form(None),
     recreate: bool = Form(
         False,
         description="If True, recreate the workflow from scratch if it already exists",
@@ -812,6 +818,7 @@ async def workflows(
         volume_dir=get_volume_dir(),
         output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
         length_seconds=length_seconds,
+        video_type=video_type or "",
         nstages=nstages,
     )
     await state.save()
@@ -908,7 +915,9 @@ async def get_latest_state(
     response_model_exclude_unset=True,
 )
 async def get_latest_export_results(
-    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+    workflow: CutTranscriptLinearWorkflow | None = Depends(
+        get_current_workflow_or_none
+    ),
     step_name: str | None = None,
 ):
     if workflow is None:

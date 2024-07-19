@@ -355,6 +355,10 @@ class CutTranscriptLinearWorkflow:
         return self.step_order.timeline_name
 
     @property
+    def video_type(self):
+        return self.step_order.video_type
+
+    @property
     def length_seconds(self):
         return self.step_order.length_seconds
 
@@ -1131,12 +1135,7 @@ class CutTranscriptLinearWorkflow:
 
         prompt = load_prompt_template_as_string("linear_workflow_story")
         output = ""
-        video_type = "customer testimonial"
-        if (
-            step_input.structured_user_input
-            and step_input.structured_user_input.video_type
-        ):
-            video_type = step_input.structured_user_input.video_type
+        video_type = self.video_type
         async for output, is_last in get_agent_output_modal_or_local(
             prompt,
             transcript=self.on_screen_transcript.text,
