@@ -31,6 +31,7 @@ export default function UploadVideo({
       setSelectedVideo(file);
       setUploadError(null); // Clear any previous errors
       setIsUploading(true);
+      setVideoDetails('', file.name);
       try {
         const respData = await uploadVideoAPI({
           videoFile: file,

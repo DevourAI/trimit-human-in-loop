@@ -24,17 +24,22 @@ function BuilderInner() {
     }
   }, [isLoggedIn, isLoading, router]);
 
-  if (!projectId) {
-    console.error('Missing required query parameter: projectid');
-    router.push('/projects');
-    return null;
-  }
+  const onCheckedChange = () => {
+    if (easyMode) {
+      setEasyMode(false);
+      if (!projectId) {
+        router.push('/projects');
+      }
+    } else {
+      setEasyMode(true);
+    }
+  };
   return (
     <StepperFormProvider>
       <Switch
         id="easy-mode"
         checked={easyMode}
-        onCheckedChange={() => setEasyMode(!easyMode)}
+        onCheckedChange={onCheckedChange}
       />
       <Label htmlFor="easy-mode">Easy Mode</Label>
       {easyMode ? (
