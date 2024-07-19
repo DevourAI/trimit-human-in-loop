@@ -769,7 +769,7 @@ async def revert_workflow_step_to(
     summary="List all workflows for a user, optionally filtered by video hashes",
     description="TODO",
 )
-async def workflows(
+async def create_workflow(
     user_email: str = Query(...), video_hashes: list[str] | None = Query(None)
 ):
     await maybe_init_mongo()
@@ -854,6 +854,13 @@ async def get_workflow_details(
         get_current_workflow_frontend_state
     ),
 ):
+    if workflow_details is None:
+        raise HTTPException(status_code=400, detail="Workflow not found")
+    if not isinstance(workflow_details, FrontendWorkflowProjection):
+        raise HTTPException(
+            status_code=500,
+            detail=f"Expected FrontendWorkflowProjection, got {type(workflow_details)}",
+        )
     return workflow_details
 
 
