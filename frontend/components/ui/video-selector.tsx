@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 
+import { Card, CardContent } from '@/components/ui/card';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 import UploadVideo from '@/components/ui/upload-video';
 import VideoTable from '@/components/ui/video-table';
@@ -104,7 +105,6 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
   }, [userData.email]);
 
   useEffect(() => {
-    console.log('selectedVideo', selectedVideo);
     if (selectedVideo?.video_hash) {
       setVideoDetails(selectedVideo.video_hash, selectedVideo.filename);
     }
@@ -118,20 +118,28 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
           <LoadingSpinner size="large" />
         </div>
       ) : (
-        <>
-          <UploadVideo
-            userEmail={userData.email}
-            setVideoDetails={setVideoDetails}
-            videoProcessingStatuses={videoProcessingStatuses}
-            setVideoProcessingStatuses={setVideoProcessingStatuses}
-          />
-          <VideoTable
-            uploadedVideos={uploadedVideos}
-            videoProcessingStatuses={videoProcessingStatuses}
-            selectVideo={setSelectedVideo}
-            currentlySelectedVideoHash={selectedVideo?.video_hash}
-          />
-        </>
+        <Card className="max-w-full shadow-none">
+          <CardContent className="flex max-w-full p-0 relative">
+            <div className="w-1/2 p-4">
+              <UploadVideo
+                userEmail={userData.email}
+                setVideoDetails={(hash: string, filename: string) => {
+                  setVideoDetails(hash, filename);
+                }}
+                videoProcessingStatuses={videoProcessingStatuses}
+                setVideoProcessingStatuses={setVideoProcessingStatuses}
+              />
+            </div>
+            <div className="w-1/2 p-8 border-l">
+              <VideoTable
+                uploadedVideos={uploadedVideos}
+                videoProcessingStatuses={videoProcessingStatuses}
+                selectVideo={setSelectedVideo}
+                currentlySelectedVideoHash={selectedVideo?.video_hash}
+              />
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

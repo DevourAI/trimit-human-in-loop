@@ -26,7 +26,7 @@ import { decodeStreamAsJSON } from '@/lib/streams';
 export default function OneButtonGenerate({
   projectId,
 }: {
-  projectId: string;
+  projectId: string | null;
 }) {
   const { userData } = useUser();
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -38,6 +38,7 @@ export default function OneButtonGenerate({
   const [userMessage, setUserMessage] = useState<string>('');
   const [backendMessage, setBackendMessage] = useState<string>('');
   const [newVideoHash, setNewVideoHash] = useState<string>('');
+  const [workflowId, setWorkflowId] = useState<string>('');
   const [newVideoFilename, setNewVideoFilename] = useState<string>('');
   const [lengthSeconds, setLengthSeconds] = useState<number | null>(120);
   const [videoType, setVideoType] = useState<string | null>(
@@ -53,17 +54,23 @@ export default function OneButtonGenerate({
   );
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
 
-  const userParams = useMemo(
-    () => ({
+  useEffect(() => {
+    if (project?.id) setWorkflowId(project?.id);
+    if (project?.video_hash) setNewVideoHash(project?.video_hash);
+  }, [project]);
+
+  const userParams = useMemo(() => {
+    console.log('workflowId', workflowId);
+    return {
       user_email: userData.email,
-      workflow_id: project?.id || null,
-      video_hash: project?.video_hash || null,
-    }),
-    [userData.email, project]
-  );
+      workflow_id: workflowId,
+      video_hash: newVideoHash,
+    };
+  }, [userData.email, workflowId, newVideoHash]);
+
   useEffect(() => {
     async function fetchLatestState() {
-      if (userParams.workflow_id === null) return;
+      if (!userParams.workflow_id) return;
       const data = await getLatestState(userParams.workflow_id);
       if (!data || Object.keys(data).length === 0) return;
       if (data.outputs && data.outputs.length) {
@@ -76,7 +83,7 @@ export default function OneButtonGenerate({
       setLatestState(data);
     }
     fetchLatestState();
-  }, [userData, userParams, project?.video_hash]);
+  }, [userData, userParams]);
 
   const setAIMessageCallback = (aiMessage: string) => {
     setChatMessages((prevMessages) => [
@@ -86,12 +93,12 @@ export default function OneButtonGenerate({
   };
 
   useEffect(() => {
-    async function fetchAndSetProject() {
+    async function fetchAndSetProject(projectId: string) {
       const project = await getWorkflowDetails(projectId);
       setProject(project);
     }
     if (projectId) {
-      fetchAndSetProject();
+      fetchAndSetProject(projectId);
     }
   }, [projectId]);
 
@@ -100,6 +107,9 @@ export default function OneButtonGenerate({
       const finalState: FrontendWorkflowState | null = await decodeStreamAsJSON(
         reader,
         (value: CutTranscriptLinearWorkflowStreamingOutput) => {
+          if (value && value.workflow_id && value.workflow_id !== workflowId) {
+            setWorkflowId(value.workflow_id);
+          }
           if (value?.partial_step_output) {
             // we can log this maybe
           } else if (value?.partial_backend_output) {
@@ -111,6 +121,7 @@ export default function OneButtonGenerate({
           }
         }
       );
+      if (finalState?.id) setWorkflowId(finalState.id);
       setLatestState(finalState);
       setStepOutput(
         finalState?.outputs?.length
@@ -129,13 +140,16 @@ export default function OneButtonGenerate({
       console.log('final state', finalState);
       return finalState;
     },
-    []
+    [workflowId]
   );
 
   async function runWorkflow() {
     setIsLoading(true);
     setStepOutput(null);
     setMappedExportResult(null);
+    if (newVideoHash === '') {
+      return;
+    }
     const runData: RunInput = {
       user_input: userMessage || '',
       streaming: true,
@@ -146,12 +160,8 @@ export default function OneButtonGenerate({
       structured_user_input: { video_type: videoType },
     };
     console.log('runData', runData, 'userParams', userParams);
-    if (userParams.workflow_id === null) {
-      return;
-    }
     try {
-      //await run(userParams.workflow_id, runData, async (reader) => {
-      await run('', runData, async (reader) => {
+      await run(userParams.workflow_id, runData, async (reader) => {
         console.log('streaming callback');
         const finalState = await handleStepStream(reader);
         console.log('final state in streaming callback', finalState);
@@ -170,12 +180,17 @@ export default function OneButtonGenerate({
       console.error('error in run', error);
     }
   }
-  const stepName =
-    latestState?.all_steps[latestState.all_steps.length - 1].name || '';
+
+  let stepName = '';
+  if (latestState?.all_steps) {
+    stepName =
+      latestState?.all_steps[latestState.all_steps.length - 1].name || '';
+  }
 
   const handleVideoSelected = (hash: string, filename: string) => {
     setNewVideoHash(hash);
     setNewVideoFilename(filename);
+    setWorkflowId('');
   };
   return (
     <StructuredInputFormProvider
@@ -186,24 +201,45 @@ export default function OneButtonGenerate({
     >
       <div className="flex w-full flex-col gap-4">
         <VideoSelector setVideoDetails={handleVideoSelected} />
-        <Label htmlFor="lengthSeconds">Desired length of video (seconds)</Label>
-        <Input
-          id="lengthSeconds"
-          value={lengthSeconds || ''}
-          onChange={(e) =>
-            setLengthSeconds(e.target.value ? parseFloat(e.target.value) : null)
-          }
-        />
-        <Label htmlFor="videoType">Video type</Label>
-        <Input
-          id="videoType"
-          value={videoType || ''}
-          onChange={(e) => setVideoType(e.target.value)}
-        />
-        <div className="flex gap-3 w-full justify-between mb-3 items-center">
-          Video: {newVideoFilename || 'None selected'}
-        </div>
 
+        <Card className="max-w-full shadow-none">
+          <CardContent className="flex max-w-full p-0">
+            <div className="w-1/2 p-4">
+              <Label htmlFor="lengthSeconds">
+                Desired length of video (seconds)
+              </Label>
+            </div>
+            <div className="w-1/2 border-l p-4">
+              <Input
+                id="lengthSeconds"
+                value={lengthSeconds || ''}
+                onChange={(e) => {
+                  setWorkflowId('');
+                  setLengthSeconds(
+                    e.target.value ? parseFloat(e.target.value) : null
+                  );
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="max-w-full shadow-none">
+          <CardContent className="flex max-w-full p-0">
+            <div className="w-1/2 p-4">
+              <Label htmlFor="videoType">Video type</Label>
+            </div>
+            <div className="w-1/2 border-l p-4">
+              <Input
+                id="videoType"
+                value={videoType || ''}
+                onChange={(e) => {
+                  setWorkflowId('');
+                  setVideoType(e.target.value);
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
         <Card className="max-w-full shadow-none">
           <CardContent className="flex max-w-full p-0">
             <div className="w-1/2 p-4">

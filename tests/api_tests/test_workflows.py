@@ -5,8 +5,9 @@ import pytest_asyncio
 from trimit.models.models import (
     CutTranscriptLinearWorkflowState,
     FrontendWorkflowProjection,
+    FrontendWorkflowState,
 )
-from ..conftest import DAVE_EMAIL, DAVE_VIDEO_LOW_RES_HASHES
+from ..conftest import DAVE_EMAIL, TEST_VOLUME_DIR, TEST_ASSET_DIR
 import asyncio
 import pytest
 from trimit.backend.models import Message, Role
@@ -120,6 +121,18 @@ async def test_get_workflow_details(client, workflow_15557970_with_transcript):
     assert details.length_seconds == workflow.state.static_state.length_seconds
     assert details.nstages == workflow.state.static_state.nstages
     assert details.id == str(workflow.state.id)
+
+
+async def test_frontend_workflow_state(workflow_15557970_with_transcript):
+    from trimit.models import MONGO_INITIALIZED
+
+    workflow = workflow_15557970_with_transcript
+    MONGO_INITIALIZED[0] = False
+    state = await FrontendWorkflowState.from_workflow(
+        workflow, TEST_VOLUME_DIR, TEST_ASSET_DIR
+    )
+    assert state.id == workflow.id
+    assert state.model_dump()["id"] == str(workflow.id)
 
 
 async def test_list_workflows(client, workflow_15557970_with_transcript):

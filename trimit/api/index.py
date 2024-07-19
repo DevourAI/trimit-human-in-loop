@@ -498,7 +498,8 @@ def step_endpoint(
 
         async def streamer():
             yield CutTranscriptLinearWorkflowStreamingOutput(
-                partial_backend_output=PartialBackendOutput(value="Running step")
+                workflow_id=str(workflow.id),
+                partial_backend_output=PartialBackendOutput(value="Running step"),
             ).model_dump_json()
             if is_local():
                 method = step_function.local
@@ -513,7 +514,7 @@ def step_endpoint(
                             "Step loop should not continue after a feedback request"
                         )
                     yield CutTranscriptLinearWorkflowStreamingOutput(
-                        partial_step_output=last_result
+                        workflow_id=str(workflow.id), partial_step_output=last_result
                     ).model_dump_json()
                     last_result = None
                 if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
@@ -525,11 +526,12 @@ def step_endpoint(
                         last_result = partial_result
                 elif isinstance(partial_result, PartialLLMOutput):
                     yield CutTranscriptLinearWorkflowStreamingOutput(
-                        partial_llm_output=partial_result
+                        workflow_id=str(workflow.id), partial_llm_output=partial_result
                     ).model_dump_json()
                 elif isinstance(partial_result, PartialBackendOutput):
                     yield CutTranscriptLinearWorkflowStreamingOutput(
-                        partial_backend_output=partial_result
+                        workflow_id=str(workflow.id),
+                        partial_backend_output=partial_result,
                     ).model_dump_json()
                 elif isinstance(partial_result, ExportResults):
                     continue
@@ -550,7 +552,7 @@ def step_endpoint(
                 #  only_last_substep_outputs=True,
             )
             yield CutTranscriptLinearWorkflowStreamingOutput(
-                final_state=latest_state
+                workflow_id=str(workflow.id), final_state=latest_state
             ).model_dump_json()
 
         return StreamingResponse(streamer(), media_type="text/event-stream")
@@ -628,7 +630,8 @@ async def run(
 
         async def streamer():
             yield CutTranscriptLinearWorkflowStreamingOutput(
-                partial_backend_output=PartialBackendOutput(value="Running step")
+                workflow_id=str(workflow.id),
+                partial_backend_output=PartialBackendOutput(value="Running step"),
             ).model_dump_json()
             if is_local():
                 method = run_function.local
@@ -639,7 +642,7 @@ async def run(
             async for partial_result, is_last in method(**run_params):
                 if last_result is not None:
                     yield CutTranscriptLinearWorkflowStreamingOutput(
-                        partial_step_output=last_result
+                        workflow_id=str(workflow.id), partial_step_output=last_result
                     ).model_dump_json()
                     last_result = None
                 if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
@@ -651,11 +654,12 @@ async def run(
                         last_result = partial_result
                 elif isinstance(partial_result, PartialLLMOutput):
                     yield CutTranscriptLinearWorkflowStreamingOutput(
-                        partial_llm_output=partial_result
+                        workflow_id=str(workflow.id), partial_llm_output=partial_result
                     ).model_dump_json()
                 elif isinstance(partial_result, PartialBackendOutput):
                     yield CutTranscriptLinearWorkflowStreamingOutput(
-                        partial_backend_output=partial_result
+                        workflow_id=str(workflow.id),
+                        partial_backend_output=partial_result,
                     ).model_dump_json()
                 elif isinstance(partial_result, ExportResults):
                     pass
@@ -687,7 +691,7 @@ async def run(
                 #  only_last_substep_outputs=True,
             )
             yield CutTranscriptLinearWorkflowStreamingOutput(
-                final_state=latest_state
+                workflow_id=str(workflow.id), final_state=latest_state
             ).model_dump_json()
 
         return StreamingResponse(streamer(), media_type="text/event-stream")

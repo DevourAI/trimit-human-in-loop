@@ -40,6 +40,7 @@ loop: asyncio.AbstractEventLoop
 
 
 TEST_VOLUME_DIR = "tests/fixtures/volume"
+TEST_ASSET_DIR = "tests/fixtures/assets"
 TEST_MODEL_DIR = "tests/models"
 TEST_CACHE_DIR = "tests/cache"
 TEST_HIGH_RES_DIR = "tests/fixtures/high_res"

@@ -1484,6 +1484,7 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
 
 
 class CutTranscriptLinearWorkflowStreamingOutput(BaseModel):
+    workflow_id: str
     partial_llm_output: PartialLLMOutput | None = Field(
         None, description="Chunk of output from the LLM"
     )
