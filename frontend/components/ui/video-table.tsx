@@ -21,6 +21,7 @@ interface VideoTableProps {
   uploadedVideos: Video[];
   videoProcessingStatuses: { [key: string]: { status: string } };
   selectVideo: (video: Video) => void;
+  currentlySelectedVideoHash?: string;
 }
 
 const getStatusBadge = (status: string) => {
@@ -54,8 +55,10 @@ const VideoTable: React.FC<VideoTableProps> = ({
   uploadedVideos,
   videoProcessingStatuses,
   selectVideo,
+  currentlySelectedVideoHash,
 }) => {
   console.log('uploadedVideos', uploadedVideos);
+  console.log('currentlySelectedVideoHash', currentlySelectedVideoHash);
   return (
     <div className="rounded-md border">
       <Table>
@@ -70,7 +73,12 @@ const VideoTable: React.FC<VideoTableProps> = ({
         <TableBody>
           {uploadedVideos.length ? (
             uploadedVideos.map((video: Video) => (
-              <TableRow key={video.filename}>
+              <TableRow
+                key={video.filename}
+                data-state={
+                  video.video_hash === currentlySelectedVideoHash && 'selected'
+                }
+              >
                 <TableCell className="font-medium">{video.filename}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   <video width="320" height="240" controls>

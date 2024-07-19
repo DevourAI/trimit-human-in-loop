@@ -1,4 +1,5 @@
 import os
+import uuid
 from collections import defaultdict
 import re
 import asyncio
@@ -199,7 +200,7 @@ async def get_current_workflow_or_none(
         description="poll interval to wait for workflow step to finish if wait_until_done_running=True",
     ),
 ):
-    if workflow_id is None:
+    if workflow_id is None or workflow_id == "":
         return None
     return await get_current_workflow(
         workflow_id=workflow_id,
@@ -555,6 +556,12 @@ def step_endpoint(
         return StreamingResponse(streamer(), media_type="text/event-stream")
 
 
+class RunInput(StepInput):
+    user_email: EmailStr | None = None
+    length_seconds: int | None = None
+    video_hash: str | None = None
+
+
 @web_app.post(
     "/run",
     response_model=CutTranscriptLinearWorkflowStreamingOutput,
@@ -574,27 +581,48 @@ which is also the type that is returned by the API in methods like `/get_step_ou
 The last output this method produces is always `FrontendWorkflowState`, which includes the entire state of the workflow.
 """,
 )
-def run(
-    step_input: StepInput,
-    workflow: CutTranscriptLinearWorkflow | None = Depends(get_current_workflow),
+async def run(
+    run_input: RunInput,
+    workflow: CutTranscriptLinearWorkflow | None = Depends(
+        get_current_workflow_or_none
+    ),
 ):
     if workflow is None:
-        raise HTTPException(
-            status_code=400, detail="necessary workflow params not provided"
+        await maybe_init_mongo()
+        if (
+            run_input.video_hash is None
+            or run_input.length_seconds is None
+            or run_input.user_email is None
+        ):
+            raise HTTPException(
+                status_code=400, detail="necessary workflow params not provided"
+            )
+
+        state = await CutTranscriptLinearWorkflowState.recreate_from_video_hash(
+            video_hash=run_input.video_hash,
+            user_email=run_input.user_email,
+            timeline_name=str(uuid.uuid4()),
+            volume_dir=get_volume_dir(),
+            output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
+            length_seconds=run_input.length_seconds,
+            # nstages=nstages,
         )
+        await state.save()
+        workflow = CutTranscriptLinearWorkflow(state=state)
+
     run_params = {
         "workflow": workflow,
-        "user_input": step_input.user_input,
-        "structured_user_input": step_input.structured_user_input,
-        "ignore_running_workflows": step_input.ignore_running_workflows,
+        "user_input": run_input.user_input,
+        "structured_user_input": run_input.structured_user_input,
+        "ignore_running_workflows": run_input.ignore_running_workflows,
         "async_export": os.environ.get("ASYNC_EXPORT", True),
-        "export_intermediate": step_input.export_intermediate,
+        "export_intermediate": run_input.export_intermediate,
     }
     print("run_params", run_params)
     from trimit.backend.serve import run as run_function
 
     print(f"Running with params: {run_params}")
-    if not step_input.streaming:
+    if not run_input.streaming:
         run_function.spawn(**run_params)
     else:
 

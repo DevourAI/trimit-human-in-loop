@@ -5,6 +5,7 @@ import {
   CutTranscriptLinearWorkflowStepOutput,
   ExportResults,
   FrontendWorkflowProjection,
+  RunInput,
   UploadedVideo,
   UploadVideo,
   UploadVideoApi,
@@ -270,7 +271,7 @@ export async function step(
 
 export async function run(
   workflowId: string,
-  data: StepData,
+  data: RunInput,
   streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
 ): Promise<void> {
   const params = { workflow_id: workflowId };

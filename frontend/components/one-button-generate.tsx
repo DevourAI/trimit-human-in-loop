@@ -7,7 +7,10 @@ import StepOutput from '@/components/main-stepper/step-output';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import ExportStepMenu from '@/components/ui/export-step-menu';
 import { Heading } from '@/components/ui/heading';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import VideoSelector from '@/components/ui/video-selector';
 import { StructuredInputFormProvider } from '@/contexts/structured-input-form-context';
 import { useUser } from '@/contexts/user-context';
 import {
@@ -15,10 +18,10 @@ import {
   FrontendStepOutput,
   FrontendWorkflowProjection,
   FrontendWorkflowState,
+  RunInput,
 } from '@/gen/openapi/api';
 import { getLatestState, getWorkflowDetails, run } from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
-import { StepData } from '@/lib/types';
 
 export default function OneButtonGenerate({
   projectId,
@@ -34,6 +37,9 @@ export default function OneButtonGenerate({
   > | null>(null);
   const [userMessage, setUserMessage] = useState<string>('');
   const [backendMessage, setBackendMessage] = useState<string>('');
+  const [newVideoHash, setNewVideoHash] = useState<string>('');
+  const [newVideoFilename, setNewVideoFilename] = useState<string>('');
+  const [lengthSeconds, setLengthSeconds] = useState<number | null>(120);
 
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
     null
@@ -127,18 +133,21 @@ export default function OneButtonGenerate({
     setIsLoading(true);
     setStepOutput(null);
     setMappedExportResult(null);
-    const stepData: StepData = {
+    const runData: RunInput = {
       user_input: userMessage || '',
       streaming: true,
       ignore_running_workflows: true,
-      force_restart: true,
+      user_email: userParams.user_email,
+      video_hash: newVideoHash,
+      length_seconds: lengthSeconds,
     };
-    console.log('stepData', stepData, 'userParams', userParams);
+    console.log('runData', runData, 'userParams', userParams);
     if (userParams.workflow_id === null) {
       return;
     }
     try {
-      await run(userParams.workflow_id, stepData, async (reader) => {
+      //await run(userParams.workflow_id, runData, async (reader) => {
+      await run('', runData, async (reader) => {
         console.log('streaming callback');
         const finalState = await handleStepStream(reader);
         console.log('final state in streaming callback', finalState);
@@ -160,6 +169,10 @@ export default function OneButtonGenerate({
   const stepName =
     latestState?.all_steps[latestState.all_steps.length - 1].name || '';
 
+  const handleVideoSelected = (hash: string, filename: string) => {
+    setNewVideoHash(hash);
+    setNewVideoFilename(filename);
+  };
   return (
     <StructuredInputFormProvider
       onFormDataChange={() => {}}
@@ -168,8 +181,16 @@ export default function OneButtonGenerate({
       mappedExportResult={mappedExportResult}
     >
       <div className="flex w-full flex-col gap-4">
+        <VideoSelector setVideoDetails={handleVideoSelected} />
+        <Label htmlFor="lengthSeconds">Desired length of video (seconds)</Label>
+        <Input
+          value={lengthSeconds || ''}
+          onChange={(e) =>
+            setLengthSeconds(e.target.value ? parseFloat(e.target.value) : null)
+          }
+        />
         <div className="flex gap-3 w-full justify-between mb-3 items-center">
-          Video: {project?.video_filename}
+          Video: {newVideoFilename || 'None selected'}
         </div>
 
         <Card className="max-w-full shadow-none">
@@ -208,6 +229,9 @@ export default function OneButtonGenerate({
           <CardFooter>
             {isLoading && (
               <div className="w-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
+                <Heading size="sm">
+                  We&apos;ll email you when the video is done.
+                </Heading>
                 {`${backendMessage || 'Interacting with AI'}...`}
                 <LoadingSpinner size="large" />
               </div>

@@ -42,4 +42,5 @@ image = (
     )
     .copy_local_file(LOCAL_CERT_PATH, CERT_PATH)
     .env(EXTRA_ENV)
+    .pip_install("sendgrid>=6.11.0,<7.0.0")
 )

@@ -13,6 +13,7 @@ from trimit.backend.models import (
     StructuredUserInput,
     FinalLLMOutput,
 )
+from trimit.export.email import send_email_with_export_results
 from trimit.models.models import StepNotYetReachedError
 from trimit.utils.model_utils import get_dynamic_state_key
 from .image import image
@@ -165,6 +166,7 @@ async def step_workflow_ignoring_feedback_request(
             yield output, False
         print("new export results", output)
         result.export_result = output
+        send_email_with_export_results(workflow.user.email, output)
     yield result, True
 
 

@@ -1,0 +1,1866 @@
+<?xml version="1.0" ?>
+<xmeml version="4">
+    <project>
+        <name>15557970_testimonial_test</name>
+        <children>
+            <sequence id="sequence-1">
+                <name>15557970_testimonial_test</name>
+                <duration>17450</duration>
+                <rate>
+                    <timebase>24</timebase>
+                    <ntsc>FALSE</ntsc>
+                </rate>
+                <media>
+                    <video>
+                        <format/>
+                        <track>
+                            <clipitem frameBlend="FALSE" id="clipitem-1">
+                                <file id="file-1">
+                                    <pathurl>15557970.mp4</pathurl>
+                                    <name>15557970.mp4</name>
+                                    <rate>
+                                        <timebase>24</timebase>
+                                        <ntsc>FALSE</ntsc>
+                                    </rate>
+                                    <duration>22075</duration>
+                                    <timecode>
+                                        <rate>
+                                            <timebase>24</timebase>
+                                            <ntsc>FALSE</ntsc>
+                                        </rate>
+                                        <string>00:00:00:00</string>
+                                        <frame>0</frame>
+                                        <displayformat>NDF</displayformat>
+                                    </timecode>
+                                    <media>
+                                        <video/>
+                                        <audio/>
+                                    </media>
+                                </file>
+                                <name>Clip1</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>25</duration>
+                                <start>0</start>
+                                <end>25</end>
+                                <in>38</in>
+                                <out>63</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-2">
+                                <file id="file-1"/>
+                                <name>Clip2</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>34</duration>
+                                <start>25</start>
+                                <end>59</end>
+                                <in>65</in>
+                                <out>99</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-3">
+                                <file id="file-1"/>
+                                <name>Clip3</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>50</duration>
+                                <start>59</start>
+                                <end>109</end>
+                                <in>108</in>
+                                <out>158</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-4">
+                                <file id="file-1"/>
+                                <name>Clip4</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>31</duration>
+                                <start>109</start>
+                                <end>139</end>
+                                <in>172</in>
+                                <out>203</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-5">
+                                <file id="file-1"/>
+                                <name>Clip5</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>110</duration>
+                                <start>139</start>
+                                <end>249</end>
+                                <in>343</in>
+                                <out>453</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-6">
+                                <file id="file-1"/>
+                                <name>Clip6</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>154</duration>
+                                <start>249</start>
+                                <end>404</end>
+                                <in>450</in>
+                                <out>604</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-7">
+                                <file id="file-1"/>
+                                <name>Clip7</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>131</duration>
+                                <start>404</start>
+                                <end>534</end>
+                                <in>602</in>
+                                <out>732</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-8">
+                                <file id="file-1"/>
+                                <name>Clip8</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>80</duration>
+                                <start>534</start>
+                                <end>614</end>
+                                <in>745</in>
+                                <out>826</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-9">
+                                <file id="file-1"/>
+                                <name>Clip9</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>324</duration>
+                                <start>614</start>
+                                <end>938</end>
+                                <in>848</in>
+                                <out>1172</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-10">
+                                <file id="file-1"/>
+                                <name>Clip10</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>158</duration>
+                                <start>938</start>
+                                <end>1096</end>
+                                <in>1169</in>
+                                <out>1328</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-11">
+                                <file id="file-1"/>
+                                <name>Clip11</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>18</duration>
+                                <start>1096</start>
+                                <end>1114</end>
+                                <in>1454</in>
+                                <out>1471</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-12">
+                                <file id="file-1"/>
+                                <name>Clip12</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>316</duration>
+                                <start>1114</start>
+                                <end>1430</end>
+                                <in>1478</in>
+                                <out>1793</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-13">
+                                <file id="file-1"/>
+                                <name>Clip13</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>182</duration>
+                                <start>1430</start>
+                                <end>1612</end>
+                                <in>1809</in>
+                                <out>1990</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-14">
+                                <file id="file-1"/>
+                                <name>Clip14</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>72</duration>
+                                <start>1612</start>
+                                <end>1684</end>
+                                <in>2002</in>
+                                <out>2074</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-15">
+                                <file id="file-1"/>
+                                <name>Clip15</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>106</duration>
+                                <start>1684</start>
+                                <end>1790</end>
+                                <in>2090</in>
+                                <out>2196</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-16">
+                                <file id="file-1"/>
+                                <name>Clip16</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>154</duration>
+                                <start>1790</start>
+                                <end>1944</end>
+                                <in>2202</in>
+                                <out>2356</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-17">
+                                <file id="file-1"/>
+                                <name>Clip17</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>129</duration>
+                                <start>1944</start>
+                                <end>2073</end>
+                                <in>2377</in>
+                                <out>2505</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-18">
+                                <file id="file-1"/>
+                                <name>Clip18</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>358</duration>
+                                <start>2073</start>
+                                <end>2431</end>
+                                <in>2501</in>
+                                <out>2859</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-19">
+                                <file id="file-1"/>
+                                <name>Clip19</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>263</duration>
+                                <start>2431</start>
+                                <end>2694</end>
+                                <in>3300</in>
+                                <out>3563</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-20">
+                                <file id="file-1"/>
+                                <name>Clip20</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>161</duration>
+                                <start>2694</start>
+                                <end>2855</end>
+                                <in>3585</in>
+                                <out>3746</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-21">
+                                <file id="file-1"/>
+                                <name>Clip21</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>425</duration>
+                                <start>2855</start>
+                                <end>3280</end>
+                                <in>3752</in>
+                                <out>4178</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-22">
+                                <file id="file-1"/>
+                                <name>Clip22</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>156</duration>
+                                <start>3280</start>
+                                <end>3436</end>
+                                <in>4182</in>
+                                <out>4338</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-23">
+                                <file id="file-1"/>
+                                <name>Clip23</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>192</duration>
+                                <start>3436</start>
+                                <end>3628</end>
+                                <in>4383</in>
+                                <out>4575</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-24">
+                                <file id="file-1"/>
+                                <name>Clip24</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>167</duration>
+                                <start>3628</start>
+                                <end>3795</end>
+                                <in>4572</in>
+                                <out>4739</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-25">
+                                <file id="file-1"/>
+                                <name>Clip25</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>450</duration>
+                                <start>3795</start>
+                                <end>4245</end>
+                                <in>5010</in>
+                                <out>5459</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-26">
+                                <file id="file-1"/>
+                                <name>Clip26</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>380</duration>
+                                <start>4245</start>
+                                <end>4625</end>
+                                <in>5482</in>
+                                <out>5862</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-27">
+                                <file id="file-1"/>
+                                <name>Clip27</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>181</duration>
+                                <start>4625</start>
+                                <end>4807</end>
+                                <in>5859</in>
+                                <out>6041</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-28">
+                                <file id="file-1"/>
+                                <name>Clip28</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>283</duration>
+                                <start>4807</start>
+                                <end>5090</end>
+                                <in>6061</in>
+                                <out>6344</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-29">
+                                <file id="file-1"/>
+                                <name>Clip29</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>211</duration>
+                                <start>5090</start>
+                                <end>5302</end>
+                                <in>6340</in>
+                                <out>6552</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-30">
+                                <file id="file-1"/>
+                                <name>Clip30</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>109</duration>
+                                <start>5302</start>
+                                <end>5410</end>
+                                <in>6555</in>
+                                <out>6663</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-31">
+                                <file id="file-1"/>
+                                <name>Clip31</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>133</duration>
+                                <start>5410</start>
+                                <end>5543</end>
+                                <in>6700</in>
+                                <out>6833</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-32">
+                                <file id="file-1"/>
+                                <name>Clip32</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>86</duration>
+                                <start>5543</start>
+                                <end>5630</end>
+                                <in>6830</in>
+                                <out>6917</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-33">
+                                <file id="file-1"/>
+                                <name>Clip33</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>211</duration>
+                                <start>5630</start>
+                                <end>5840</end>
+                                <in>6925</in>
+                                <out>7136</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-34">
+                                <file id="file-1"/>
+                                <name>Clip34</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>220</duration>
+                                <start>5840</start>
+                                <end>6060</end>
+                                <in>7158</in>
+                                <out>7378</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-35">
+                                <file id="file-1"/>
+                                <name>Clip35</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>117</duration>
+                                <start>6060</start>
+                                <end>6177</end>
+                                <in>7374</in>
+                                <out>7491</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-36">
+                                <file id="file-1"/>
+                                <name>Clip36</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>94</duration>
+                                <start>6177</start>
+                                <end>6271</end>
+                                <in>7491</in>
+                                <out>7585</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-37">
+                                <file id="file-1"/>
+                                <name>Clip37</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>262</duration>
+                                <start>6271</start>
+                                <end>6533</end>
+                                <in>7581</in>
+                                <out>7843</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-38">
+                                <file id="file-1"/>
+                                <name>Clip38</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>202</duration>
+                                <start>6533</start>
+                                <end>6734</end>
+                                <in>7849</in>
+                                <out>8051</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-39">
+                                <file id="file-1"/>
+                                <name>Clip39</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>155</duration>
+                                <start>6734</start>
+                                <end>6889</end>
+                                <in>8046</in>
+                                <out>8202</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-40">
+                                <file id="file-1"/>
+                                <name>Clip40</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>130</duration>
+                                <start>6889</start>
+                                <end>7020</end>
+                                <in>8636</in>
+                                <out>8766</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-41">
+                                <file id="file-1"/>
+                                <name>Clip41</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>330</duration>
+                                <start>7020</start>
+                                <end>7350</end>
+                                <in>8783</in>
+                                <out>9113</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-42">
+                                <file id="file-1"/>
+                                <name>Clip42</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>167</duration>
+                                <start>7350</start>
+                                <end>7517</end>
+                                <in>9115</in>
+                                <out>9282</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-43">
+                                <file id="file-1"/>
+                                <name>Clip43</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>37</duration>
+                                <start>7517</start>
+                                <end>7553</end>
+                                <in>9305</in>
+                                <out>9341</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-44">
+                                <file id="file-1"/>
+                                <name>Clip44</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>208</duration>
+                                <start>7553</start>
+                                <end>7761</end>
+                                <in>9359</in>
+                                <out>9566</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-45">
+                                <file id="file-1"/>
+                                <name>Clip45</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>225</duration>
+                                <start>7761</start>
+                                <end>7986</end>
+                                <in>9572</in>
+                                <out>9797</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-46">
+                                <file id="file-1"/>
+                                <name>Clip46</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>182</duration>
+                                <start>7986</start>
+                                <end>8168</end>
+                                <in>9801</in>
+                                <out>9983</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-47">
+                                <file id="file-1"/>
+                                <name>Clip47</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>278</duration>
+                                <start>8168</start>
+                                <end>8446</end>
+                                <in>9989</in>
+                                <out>10267</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-48">
+                                <file id="file-1"/>
+                                <name>Clip48</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>416</duration>
+                                <start>8446</start>
+                                <end>8863</end>
+                                <in>10284</in>
+                                <out>10701</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-49">
+                                <file id="file-1"/>
+                                <name>Clip49</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>264</duration>
+                                <start>8863</start>
+                                <end>9126</end>
+                                <in>10697</in>
+                                <out>10961</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-50">
+                                <file id="file-1"/>
+                                <name>Clip50</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>28</duration>
+                                <start>9126</start>
+                                <end>9155</end>
+                                <in>11241</in>
+                                <out>11269</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-51">
+                                <file id="file-1"/>
+                                <name>Clip51</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>84</duration>
+                                <start>9155</start>
+                                <end>9238</end>
+                                <in>11317</in>
+                                <out>11400</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-52">
+                                <file id="file-1"/>
+                                <name>Clip52</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>24</duration>
+                                <start>9238</start>
+                                <end>9262</end>
+                                <in>11512</in>
+                                <out>11536</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-53">
+                                <file id="file-1"/>
+                                <name>Clip53</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>56</duration>
+                                <start>9262</start>
+                                <end>9318</end>
+                                <in>11533</in>
+                                <out>11589</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-54">
+                                <file id="file-1"/>
+                                <name>Clip54</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>8</duration>
+                                <start>9318</start>
+                                <end>9326</end>
+                                <in>11584</in>
+                                <out>11592</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-55">
+                                <file id="file-1"/>
+                                <name>Clip55</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>155</duration>
+                                <start>9326</start>
+                                <end>9481</end>
+                                <in>11728</in>
+                                <out>11883</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-56">
+                                <file id="file-1"/>
+                                <name>Clip56</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>224</duration>
+                                <start>9481</start>
+                                <end>9705</end>
+                                <in>11879</in>
+                                <out>12103</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-57">
+                                <file id="file-1"/>
+                                <name>Clip57</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>499</duration>
+                                <start>9705</start>
+                                <end>10203</end>
+                                <in>12110</in>
+                                <out>12609</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-58">
+                                <file id="file-1"/>
+                                <name>Clip58</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>76</duration>
+                                <start>10203</start>
+                                <end>10279</end>
+                                <in>12612</in>
+                                <out>12688</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-59">
+                                <file id="file-1"/>
+                                <name>Clip59</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>128</duration>
+                                <start>10279</start>
+                                <end>10408</end>
+                                <in>12685</in>
+                                <out>12814</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-60">
+                                <file id="file-1"/>
+                                <name>Clip60</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>61</duration>
+                                <start>10408</start>
+                                <end>10469</end>
+                                <in>12850</in>
+                                <out>12912</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-61">
+                                <file id="file-1"/>
+                                <name>Clip61</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>96</duration>
+                                <start>10469</start>
+                                <end>10565</end>
+                                <in>12914</in>
+                                <out>13009</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-62">
+                                <file id="file-1"/>
+                                <name>Clip62</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>102</duration>
+                                <start>10565</start>
+                                <end>10667</end>
+                                <in>13015</in>
+                                <out>13117</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-63">
+                                <file id="file-1"/>
+                                <name>Clip63</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>295</duration>
+                                <start>10667</start>
+                                <end>10962</end>
+                                <in>13123</in>
+                                <out>13418</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-64">
+                                <file id="file-1"/>
+                                <name>Clip64</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>30</duration>
+                                <start>10962</start>
+                                <end>10992</end>
+                                <in>13603</in>
+                                <out>13634</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-65">
+                                <file id="file-1"/>
+                                <name>Clip65</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>17</duration>
+                                <start>10992</start>
+                                <end>11009</end>
+                                <in>13633</in>
+                                <out>13650</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-66">
+                                <file id="file-1"/>
+                                <name>Clip66</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>201</duration>
+                                <start>11009</start>
+                                <end>11210</end>
+                                <in>13820</in>
+                                <out>14020</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-67">
+                                <file id="file-1"/>
+                                <name>Clip67</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>33</duration>
+                                <start>11210</start>
+                                <end>11243</end>
+                                <in>14017</in>
+                                <out>14050</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-68">
+                                <file id="file-1"/>
+                                <name>Clip68</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>198</duration>
+                                <start>11243</start>
+                                <end>11441</end>
+                                <in>14364</in>
+                                <out>14563</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-69">
+                                <file id="file-1"/>
+                                <name>Clip69</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>329</duration>
+                                <start>11441</start>
+                                <end>11770</end>
+                                <in>14604</in>
+                                <out>14932</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-70">
+                                <file id="file-1"/>
+                                <name>Clip70</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>141</duration>
+                                <start>11770</start>
+                                <end>11911</end>
+                                <in>14936</in>
+                                <out>15076</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-71">
+                                <file id="file-1"/>
+                                <name>Clip71</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>671</duration>
+                                <start>11911</start>
+                                <end>12582</end>
+                                <in>15081</in>
+                                <out>15752</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-72">
+                                <file id="file-1"/>
+                                <name>Clip72</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>224</duration>
+                                <start>12582</start>
+                                <end>12806</end>
+                                <in>15753</in>
+                                <out>15977</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-73">
+                                <file id="file-1"/>
+                                <name>Clip73</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>295</duration>
+                                <start>12806</start>
+                                <end>13101</end>
+                                <in>15974</in>
+                                <out>16270</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-74">
+                                <file id="file-1"/>
+                                <name>Clip74</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>80</duration>
+                                <start>13101</start>
+                                <end>13182</end>
+                                <in>16642</in>
+                                <out>16723</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-75">
+                                <file id="file-1"/>
+                                <name>Clip75</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>177</duration>
+                                <start>13182</start>
+                                <end>13358</end>
+                                <in>16743</in>
+                                <out>16920</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-76">
+                                <file id="file-1"/>
+                                <name>Clip76</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>176</duration>
+                                <start>13358</start>
+                                <end>13535</end>
+                                <in>16993</in>
+                                <out>17169</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-77">
+                                <file id="file-1"/>
+                                <name>Clip77</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>194</duration>
+                                <start>13535</start>
+                                <end>13728</end>
+                                <in>17166</in>
+                                <out>17359</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-78">
+                                <file id="file-1"/>
+                                <name>Clip78</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>117</duration>
+                                <start>13728</start>
+                                <end>13846</end>
+                                <in>17385</in>
+                                <out>17502</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-79">
+                                <file id="file-1"/>
+                                <name>Clip79</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>128</duration>
+                                <start>13846</start>
+                                <end>13973</end>
+                                <in>17535</in>
+                                <out>17663</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-80">
+                                <file id="file-1"/>
+                                <name>Clip80</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>343</duration>
+                                <start>13973</start>
+                                <end>14316</end>
+                                <in>17671</in>
+                                <out>18014</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-81">
+                                <file id="file-1"/>
+                                <name>Clip81</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>204</duration>
+                                <start>14316</start>
+                                <end>14520</end>
+                                <in>18037</in>
+                                <out>18241</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-82">
+                                <file id="file-1"/>
+                                <name>Clip82</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>71</duration>
+                                <start>14520</start>
+                                <end>14591</end>
+                                <in>18270</in>
+                                <out>18340</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-83">
+                                <file id="file-1"/>
+                                <name>Clip83</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>182</duration>
+                                <start>14591</start>
+                                <end>14773</end>
+                                <in>18343</in>
+                                <out>18525</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-84">
+                                <file id="file-1"/>
+                                <name>Clip84</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>466</duration>
+                                <start>14773</start>
+                                <end>15239</end>
+                                <in>18540</in>
+                                <out>19006</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-85">
+                                <file id="file-1"/>
+                                <name>Clip85</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>203</duration>
+                                <start>15239</start>
+                                <end>15443</end>
+                                <in>19002</in>
+                                <out>19205</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-86">
+                                <file id="file-1"/>
+                                <name>Clip86</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>369</duration>
+                                <start>15443</start>
+                                <end>15812</end>
+                                <in>19599</in>
+                                <out>19968</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-87">
+                                <file id="file-1"/>
+                                <name>Clip87</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>68</duration>
+                                <start>15812</start>
+                                <end>15880</end>
+                                <in>19969</in>
+                                <out>20037</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-88">
+                                <file id="file-1"/>
+                                <name>Clip88</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>161</duration>
+                                <start>15880</start>
+                                <end>16041</end>
+                                <in>20049</in>
+                                <out>20210</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-89">
+                                <file id="file-1"/>
+                                <name>Clip89</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>187</duration>
+                                <start>16041</start>
+                                <end>16228</end>
+                                <in>20208</in>
+                                <out>20395</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-90">
+                                <file id="file-1"/>
+                                <name>Clip90</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>76</duration>
+                                <start>16228</start>
+                                <end>16304</end>
+                                <in>20402</in>
+                                <out>20478</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-91">
+                                <file id="file-1"/>
+                                <name>Clip91</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>77</duration>
+                                <start>16304</start>
+                                <end>16381</end>
+                                <in>20474</in>
+                                <out>20551</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-92">
+                                <file id="file-1"/>
+                                <name>Clip92</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>152</duration>
+                                <start>16381</start>
+                                <end>16533</end>
+                                <in>20550</in>
+                                <out>20702</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-93">
+                                <file id="file-1"/>
+                                <name>Clip93</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>203</duration>
+                                <start>16533</start>
+                                <end>16736</end>
+                                <in>20718</in>
+                                <out>20921</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-94">
+                                <file id="file-1"/>
+                                <name>Clip94</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>175</duration>
+                                <start>16736</start>
+                                <end>16911</end>
+                                <in>20916</in>
+                                <out>21092</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-95">
+                                <file id="file-1"/>
+                                <name>Clip95</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>231</duration>
+                                <start>16911</start>
+                                <end>17142</end>
+                                <in>21109</in>
+                                <out>21339</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-96">
+                                <file id="file-1"/>
+                                <name>Clip96</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>30</duration>
+                                <start>17142</start>
+                                <end>17172</end>
+                                <in>21479</in>
+                                <out>21509</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-97">
+                                <file id="file-1"/>
+                                <name>Clip97</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>24</duration>
+                                <start>17172</start>
+                                <end>17196</end>
+                                <in>21506</in>
+                                <out>21530</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-98">
+                                <file id="file-1"/>
+                                <name>Clip98</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>72</duration>
+                                <start>17196</start>
+                                <end>17267</end>
+                                <in>21526</in>
+                                <out>21598</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-99">
+                                <file id="file-1"/>
+                                <name>Clip99</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>58</duration>
+                                <start>17267</start>
+                                <end>17325</end>
+                                <in>21822</in>
+                                <out>21879</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-100">
+                                <file id="file-1"/>
+                                <name>Clip100</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>26</duration>
+                                <start>17325</start>
+                                <end>17351</end>
+                                <in>21883</in>
+                                <out>21910</out>
+                            </clipitem>
+                            <clipitem frameBlend="FALSE" id="clipitem-101">
+                                <file id="file-1"/>
+                                <name>Clip101</name>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <rate>
+                                    <timebase>24</timebase>
+                                    <ntsc>FALSE</ntsc>
+                                </rate>
+                                <duration>99</duration>
+                                <start>17351</start>
+                                <end>17450</end>
+                                <in>21976</in>
+                                <out>22075</out>
+                            </clipitem>
+                        </track>
+                    </video>
+                    <audio>
+                        <track>
+                            <clipitem id="clipitem-1"/>
+                            <clipitem id="clipitem-2"/>
+                            <clipitem id="clipitem-3"/>
+                            <clipitem id="clipitem-4"/>
+                            <clipitem id="clipitem-5"/>
+                            <clipitem id="clipitem-6"/>
+                            <clipitem id="clipitem-7"/>
+                            <clipitem id="clipitem-8"/>
+                            <clipitem id="clipitem-9"/>
+                            <clipitem id="clipitem-10"/>
+                            <clipitem id="clipitem-11"/>
+                            <clipitem id="clipitem-12"/>
+                            <clipitem id="clipitem-13"/>
+                            <clipitem id="clipitem-14"/>
+                            <clipitem id="clipitem-15"/>
+                            <clipitem id="clipitem-16"/>
+                            <clipitem id="clipitem-17"/>
+                            <clipitem id="clipitem-18"/>
+                            <clipitem id="clipitem-19"/>
+                            <clipitem id="clipitem-20"/>
+                            <clipitem id="clipitem-21"/>
+                            <clipitem id="clipitem-22"/>
+                            <clipitem id="clipitem-23"/>
+                            <clipitem id="clipitem-24"/>
+                            <clipitem id="clipitem-25"/>
+                            <clipitem id="clipitem-26"/>
+                            <clipitem id="clipitem-27"/>
+                            <clipitem id="clipitem-28"/>
+                            <clipitem id="clipitem-29"/>
+                            <clipitem id="clipitem-30"/>
+                            <clipitem id="clipitem-31"/>
+                            <clipitem id="clipitem-32"/>
+                            <clipitem id="clipitem-33"/>
+                            <clipitem id="clipitem-34"/>
+                            <clipitem id="clipitem-35"/>
+                            <clipitem id="clipitem-36"/>
+                            <clipitem id="clipitem-37"/>
+                            <clipitem id="clipitem-38"/>
+                            <clipitem id="clipitem-39"/>
+                            <clipitem id="clipitem-40"/>
+                            <clipitem id="clipitem-41"/>
+                            <clipitem id="clipitem-42"/>
+                            <clipitem id="clipitem-43"/>
+                            <clipitem id="clipitem-44"/>
+                            <clipitem id="clipitem-45"/>
+                            <clipitem id="clipitem-46"/>
+                            <clipitem id="clipitem-47"/>
+                            <clipitem id="clipitem-48"/>
+                            <clipitem id="clipitem-49"/>
+                            <clipitem id="clipitem-50"/>
+                            <clipitem id="clipitem-51"/>
+                            <clipitem id="clipitem-52"/>
+                            <clipitem id="clipitem-53"/>
+                            <clipitem id="clipitem-54"/>
+                            <clipitem id="clipitem-55"/>
+                            <clipitem id="clipitem-56"/>
+                            <clipitem id="clipitem-57"/>
+                            <clipitem id="clipitem-58"/>
+                            <clipitem id="clipitem-59"/>
+                            <clipitem id="clipitem-60"/>
+                            <clipitem id="clipitem-61"/>
+                            <clipitem id="clipitem-62"/>
+                            <clipitem id="clipitem-63"/>
+                            <clipitem id="clipitem-64"/>
+                            <clipitem id="clipitem-65"/>
+                            <clipitem id="clipitem-66"/>
+                            <clipitem id="clipitem-67"/>
+                            <clipitem id="clipitem-68"/>
+                            <clipitem id="clipitem-69"/>
+                            <clipitem id="clipitem-70"/>
+                            <clipitem id="clipitem-71"/>
+                            <clipitem id="clipitem-72"/>
+                            <clipitem id="clipitem-73"/>
+                            <clipitem id="clipitem-74"/>
+                            <clipitem id="clipitem-75"/>
+                            <clipitem id="clipitem-76"/>
+                            <clipitem id="clipitem-77"/>
+                            <clipitem id="clipitem-78"/>
+                            <clipitem id="clipitem-79"/>
+                            <clipitem id="clipitem-80"/>
+                            <clipitem id="clipitem-81"/>
+                            <clipitem id="clipitem-82"/>
+                            <clipitem id="clipitem-83"/>
+                            <clipitem id="clipitem-84"/>
+                            <clipitem id="clipitem-85"/>
+                            <clipitem id="clipitem-86"/>
+                            <clipitem id="clipitem-87"/>
+                            <clipitem id="clipitem-88"/>
+                            <clipitem id="clipitem-89"/>
+                            <clipitem id="clipitem-90"/>
+                            <clipitem id="clipitem-91"/>
+                            <clipitem id="clipitem-92"/>
+                            <clipitem id="clipitem-93"/>
+                            <clipitem id="clipitem-94"/>
+                            <clipitem id="clipitem-95"/>
+                            <clipitem id="clipitem-96"/>
+                            <clipitem id="clipitem-97"/>
+                            <clipitem id="clipitem-98"/>
+                            <clipitem id="clipitem-99"/>
+                            <clipitem id="clipitem-100"/>
+                            <clipitem id="clipitem-101"/>
+                        </track>
+                    </audio>
+                </media>
+            </sequence>
+        </children>
+    </project>
+</xmeml>
