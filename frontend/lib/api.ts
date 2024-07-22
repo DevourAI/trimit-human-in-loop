@@ -269,12 +269,21 @@ export async function step(
   });
 }
 
+export interface LocalRunInput extends RunInput {
+  project_id: string;
+  project_name: string;
+  workflow_id: string;
+}
 export async function run(
-  workflowId: string,
-  data: RunInput,
+  data: LocalRunInput,
   streamReaderCallback: (reader: ReadableStreamDefaultReader) => void
 ): Promise<void> {
-  const params = { workflow_id: workflowId };
+  const params = {
+    project_id: data.project_id,
+    project_name: data.project_name,
+    workflow_id: data.workflow_id,
+    user_email: data.user_email,
+  };
   await postJSONFetcherWithStreamingResponse(`${API_URL}/run`, {
     params,
     data,

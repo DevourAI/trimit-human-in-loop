@@ -7,14 +7,12 @@ from trimit.backend.conf import (
     WORKFLOWS_DICT_NAME,
     RUNNING_WORKFLOWS_DICT_NAME,
 )
-from trimit.backend.models import (
+from trimit.models.backend_models import (
     PartialBackendOutput,
     PartialLLMOutput,
     StructuredUserInput,
     FinalLLMOutput,
 )
-from trimit.export.email import send_email_with_export_results
-from trimit.models.models import StepNotYetReachedError
 from trimit.utils.model_utils import get_dynamic_state_key
 from .image import image
 from modal import Dict, is_local
@@ -110,7 +108,9 @@ async def step_workflow_ignoring_feedback_request(
     async_export=True,
     export_intermediate=False,
     stream_raw=False,
+    use_agent_cache: bool = False,
 ):
+    from trimit.export.email import send_email_with_export_results
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
 
@@ -139,6 +139,7 @@ async def step_workflow_ignoring_feedback_request(
             save_state_to_db=save_state_to_db,
             async_export=async_export,
             retry_step=False,
+            use_agent_cache=use_agent_cache,
         ):
             if not hasattr(result, "done") or not result.done:
                 if isinstance(result, (PartialLLMOutput, FinalLLMOutput)):
@@ -187,6 +188,7 @@ async def step(
 ):
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
     from trimit.models import maybe_init_mongo
+    from trimit.models.models import StepNotYetReachedError
 
     await maybe_init_mongo()
     print("advance_until int", advance_until)
@@ -264,6 +266,7 @@ async def run(
     load_state: bool = True,
     save_state_to_db: bool = True,
     export_intermediate: bool = False,
+    use_agent_cache: bool = False,
 ):
     print("serve.py run structured_user_input", structured_user_input)
     from trimit.backend.cut_transcript import CutTranscriptLinearWorkflowStepOutput
@@ -295,6 +298,7 @@ async def run(
         save_state_to_db=save_state_to_db,
         export_intermediate=export_intermediate,
         stream_raw=False,
+        use_agent_cache=use_agent_cache,
     )
 
     async for output in gen:

@@ -1,12 +1,10 @@
-from unittest.mock import patch
-from unittest.mock import AsyncMock
 from pathlib import Path
 from trimit.backend.cut_transcript import (
     CutTranscriptLinearWorkflowStepResults,
     CutTranscriptLinearWorkflowStepInput,
     CutTranscriptLinearWorkflowStepOutput,
 )
-from trimit.backend.models import (
+from trimit.models.backend_models import (
     IdentifyKeySoundbitesInput,
     Role,
     PartialBackendOutput,
@@ -18,7 +16,6 @@ from trimit.backend.models import (
     PartialLLMOutput,
     StructuredUserInput,
     RemoveOffScreenSpeakersInput,
-    SpeakerTaggingSegmentModification,
 )
 
 from trimit.backend.serve import (

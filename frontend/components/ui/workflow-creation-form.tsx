@@ -22,9 +22,22 @@ import { UploadedVideo } from '@/gen/openapi/api';
 const DEFAULT_LENGTH_SECONDS = 120;
 const DEFAULT_N_STAGES = 2;
 export const WorkflowCreationFormSchema = z.object({
+  project_name: z
+    .string()
+    .min(2, {
+      message:
+        'Project name must be at least 2 characters (or left blank to create one automatically).',
+    })
+    .optional()
+    .or(z.literal('')),
   timeline_name: z
     .string()
-    .min(2, { message: 'Project name must be at least 2 characters.' }),
+    .min(2, {
+      message:
+        'Timeline name must be at least 2 characters (or left blank to create one automatically).',
+    })
+    .optional()
+    .or(z.literal('')),
   video_type: z.string(),
   length_seconds: z.preprocess(
     (val) => parseInt(val as string, 10),
@@ -50,6 +63,7 @@ export function WorkflowCreationForm({
   const form = useForm<z.infer<typeof WorkflowCreationFormSchema>>({
     resolver: zodResolver(WorkflowCreationFormSchema),
     defaultValues: {
+      project_name: '',
       timeline_name: '',
       length_seconds: DEFAULT_LENGTH_SECONDS,
       nstages: DEFAULT_N_STAGES,
@@ -71,11 +85,26 @@ export function WorkflowCreationForm({
         >
           <FormField
             control={form.control}
+            name="project_name"
+            render={({ field }) => {
+              return (
+                <FormItem>
+                  <FormLabel>Project name (optional)</FormLabel>
+                  <FormControl>
+                    <Input {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              );
+            }}
+          />
+          <FormField
+            control={form.control}
             name="timeline_name"
             render={({ field }) => {
               return (
                 <FormItem>
-                  <FormLabel>Project name</FormLabel>
+                  <FormLabel>Timeline name (optional)</FormLabel>
                   <FormControl>
                     <Input {...field} />
                   </FormControl>

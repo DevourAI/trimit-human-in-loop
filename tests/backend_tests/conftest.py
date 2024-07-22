@@ -1,19 +1,9 @@
 import pytest
-import asyncio
 from pathlib import Path
-from tests.conftest import TEST_VOLUME_DIR
-from trimit.backend.cut_transcript import (
-    CutTranscriptLinearWorkflow,
-    CutTranscriptLinearWorkflowStepOutput,
-)
 from trimit.backend.conf import CONF
-from trimit.backend.transcription import Transcription
-from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
-from trimit.models import maybe_init_mongo, Video
-from trimit.utils.video_utils import convert_video_to_audio
 
 CONF["chunk_delay"] = 0
-from trimit.backend.models import Transcript, TranscriptChunk, SoundbitesChunk
+from trimit.models.backend_models import Transcript, TranscriptChunk, SoundbitesChunk
 
 
 @pytest.fixture(scope="session")

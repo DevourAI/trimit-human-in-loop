@@ -1,4 +1,5 @@
 import aiostream
+import uuid
 import asyncio
 import json
 from pathlib import Path
@@ -44,6 +45,7 @@ from trimit.utils.model_utils import (
     load_step_order,
 )
 from trimit.models import (
+    Project,
     Video,
     User,
     CutTranscriptLinearWorkflowState,
@@ -58,7 +60,7 @@ from trimit.export import (
     save_transcript_to_disk,
     save_soundbites_videos_to_disk,
 )
-from trimit.backend.models import (
+from trimit.models.backend_models import (
     Message,
     PartialBackendOutput,
     PartialLLMOutput,
@@ -110,46 +112,74 @@ class CutTranscriptLinearWorkflow:
         output_folder: str,
         length_seconds: int,
         user_email: str | None = None,
+        project_name: str | None = None,
         video_hash: str | None = None,
         user_id: str | PydanticObjectId | None = None,
         video_id: str | PydanticObjectId | None = None,
+        project_id: str | PydanticObjectId | None = None,
         **cut_transcript_linear_workflow_static_state_params,
     ):
         await maybe_init_mongo()
-        if not video_id:
+        if not project_id:
             if user_email is None:
                 raise ValueError(
-                    "user_email must be provided if video_id is not provided"
+                    "user_email must be provided if project_id is not provided"
                 )
+            if project_name is None:
+                raise ValueError(
+                    "project_name must be provided if project_id is not provided"
+                )
+            project = await Project.find_one(
+                Project.user.email == user_email,
+                Project.name == project_name,
+                fetch_links=True,
+            )
+            if project is None:
+                raise ValueError(
+                    f"Project with name {project_name} and user_email {user_email} not found"
+                )
+
+            user_id = project.user.id
+            project_id = project.id
+        if not video_id:
             if video_hash is None:
                 raise ValueError(
                     "video_hash must be provided if video_id is not provided"
                 )
+            if user_email is None:
+                raise ValueError(
+                    "user_email must be provided if video_id is not provided"
+                )
+
             video = await Video.find_one(
-                Video.md5_hash == video_hash,
-                Video.user.email == user_email,
-                fetch_links=False,
+                Video.user.email == user_email, Video.md5_hash == video_hash
             )
             if video is None:
                 raise ValueError(
-                    f"Video with hash {video_hash} and user_email {user_email} not found"
+                    f"Video with user_email {user_email} and md5_hash {video_hash} not found"
                 )
             video_id = video.id
-            user_id = video.user.id
+        assert project_id is not None
         assert user_id is not None
         assert video_id is not None
+        if isinstance(project_id, str):
+            project_id = PydanticObjectId(project_id)
         if isinstance(user_id, str):
             user_id = PydanticObjectId(user_id)
         if isinstance(video_id, str):
             video_id = PydanticObjectId(video_id)
         user_collection_name = User.get_collection_name()
         assert isinstance(user_collection_name, str)
+        project_collection_name = Project.get_collection_name()
+        assert isinstance(project_collection_name, str)
         video_collection_name = Video.get_collection_name()
         assert isinstance(video_collection_name, str)
+        project_ref = DBRef(id=project_id, collection=project_collection_name)
         user_ref = DBRef(id=user_id, collection=user_collection_name)
         video_ref = DBRef(id=video_id, collection=video_collection_name)
         state = CutTranscriptLinearWorkflowStaticState(
             user=Link(user_ref, User),
+            project=Link(project_ref, Project),
             video=Link(video_ref, Video),
             timeline_name=timeline_name,
             volume_dir=volume_dir,
@@ -171,37 +201,11 @@ class CutTranscriptLinearWorkflow:
         return CutTranscriptLinearWorkflow(state=None, step_order=step_order)
 
     @classmethod
-    async def from_video_id(
+    async def from_project_name(
         cls,
-        video_id: str,
-        timeline_name: str,
-        length_seconds: int,
-        output_folder: str,
-        volume_dir: str,
-        video_local_upload_date: datetime.datetime | None = None,
-        new_state: bool = False,
-        **init_kwargs,
-    ):
-        video = await Video.get(video_id)
-        if video is None:
-            raise ValueError(f"Video with id {video_id} not found")
-        if video_local_upload_date:
-            video.upload_datetime = video_local_upload_date
-        return await cls.from_video(
-            video=video,
-            timeline_name=timeline_name,
-            length_seconds=length_seconds,
-            output_folder=output_folder,
-            volume_dir=volume_dir,
-            new_state=new_state,
-            **init_kwargs,
-        )
-
-    @classmethod
-    async def from_video_hash(
-        cls,
-        video_hash: str,
+        project_name: str,
         user_email: str,
+        video_hash: str,
         timeline_name: str,
         length_seconds: int,
         output_folder: str,
@@ -211,14 +215,25 @@ class CutTranscriptLinearWorkflow:
         **init_kwargs,
     ):
         await maybe_init_mongo()
+        project = await Project.find_one(
+            Project.user.email == user_email,
+            Project.name == project_name,
+            fetch_links=True,
+        )
+        if project is None:
+            raise ValueError(f"Project with name {project_name} not found")
+
         video = await Video.find_one(
-            Video.md5_hash == video_hash, Video.user.email == user_email
+            Video.user.email == user_email, Video.md5_hash == video_hash
         )
         if video is None:
-            raise ValueError(f"Video with hash {video_hash} not found")
+            raise ValueError(
+                f"Video with user_email {user_email} and md5_hash {video_hash} not found"
+            )
         if video_local_upload_date:
             video.upload_datetime = video_local_upload_date
-        return await cls.from_video(
+        return await cls.from_project(
+            project=project,
             video=video,
             timeline_name=timeline_name,
             length_seconds=length_seconds,
@@ -237,14 +252,18 @@ class CutTranscriptLinearWorkflow:
         volume_dir: str,
         video_id: str | None = None,
         user_id: str | None = None,
-        video_hash: str | None = None,
+        project_id: str | None = None,
         user_email: str | None = None,
+        project_name: str | None = None,
+        video_hash: str | None = None,
         **init_kwargs,
     ):
         workflow_id = await CutTranscriptLinearWorkflow.id_from_params(
             video_id=video_id or None,
+            video_hash=video_hash or None,
             user_id=user_id or None,
-            video_hash=video_hash,
+            project_id=project_id or None,
+            project_name=project_name,
             timeline_name=timeline_name,
             user_email=user_email,
             length_seconds=length_seconds,
@@ -256,8 +275,9 @@ class CutTranscriptLinearWorkflow:
         return CutTranscriptLinearWorkflow(state=None, step_order=step_order)
 
     @classmethod
-    async def from_video(
+    async def from_project(
         cls,
+        project: Project,
         video: Video,
         timeline_name: str,
         length_seconds: int,
@@ -269,6 +289,7 @@ class CutTranscriptLinearWorkflow:
 
         if new_state:
             state = await CutTranscriptLinearWorkflowState.recreate(
+                project=project,
                 video=video,
                 timeline_name=timeline_name,
                 length_seconds=length_seconds,
@@ -278,6 +299,7 @@ class CutTranscriptLinearWorkflow:
             )
         else:
             state = await CutTranscriptLinearWorkflowState.find_or_create(
+                project=project,
                 video=video,
                 timeline_name=timeline_name,
                 length_seconds=length_seconds,
@@ -287,6 +309,14 @@ class CutTranscriptLinearWorkflow:
             )
 
         return CutTranscriptLinearWorkflow(state=state)
+
+    async def copy(self):
+        if self.state is None:
+            raise ValueError("state is None")
+        new_state = self.state.model_copy()
+        new_state.static_state.timeline_name = str(uuid.uuid4())
+        await new_state.save()
+        return CutTranscriptLinearWorkflow(state=new_state)
 
     #### PROPERTIES ####
     @property
@@ -351,6 +381,10 @@ class CutTranscriptLinearWorkflow:
         return self.step_order.user
 
     @property
+    def project(self):
+        return self.step_order.project
+
+    @property
     def timeline_name(self):
         return self.step_order.timeline_name
 
@@ -369,10 +403,6 @@ class CutTranscriptLinearWorkflow:
     @property
     def nstages(self):
         return self.step_order.nstages
-
-    @property
-    def use_agent_output_cache(self):
-        return self.step_order.use_agent_output_cache
 
     @property
     def max_partial_transcript_words(self):
@@ -760,7 +790,7 @@ class CutTranscriptLinearWorkflow:
         try:
             return self._get_next_step_with_index()[1:]
         except ValueError:
-            return None
+            return None, None
 
     async def get_next_substep(self, with_load_state=True):
         if with_load_state:
@@ -970,6 +1000,7 @@ class CutTranscriptLinearWorkflow:
         save_state_to_db=True,
         async_export=True,
         retry_step=False,
+        use_agent_cache=True,
     ):
         if load_state:
             await self.load_state()
@@ -1012,6 +1043,7 @@ class CutTranscriptLinearWorkflow:
         print(
             f"Running step {current_step.name}.{current_substep.name} with input {current_substep.input}"
         )
+        self.use_agent_output_cache = use_agent_cache
         async for result, is_last in current_substep.method(current_substep.input):
             if not is_last:
                 yield result, False
@@ -1091,9 +1123,7 @@ class CutTranscriptLinearWorkflow:
             )
         on_screen_speakers = []
         async for output, is_last in self._id_on_screen_speakers(
-            transcript=on_screen_transcript,
-            user_prompt=user_prompt,
-            use_agent_output_cache=self.use_agent_output_cache,
+            transcript=on_screen_transcript, user_prompt=user_prompt
         ):
             if is_last:
                 on_screen_speakers = output
@@ -1252,7 +1282,6 @@ class CutTranscriptLinearWorkflow:
                         existing_soundbite=existing_soundbite,
                         user_feedback=relevant_user_feedback or "",
                         max_soundbites=max_soundbites_per_chunk,
-                        use_agent_output_cache=self.use_agent_output_cache,
                     )
                 )
             elif existing_soundbites and len(existing_soundbites.chunks) > i:
@@ -2037,10 +2066,7 @@ class CutTranscriptLinearWorkflow:
         )
 
     async def _id_on_screen_speakers(
-        self,
-        transcript: Transcript,
-        user_prompt: str | None = None,
-        use_agent_output_cache: bool = True,
+        self, transcript: Transcript, user_prompt: str | None = None
     ):
         possible_speakers = set(
             [segment.speaker.lower() for segment in transcript.segments]
@@ -2056,7 +2082,7 @@ class CutTranscriptLinearWorkflow:
             json_mode=True,
             schema=schema,
             transcript=transcript.text_with_speaker_tags,
-            from_cache=use_agent_output_cache,
+            from_cache=self.use_agent_output_cache,
         ):
             if not is_last:
                 yield output, is_last
@@ -2083,7 +2109,6 @@ class CutTranscriptLinearWorkflow:
         prev_final_transcript: Transcript | None = None,
         key_soundbites: SoundbitesChunk | None = None,
         user_feedback="",
-        use_agent_output_cache=True,
     ):
         async for output, is_last in self._get_output_for_shared_cut_partial(
             partial_on_screen_transcript=assistant_cut_transcript_chunk,
@@ -2100,7 +2125,6 @@ class CutTranscriptLinearWorkflow:
             user_feedback=user_feedback,
             prev_final_transcript=prev_final_transcript,
             key_soundbites=key_soundbites,
-            use_agent_output_cache=use_agent_output_cache,
         ):
             yield output, is_last
 
@@ -2114,7 +2138,6 @@ class CutTranscriptLinearWorkflow:
         prev_final_transcript: Transcript | None = None,
         key_soundbites: SoundbitesChunk | None = None,
         user_feedback="",
-        use_agent_output_cache=True,
     ):
         async for output, is_last in self._get_output_for_shared_cut_partial(
             partial_on_screen_transcript=partial_on_screen_transcript,
@@ -2132,7 +2155,6 @@ class CutTranscriptLinearWorkflow:
             user_feedback=user_feedback,
             prev_final_transcript=prev_final_transcript,
             key_soundbites=key_soundbites,
-            use_agent_output_cache=use_agent_output_cache,
         ):
             yield output, is_last
 
@@ -2148,7 +2170,6 @@ class CutTranscriptLinearWorkflow:
         user_feedback="",
         prev_final_transcript: Transcript | None = None,
         key_soundbites: SoundbitesChunk | None = None,
-        use_agent_output_cache=True,
     ):
         length_seconds = self._get_stage_length_seconds(stage_num)
         prev_length_seconds = None
@@ -2215,7 +2236,7 @@ class CutTranscriptLinearWorkflow:
                 if key_soundbites is not None and len(key_soundbites.soundbites)
                 else None
             ),
-            from_cache=use_agent_output_cache,
+            from_cache=self.use_agent_output_cache,
         ):
             if not is_last:
                 yield output, is_last
@@ -2411,7 +2432,6 @@ class CutTranscriptLinearWorkflow:
         existing_soundbite: SoundbitesChunk | None = None,
         user_feedback: str = "",
         max_soundbites: int = 5,
-        use_agent_output_cache=True,
     ):
         chunk_soundbites = []
         if existing_soundbite:
@@ -2428,7 +2448,7 @@ class CutTranscriptLinearWorkflow:
             existing_soundbites=chunk_soundbites,
             user_prompt=self.user_prompt,
             max_soundbites=max_soundbites,
-            from_cache=use_agent_output_cache,
+            from_cache=self.use_agent_output_cache,
         ):
             if not is_last:
                 output.chunk = partial_transcript.chunk_index
@@ -2472,7 +2492,6 @@ class CutTranscriptLinearWorkflow:
             existing_cut_transcript=existing_cut_transcript,
             prev_final_transcript=prev_final_transcript,
             user_feedback=user_feedback,
-            use_agent_output_cache=self.use_agent_output_cache,
         )
         # chunk_index = partial_transcript.chunk_index
         # yield f"Cutting partial transcript {chunk_index}\n", False

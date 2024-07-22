@@ -19,7 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { WorkflowCreationForm } from '@/components/ui/workflow-creation-form';
+import {
+  WorkflowCreationForm,
+  WorkflowCreationFormSchema,
+} from '@/components/ui/workflow-creation-form';
 import { useUser } from '@/contexts/user-context';
 import { useUserVideosData } from '@/contexts/user-videos-context';
 import { FrontendWorkflowProjection } from '@/gen/openapi/api';
@@ -30,17 +33,17 @@ export default function Projects() {
   const { userData, isLoggedIn, isLoading } = useUser();
   const { userVideosData } = useUserVideosData();
   const videos = userVideosData.videos;
-  const [projects, setProjects] = useState<FrontendWorkflowProjection[]>([]);
+  const [workflows, setWorkflows] = useState<FrontendWorkflowProjection[]>([]);
   const [latestWorkflowId, setLatestWorkflowId] = useState<string>('');
-  const [selectedProject, setSelectedProject] =
+  const [selectedWorkflow, setSelectedWorkflow] =
     useState<FrontendWorkflowProjection | null>(null);
   const router = useRouter();
 
   useEffect(() => {
-    if (selectedProject?.id) {
-      router.push(`/builder?projectId=${selectedProject.id}`);
+    if (selectedWorkflow?.id) {
+      router.push(`/builder?workflowId=${selectedWorkflow.id}`);
     }
-  }, [router, selectedProject]);
+  }, [router, selectedWorkflow]);
 
   useEffect(() => {
     if (!isLoggedIn && !isLoading) {
@@ -50,9 +53,9 @@ export default function Projects() {
 
   useEffect(() => {
     async function fetchAndSetProjects() {
-      const projects = await listWorkflows({ user_email: userData.email });
+      const workflows = await listWorkflows({ user_email: userData.email });
       // TODO project.status
-      setProjects(projects);
+      setWorkflows(workflows);
     }
     if (userData.email) {
       fetchAndSetProjects();
@@ -88,25 +91,27 @@ export default function Projects() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
+                <TableHead>Project Name</TableHead>
+                <TableHead>Timeline Name</TableHead>
                 <TableHead>Video</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Select</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map((project) => {
+              {workflows.map((workflow) => {
                 return (
                   <TableRow
-                    key={`${project.video_hash}.${project.timeline_name}`}
+                    key={`${workflow.video_hash}.${workflow.timeline_name}`}
                   >
-                    <TableCell>{project.timeline_name}</TableCell>
-                    <TableCell>{project.video_hash}</TableCell>
+                    <TableCell>{workflow.project_name}</TableCell>
+                    <TableCell>{workflow.timeline_name}</TableCell>
+                    <TableCell>{workflow.video_hash}</TableCell>
                     <TableCell>In Progress</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
-                        onClick={() => setSelectedProject(project)}
+                        onClick={() => setSelectedWorkflow(workflow)}
                       >
                         Select
                       </Button>

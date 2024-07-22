@@ -25,9 +25,13 @@ import {
   FrontendStepOutput,
   FrontendWorkflowProjection,
   FrontendWorkflowState,
-  RunInput,
 } from '@/gen/openapi/api';
-import { getLatestState, getWorkflowDetails, run } from '@/lib/api';
+import {
+  getLatestState,
+  getWorkflowDetails,
+  LocalRunInput,
+  run,
+} from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
 
 const videoTypeExamples = [
@@ -37,9 +41,13 @@ const videoTypeExamples = [
   'Travel vlog',
 ];
 export default function OneButtonGenerate({
-  projectId,
+  initialWorkflowId,
+  initialProjectName,
+  initialProjectId,
 }: {
-  projectId: string | null;
+  initialWorkflowId: string | null;
+  initialProjectName: string | null;
+  initialProjectId: string | null;
 }) {
   const { userData } = useUser();
   const [isLoading, setIsLoading] = useState<boolean>(false);
@@ -51,9 +59,12 @@ export default function OneButtonGenerate({
   const [userMessage, setUserMessage] = useState<string>('');
   const [backendMessage, setBackendMessage] = useState<string>('');
   const [newVideoHash, setNewVideoHash] = useState<string>('');
-  const [workflowId, setWorkflowId] = useState<string>('');
-  const [newVideoFilename, setNewVideoFilename] = useState<string>('');
-  const [projectName, setProjectName] = useState<string>('');
+  const [workflowId, setWorkflowId] = useState<string>(initialWorkflowId || '');
+  const [projectId, setProjectId] = useState<string>(initialProjectId || '');
+  // const [newVideoFilename, setNewVideoFilename] = useState<string>('');
+  const [projectName, setProjectName] = useState<string>(
+    initialProjectName || ''
+  );
   const [lengthSeconds, setLengthSeconds] = useState<number | null>(120);
   const [cancelStepStream, setCancelStepStream] = useState<boolean>(false);
 
@@ -65,23 +76,28 @@ export default function OneButtonGenerate({
     null
   );
 
-  const [project, setProject] = useState<FrontendWorkflowProjection | null>(
+  const [workflow, setWorkflow] = useState<FrontendWorkflowProjection | null>(
     null
   );
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
 
   useEffect(() => {
-    if (project?.id) setWorkflowId(project?.id);
-    if (project?.video_hash) setNewVideoHash(project?.video_hash);
-  }, [project]);
+    if (workflow?.id) setWorkflowId(workflow?.id);
+    if (workflow?.id) setWorkflow(workflow);
+    if (workflow?.video_hash) setNewVideoHash(workflow?.video_hash);
+    if (workflow?.project_id) setProjectId(workflow?.project_id);
+    if (workflow?.project_name) setProjectName(workflow?.project_name);
+  }, [workflow]);
 
   const userParams = useMemo(() => {
     return {
       user_email: userData.email,
       workflow_id: workflowId,
+      project_id: projectId,
+      project_name: projectName,
       video_hash: newVideoHash,
     };
-  }, [userData.email, workflowId, newVideoHash]);
+  }, [userData.email, projectId, workflowId, projectName, newVideoHash]);
 
   useEffect(() => {
     if (!latestState) return;
@@ -100,7 +116,8 @@ export default function OneButtonGenerate({
       );
     }
     if (latestState.static_state) {
-      setProjectName(latestState.static_state.timeline_name);
+      setProjectName(latestState.static_state.project_name || '');
+      setProjectId(latestState.static_state.project_id || '');
       setNewVideoHash(latestState.static_state.video_hash);
       setLengthSeconds(latestState.static_state.length_seconds);
     }
@@ -123,14 +140,14 @@ export default function OneButtonGenerate({
   };
 
   useEffect(() => {
-    async function fetchAndSetProject(projectId: string) {
-      const project = await getWorkflowDetails(projectId);
-      setProject(project);
+    async function fetchAndSetWorkflow(workflowId: string) {
+      const workflow = await getWorkflowDetails(workflowId);
+      setWorkflow(workflow);
     }
-    if (projectId) {
-      fetchAndSetProject(projectId);
+    if (workflowId) {
+      fetchAndSetWorkflow(workflowId);
     }
-  }, [projectId]);
+  }, [workflowId]);
 
   const handleStepStream = useCallback(
     async (reader: ReadableStreamDefaultReader) => {
@@ -175,18 +192,21 @@ export default function OneButtonGenerate({
     if (newVideoHash === '') {
       return;
     }
-    const runData: RunInput = {
+    const runData: LocalRunInput = {
       user_input: userMessage || '',
       streaming: true,
       ignore_running_workflows: true,
-      user_email: userParams.user_email,
       video_hash: newVideoHash,
       length_seconds: lengthSeconds,
-      timeline_name: projectName,
-      structured_user_input: { video_type: videoType },
+      // timeline_name: timelineName, TODO option for this once I figure out the UI
+      video_type: videoType,
+      user_email: userParams.user_email,
+      project_id: userParams.project_id,
+      project_name: userParams.project_name,
+      workflow_id: userParams.workflow_id,
     };
     try {
-      await run(userParams.workflow_id, runData, async (reader) => {
+      await run(runData, async (reader) => {
         const finalState = await handleStepStream(reader);
         // TODO change backend to not send "end" state
         const _stepOutput = finalState?.outputs?.length
@@ -212,7 +232,7 @@ export default function OneButtonGenerate({
 
   const handleVideoSelected = (hash: string, filename: string) => {
     setNewVideoHash(hash);
-    setNewVideoFilename(filename);
+    //setNewVideoFilename(filename);
     setWorkflowId('');
   };
 
@@ -343,8 +363,14 @@ export default function OneButtonGenerate({
                     isLoading={isLoading}
                     output={stepOutput}
                     allowModification={false}
+                    exportCallId={null}
+                    exportResult={null}
                   />
-                  <ExportStepMenu userParams={userParams} stepName={stepName} />
+                  <ExportStepMenu
+                    disabled={false}
+                    userParams={userParams}
+                    stepName={stepName}
+                  />
                 </div>
               ) : null}
             </div>

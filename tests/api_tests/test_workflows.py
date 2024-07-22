@@ -10,7 +10,7 @@ from trimit.models.models import (
 from ..conftest import DAVE_EMAIL, TEST_VOLUME_DIR, TEST_ASSET_DIR
 import asyncio
 import pytest
-from trimit.backend.models import Message, Role
+from trimit.models.backend_models import Message, Role
 from trimit.models import FrontendStepOutput
 
 pytestmark = pytest.mark.asyncio(scope="session")
@@ -29,8 +29,9 @@ async def client():
 def assert_state_has_equivalent_creation_params(state, creation_params):
     assert state.static_state.user.email == creation_params["user_email"]
     assert state.static_state.video.md5_hash == creation_params["video_hash"]
+    assert state.static_state.project.name == creation_params["project_name"]
     for k, v in creation_params.items():
-        if k not in ["user_email", "video_hash"]:
+        if k not in ["user_email", "video_hash", "project_name"]:
             assert v == getattr(state.static_state, k)
 
 
@@ -41,6 +42,7 @@ async def test_new_workflow(client):
     workflow_creation_params = {
         "user_email": DAVE_EMAIL,
         "video_hash": "15557970",
+        "project_name": "new project name",
         "timeline_name": "new timeline name",
         "length_seconds": 5000,
         "nstages": 3,
@@ -64,6 +66,7 @@ async def test_recreate_workflow(client, workflow_15557970_with_state_init_no_ex
     workflow_creation_params = {
         "user_email": workflow.state.static_state.user.email,
         "video_hash": workflow.state.static_state.video.md5_hash,
+        "project_name": workflow.state.static_state.project.name,
         "timeline_name": workflow.timeline_name,
         "length_seconds": workflow.length_seconds,
         "nstages": workflow.nstages,
@@ -91,6 +94,7 @@ async def test_try_create_existing_workflow(
     workflow_creation_params = {
         "user_email": workflow.state.static_state.user.email,
         "video_hash": workflow.state.static_state.video.md5_hash,
+        "project_name": workflow.state.static_state.project.name,
         "timeline_name": workflow.timeline_name,
         "length_seconds": workflow.length_seconds,
         "nstages": workflow.nstages,
@@ -121,6 +125,8 @@ async def test_get_workflow_details(client, workflow_15557970_with_transcript):
     assert details.length_seconds == workflow.state.static_state.length_seconds
     assert details.nstages == workflow.state.static_state.nstages
     assert details.id == str(workflow.state.id)
+    assert details.project_id == str(workflow.state.static_state.project.id)
+    assert details.project_name == str(workflow.state.static_state.project.name)
 
 
 async def test_frontend_workflow_state(workflow_15557970_with_transcript):
@@ -146,14 +152,22 @@ async def test_list_workflows(client, workflow_15557970_with_transcript):
     )
     assert response.status_code == 200
     workflows = response.json()
-    assert len(workflows) == 1
-    details = FrontendWorkflowProjection(**workflows[0])
+    assert len(workflows) == 3
+    to_check = [
+        w
+        for w in workflows
+        if w["project_name"] == workflow.state.static_state.project.name
+    ]
+    assert len(to_check) == 1
+    details = FrontendWorkflowProjection(**to_check[0])
     assert details.timeline_name == workflow.state.static_state.timeline_name
     assert details.user_email == workflow.state.user.email
     assert details.video_hash == workflow.state.video.md5_hash
     assert details.length_seconds == workflow.state.static_state.length_seconds
     assert details.nstages == workflow.state.static_state.nstages
     assert details.id == str(workflow.state.id)
+    assert details.project_id == str(workflow.state.static_state.project.id)
+    assert details.project_name == str(workflow.state.static_state.project.name)
 
 
 async def test_get_all_steps(client, workflow_15557970_with_transcript):
@@ -189,6 +203,8 @@ async def test_get_latest_state_init(client, workflow_15557970_with_transcript):
     #  assert data["next_step"]["substep_name"] == "remove_off_screen_speakers"
     assert data["static_state"]["video_id"] is not None
     assert data["static_state"]["user_id"] is not None
+    assert data["static_state"]["project_id"] is not None
+    assert data["static_state"]["project_name"] is not None
     # assert data["user_messages"] == []
     # assert data["step_history_state"] == []
     assert data["outputs"] == []
@@ -216,6 +232,8 @@ async def test_get_latest_state_after_step_with_retry(
     #  assert data["next_step"]["substep_name"] == "generate_story"
     assert data["static_state"]["video_id"] is not None
     assert data["static_state"]["user_id"] is not None
+    assert data["static_state"]["project_id"] is not None
+    assert data["static_state"]["project_name"] is not None
     #  assert data["step_history_state"] == [
     #  {
     #  "name": "preprocess_video",
@@ -259,16 +277,17 @@ async def test_get_latest_state_after_step_with_retry(
         "on_screen_transcript_text",
         "on_screen_transcript_state",
     ]
-    assert parsed.export_result and list(parsed.export_result.keys()) == [
+    assert parsed.export_result
+    for key in [
         "transcript",
         "transcript_text",
         "video_timeline",
         "speaker_tagging_clips",
-    ]
-    assert list(parsed.export_result["speaker_tagging_clips"].keys()) == [
-        "SPEAKER_01",
-        "SPEAKER_00",
-    ]
+    ]:
+        assert getattr(parsed.export_result, key) is not None
+    assert parsed.export_result.speaker_tagging_clips is not None and list(
+        parsed.export_result.speaker_tagging_clips.keys()
+    ) == ["SPEAKER_01", "SPEAKER_00"]
 
 
 async def test_get_output_for_name(client, workflow_15557970_after_second_step):

@@ -1,5 +1,6 @@
 *.mp4
 *.mov
+*.webm
 *.pth
 __pycache__
 *.ckpt
@@ -41,3 +42,4 @@ tests/timeline_outputs
 server.pid
 frontend/docs/openapi.yaml
 frontend/gen
+tmp

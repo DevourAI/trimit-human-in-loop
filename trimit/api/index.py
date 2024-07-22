@@ -1,4 +1,5 @@
 import os
+import shutil
 import uuid
 from collections import defaultdict
 import re
@@ -34,7 +35,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.openapi.utils import get_openapi
 from fastapi.responses import StreamingResponse, FileResponse
 
-from trimit.backend.models import (
+from trimit.models.backend_models import (
     ExportResults,
     CallId,
     CallStatus,
@@ -51,7 +52,7 @@ from trimit.backend.models import (
     StructuredUserInput,
 )
 from trimit.backend.utils import AGENT_OUTPUT_CACHE, export_results_wrapper
-from trimit.utils import conf
+from trimit.utils.conf import SHARED_USER_EMAIL
 from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
     async_copy_to_s3,
@@ -75,6 +76,7 @@ from trimit.models import (
     CutTranscriptLinearWorkflowStreamingOutput,
     CutTranscriptLinearWorkflowState,
     FrontendWorkflowProjection,
+    Project,
 )
 from .image import image
 from trimit.backend.conf import (
@@ -85,15 +87,18 @@ from trimit.backend.background_processor import BackgroundProcessor
 from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 
 background_processor = None
-if not is_local():
+if is_local():
+    ASSETS_DIR = "tmp/assets"
+    os.makedirs(ASSETS_DIR, exist_ok=True)
+else:
     background_processor = BackgroundProcessor()
+    ASSETS_DIR = "/assets"
 
 TEMP_DIR = Path("/tmp/uploads")
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 video_processing_call_ids = Dict.from_name(
     VIDEO_PROCESSING_CALL_IDS_DICT_NAME, create_if_missing=True
 )
-ASSETS_DIR = "/assets"
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
@@ -161,12 +166,37 @@ async def maybe_user_wrapper(user_email: EmailStr | None = None):
     return await find_or_create_user(user_email)
 
 
+async def copy_shared_videos_to_user(user: User):
+    shared_videos = await Video.find(Video.user.email == SHARED_USER_EMAIL).to_list()
+    for video in shared_videos:
+        if await check_existing_video(user.email, video.md5_hash):
+            continue
+        new_video = await Video.from_user_email(
+            user.email,
+            md5_hash=video.md5_hash,
+            ext=video.ext,
+            upload_datetime=video.upload_datetime,
+            details=video.details,
+            high_res_user_file_path=video.high_res_user_file_path,
+            high_res_user_file_hash=video.high_res_user_file_hash,
+            transcription=video.transcription,
+            transcription_text=video.transcription_text,
+            video_llava_description=video.video_llava_description,
+            summary=video.summary,
+            speakers_in_frame=video.speakers_in_frame,
+        )
+        os.makedirs(new_video.path(get_volume_dir()), exist_ok=True)
+        shutil.copyfile(video.path(get_volume_dir()), new_video.path(get_volume_dir()))
+        await new_video.save()
+
+
 async def find_or_create_user(user_email: EmailStr):
     await maybe_init_mongo()
     user = await User.find_one(User.email == user_email)
     if user is None:
         user = User(email=user_email, name="")
         await user.save()
+    await copy_shared_videos_to_user(user)
     return user
 
 
@@ -235,7 +265,18 @@ async def get_current_workflow(
         )
     except Exception as e:
         print("load workflow exception", e)
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail=str(e)) from e
+
+
+async def get_current_project(
+    user_email: str, project_id: str | None = None, project_name: str | None = None
+):
+    if project_id:
+        return await Project.get(project_id)
+    try:
+        return await Project.from_user_email(user_email=user_email, name=project_name)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e)) from e
 
 
 @app.function(**app_kwargs)
@@ -562,8 +603,76 @@ class RunInput(StepInput):
     user_email: EmailStr | None = None
     length_seconds: int | None = None
     video_hash: str | None = None
-    timeline_name: str | None = None
+    name: str | None = None
     video_type: str | None = None
+    use_agent_cache: bool = False
+    n_variations: int | None = None
+
+
+async def run_streamer(workflow, **run_params):
+    from trimit.backend.serve import run as run_function
+
+    yield CutTranscriptLinearWorkflowStreamingOutput(
+        workflow_id=str(workflow.id),
+        partial_backend_output=PartialBackendOutput(value="Running step"),
+    ).model_dump_json()
+    if is_local():
+        method = run_function.local
+    else:
+        method = run_function.remote_gen.aio
+
+    last_result = None
+    async for partial_result, is_last in method(**run_params):
+        if last_result is not None:
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                workflow_id=str(workflow.id), partial_step_output=last_result
+            ).model_dump_json()
+            last_result = None
+        if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
+            if not is_last:
+                raise ValueError(
+                    "step result should be CutTranscriptLinearWorkflowStepOutput if is_last is True"
+                )
+            if partial_result.user_feedback_request:
+                last_result = partial_result
+        elif isinstance(partial_result, PartialLLMOutput):
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                workflow_id=str(workflow.id), partial_llm_output=partial_result
+            ).model_dump_json()
+        elif isinstance(partial_result, PartialBackendOutput):
+            yield CutTranscriptLinearWorkflowStreamingOutput(
+                workflow_id=str(workflow.id), partial_backend_output=partial_result
+            ).model_dump_json()
+        elif isinstance(partial_result, ExportResults):
+            pass
+        elif isinstance(partial_result, CallId):
+            pass
+        else:
+            print("partial_result", partial_result)
+            print("typeof partial_result", type(partial_result))
+            print(f"Unparseable response from internal step function: {partial_result}")
+            #  raise HTTPException(
+            #  status_code=500,
+            #  detail=f"Unparseable response from internal step function: {partial_result}",
+            #  )
+        await asyncio.sleep(0)
+    print("loading last state")
+    AGENT_OUTPUT_CACHE.close()
+    try:
+        await volume.reload()
+    except TypeError:
+        pass
+    latest_state = await workflow.get_latest_frontend_state(
+        volume_dir=get_volume_dir(),
+        asset_dir=ASSETS_DIR,
+        with_load_state=True,
+        #  with_outputs=True,
+        #  with_all_steps=True,
+        #  only_last_substep_outputs=True,
+    )
+    yield CutTranscriptLinearWorkflowStreamingOutput(
+        workflow_id=str(workflow.id), final_state=latest_state
+    ).model_dump_json()
 
 
 @web_app.post(
@@ -587,119 +696,68 @@ The last output this method produces is always `FrontendWorkflowState`, which in
 )
 async def run(
     run_input: RunInput,
+    project: Project | None = Depends(get_current_project),
     workflow: CutTranscriptLinearWorkflow | None = Depends(
         get_current_workflow_or_none
     ),
 ):
     if workflow is None:
-        await maybe_init_mongo()
-        if (
-            run_input.video_hash is None
-            or run_input.length_seconds is None
-            or run_input.user_email is None
-        ):
-            raise HTTPException(
-                status_code=400, detail="necessary workflow params not provided"
+        workflows = []
+        for _ in range(run_input.n_variations or 1):
+            state = await CutTranscriptLinearWorkflowState.find_or_create_from_video_hash(
+                video_hash=run_input.video_hash,
+                user_email=run_input.user_email,
+                timeline_name=str(uuid.uuid4()),
+                video_type=run_input.video_type or "",
+                volume_dir=get_volume_dir(),
+                output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
+                length_seconds=run_input.length_seconds,
+                # nstages=nstages,
+                project=project,
             )
+            await state.save()
+            workflow = CutTranscriptLinearWorkflow(state=state)
+            workflows.append(workflow)
+    else:
+        assert workflow.state is not None
+        if workflow.state.project is None:
+            workflow.state.project = project
+        elif workflow.state.project.id != project.id:
+            raise HTTPException(
+                status_code=400,
+                detail="workflow already has a project, but it does not match provided project",
+            )
+        workflows = [workflow]
+        for _ in range((run_input.n_variations or 1) - 1):
+            workflows.append(await workflow.copy())
 
-        print("run_input", run_input)
-        state = await CutTranscriptLinearWorkflowState.recreate_from_video_hash(
-            video_hash=run_input.video_hash,
-            user_email=run_input.user_email,
-            timeline_name=run_input.timeline_name or str(uuid.uuid4()),
-            video_type=run_input.video_type or "",
-            volume_dir=get_volume_dir(),
-            output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
-            length_seconds=run_input.length_seconds,
-            # nstages=nstages,
-        )
-        await state.save()
-        workflow = CutTranscriptLinearWorkflow(state=state)
-        print("workflow.timeline_name", workflow.timeline_name)
-
-    run_params = {
-        "workflow": workflow,
-        "user_input": run_input.user_input,
-        "structured_user_input": run_input.structured_user_input,
-        "ignore_running_workflows": run_input.ignore_running_workflows,
-        "async_export": os.environ.get("ASYNC_EXPORT", True),
-        "export_intermediate": run_input.export_intermediate,
-    }
-    print("run_params", run_params)
+    run_params_list = [
+        {
+            "project": project,
+            "workflow": workflow,
+            "user_input": run_input.user_input,
+            "structured_user_input": run_input.structured_user_input,
+            "ignore_running_workflows": run_input.ignore_running_workflows,
+            "async_export": os.environ.get("ASYNC_EXPORT", True),
+            "export_intermediate": run_input.export_intermediate,
+            "use_agent_cache": run_input.use_agent_cache,
+        }
+        for workflow in workflows
+    ]
     from trimit.backend.serve import run as run_function
 
-    print(f"Running with params: {run_params}")
+    print(f"Running with params: {run_params_list[0]} ({len(workflows)} variations)")
     if not run_input.streaming:
-        run_function.spawn(**run_params)
+        for workflow, run_params in zip(workflows, run_params_list):
+            run_function.spawn(workflow, **run_params)
     else:
-
-        async def streamer():
-            yield CutTranscriptLinearWorkflowStreamingOutput(
-                workflow_id=str(workflow.id),
-                partial_backend_output=PartialBackendOutput(value="Running step"),
-            ).model_dump_json()
-            if is_local():
-                method = run_function.local
-            else:
-                method = run_function.remote_gen.aio
-
-            last_result = None
-            async for partial_result, is_last in method(**run_params):
-                if last_result is not None:
-                    yield CutTranscriptLinearWorkflowStreamingOutput(
-                        workflow_id=str(workflow.id), partial_step_output=last_result
-                    ).model_dump_json()
-                    last_result = None
-                if isinstance(partial_result, CutTranscriptLinearWorkflowStepOutput):
-                    if not is_last:
-                        raise ValueError(
-                            "step result should be CutTranscriptLinearWorkflowStepOutput if is_last is True"
-                        )
-                    if partial_result.user_feedback_request:
-                        last_result = partial_result
-                elif isinstance(partial_result, PartialLLMOutput):
-                    yield CutTranscriptLinearWorkflowStreamingOutput(
-                        workflow_id=str(workflow.id), partial_llm_output=partial_result
-                    ).model_dump_json()
-                elif isinstance(partial_result, PartialBackendOutput):
-                    yield CutTranscriptLinearWorkflowStreamingOutput(
-                        workflow_id=str(workflow.id),
-                        partial_backend_output=partial_result,
-                    ).model_dump_json()
-                elif isinstance(partial_result, ExportResults):
-                    pass
-                elif isinstance(partial_result, CallId):
-                    pass
-                else:
-                    print("partial_result", partial_result)
-                    print("typeof partial_result", type(partial_result))
-                    print(
-                        f"Unparseable response from internal step function: {partial_result}"
-                    )
-                    #  raise HTTPException(
-                    #  status_code=500,
-                    #  detail=f"Unparseable response from internal step function: {partial_result}",
-                    #  )
-                await asyncio.sleep(0)
-            print("loading last state")
-            AGENT_OUTPUT_CACHE.close()
-            try:
-                await volume.reload()
-            except TypeError:
-                pass
-            latest_state = await workflow.get_latest_frontend_state(
-                volume_dir=get_volume_dir(),
-                asset_dir=ASSETS_DIR,
-                with_load_state=True,
-                #  with_outputs=True,
-                #  with_all_steps=True,
-                #  only_last_substep_outputs=True,
-            )
-            yield CutTranscriptLinearWorkflowStreamingOutput(
-                workflow_id=str(workflow.id), final_state=latest_state
-            ).model_dump_json()
-
-        return StreamingResponse(streamer(), media_type="text/event-stream")
+        if len(workflows) > 1:
+            for workflow, run_params in zip(workflows[1:], run_params_list[1:]):
+                run_function.spawn(workflow, **run_params)
+        return StreamingResponse(
+            run_streamer(workflows[0], **run_params_list[0]),
+            media_type="text/event-stream",
+        )
 
 
 @web_app.get(
@@ -769,7 +827,7 @@ async def revert_workflow_step_to(
     summary="List all workflows for a user, optionally filtered by video hashes",
     description="TODO",
 )
-async def create_workflow(
+async def workflows(
     user_email: str = Query(...), video_hashes: list[str] | None = Query(None)
 ):
     await maybe_init_mongo()
@@ -795,9 +853,10 @@ async def create_workflow(
     summary="Create a new workflow, returning its id",
     description="TODO",
 )
-async def workflows(
+async def create_workflow(
     user_email: str = Form(...),
     video_hash: str = Form(...),
+    project_name: str = Form(...),
     timeline_name: str = Form(...),
     length_seconds: int = Form(...),
     nstages: int = Form(2),
@@ -814,6 +873,7 @@ async def workflows(
     state = await method(
         video_hash=video_hash,
         user_email=user_email,
+        project_name=project_name,
         timeline_name=timeline_name,
         volume_dir=get_volume_dir(),
         output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
@@ -902,10 +962,11 @@ async def get_latest_state(
         raise HTTPException(status_code=400, detail="Workflow not found")
     print("os.listdir(ASSETS_DIR):", os.listdir(ASSETS_DIR))
     AGENT_OUTPUT_CACHE.close()
-    try:
-        await volume.reload()
-    except TypeError:
-        pass
+    if not is_local():
+        try:
+            await volume.reload()
+        except TypeError:
+            pass
 
     return await workflow.get_latest_frontend_state(
         volume_dir=get_volume_dir(), asset_dir=ASSETS_DIR, with_load_state=False
@@ -1329,7 +1390,7 @@ async def upload_multiple_files(
         ext = Path(volume_file_path).suffix
 
         video = await check_existing_video(
-            video_hash, high_res_user_file_path, ignore_existing=overwrite
+            user.email, video_hash, ignore_existing=overwrite
         )
         existing = False
         if video is not None:

@@ -2,7 +2,6 @@ import os
 from typing import Union
 import opentimelineio as otio
 from tqdm import tqdm
-from trimit.models import Scene, Video
 from trimit.utils.model_utils import get_generated_video_folder
 from trimit.export.utils import (
     get_new_integer_file_name_in_dir,
@@ -13,7 +12,7 @@ from tqdm.asyncio import tqdm as tqdm_async
 
 
 async def create_cut_video_from_transcript(
-    video: Video,
+    video: "Video",
     transcript: Union["Transcript", "Soundbites", "Soundbite"],
     timeline_name: str,
     volume_dir: str,
@@ -27,6 +26,8 @@ async def create_cut_video_from_transcript(
     create_new_if_existing: bool = True,
     verbose: bool = True,
 ):
+    from trimit.models import Scene
+
     filename = get_video_filename(
         output_dir=output_dir,
         volume_dir=volume_dir,
@@ -104,7 +105,7 @@ def get_video_filename(
 
 async def generate_video_from_timeline(
     user_email: str,
-    timeline: list[Scene],
+    timeline: list["Scene"],
     volume_dir: str,
     timeline_name: str,
     output_dir: str | None = None,
@@ -149,7 +150,7 @@ async def generate_video_from_timeline(
 
 
 def create_fcp_7_xml_from_single_video_transcript(
-    video: Video,
+    video: "Video",
     transcript: "Transcript",
     timeline_name: str,
     volume_dir: str,
@@ -204,7 +205,7 @@ def save_otio_timeline(
 
 
 def create_otio_timeline_from_single_video_transcript(
-    video: Video,
+    video: "Video",
     transcript: "Transcript",
     timeline_name: str,
     volume_dir: str,

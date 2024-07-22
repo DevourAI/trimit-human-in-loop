@@ -1,4 +1,9 @@
-from trimit.backend.models import TranscriptSegment, Transcript, OffsetToCut, Soundbites
+from trimit.models.backend_models import (
+    TranscriptSegment,
+    Transcript,
+    OffsetToCut,
+    Soundbites,
+)
 import pytest
 
 from trimit.backend.utils import linearize_and_dedupe_offsets

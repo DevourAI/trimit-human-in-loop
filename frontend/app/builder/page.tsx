@@ -15,6 +15,8 @@ function BuilderInner() {
   const { isLoggedIn, isLoading } = useUser();
   const router = useRouter();
   const searchParams = useSearchParams();
+  const workflowId = searchParams.get('workflowId') || '';
+  const projectName = searchParams.get('projectName') || '';
   const projectId = searchParams.get('projectId') || '';
   const [easyMode, setEasyMode] = useState<boolean>(true);
 
@@ -27,7 +29,7 @@ function BuilderInner() {
   const onCheckedChange = () => {
     if (easyMode) {
       setEasyMode(false);
-      if (!projectId) {
+      if (!workflowId) {
         router.push('/projects');
       }
     } else {
@@ -43,9 +45,17 @@ function BuilderInner() {
       />
       <Label htmlFor="easy-mode">Easy Mode</Label>
       {easyMode ? (
-        <OneButtonGenerate projectId={projectId} />
+        <OneButtonGenerate
+          initialProjectId={projectId}
+          initialProjectName={projectName}
+          initialWorkflowId={workflowId}
+        />
       ) : (
-        <MainStepper projectId={projectId} />
+        <MainStepper
+          initialProjectId={projectId}
+          initialProjectName={projectName}
+          workflowId={workflowId}
+        />
       )}
     </StepperFormProvider>
   );

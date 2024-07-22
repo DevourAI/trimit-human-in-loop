@@ -16,7 +16,6 @@ import { Footer } from '@/components/main-stepper/main-stepper-footer';
 import StepRenderer from '@/components/main-stepper/step-renderer';
 import { Button } from '@/components/ui/button';
 import { Step, Stepper } from '@/components/ui/stepper';
-import { FormSchema } from '@/components/ui/stepper-form';
 import { useStepperForm } from '@/contexts/stepper-form-context';
 import {
   StructuredInputFormProvider,
@@ -25,9 +24,9 @@ import {
 import { useUser } from '@/contexts/user-context';
 import {
   CutTranscriptLinearWorkflowStepOutput,
-  CutTranscriptLinearWorkflowStepOutputExportResultValue,
   CutTranscriptLinearWorkflowStreamingOutput,
   ExportableStepWrapper,
+  ExportResults,
   FrontendStepOutput,
   FrontendWorkflowProjection,
   FrontendWorkflowState,
@@ -37,11 +36,10 @@ import {
   getWorkflowDetails,
   resetWorkflow,
   revertStepInBackend,
-  revertStepToInBackend,
   step,
 } from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
-import { RevertStepParams, RevertStepToParams, StepData } from '@/lib/types';
+import { RevertStepParams, StepData } from '@/lib/types';
 
 function stepIndexFromState(state: FrontendWorkflowState): number {
   if (!state.all_steps) {
@@ -65,13 +63,6 @@ function stepIndexFromName(
   return currentStepIndex;
 }
 
-function stepNameFromIndex(
-  allSteps: Array<ExportableStepWrapper>,
-  stepIndex: number
-): string {
-  return allSteps[stepIndex].name;
-}
-
 function stepOutputFromIndex(
   stepIndex: number,
   state: FrontendWorkflowState
@@ -91,7 +82,7 @@ function stepOutputFromIndex(
 function mappedExportResultFromIndex(
   stepIndex: number,
   state: FrontendWorkflowState
-): CutTranscriptLinearWorkflowStepOutput {
+): Record<string, any> {
   if (!state.all_steps) {
     throw new Error('state does not contain all_steps');
   }
@@ -111,25 +102,31 @@ function mappedExportResultFromIndex(
  * - Handle stepping through steps
  * - Handle retrying / undoing
  */
-export default function MainStepper({ projectId }: { projectId: string }) {
+export default function MainStepper({
+  initialProjectId,
+  initialProjectName,
+  workflowId,
+}: {
+  initialProjectId: string;
+  workflowId: string;
+  initialProjectName: string;
+}) {
   const { userData } = useUser();
-  const [project, setProject] = useState<FrontendWorkflowProjection | null>(
+  // const [workflowId, setWorkflowId] = useState<string>(initialWorkflowId);
+  // const [projectName, setProjectName] = useState<string>(initialProjectName);
+  // const [projectId, setProjectId] = useState<string>(initialProjectId);
+  const [workflow, setWorkflow] = useState<FrontendWorkflowProjection | null>(
     null
   );
   const { stepperFormValues } = useStepperForm();
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
     null
   );
-  const [userFeedbackRequest, setUserFeedbackRequest] = useState<string>('');
   const [stepInputPrompt, setStepInputPrompt] = useState<string>('');
   const [trueStepIndex, setTrueStepIndex] = useState<number>(-1);
   const [currentStepIndex, setCurrentStepIndex] = useState<number>(-1);
   const [userMessage, setUserMessage] = useState<string>('');
 
-  const [latestExportResult, setLatestExportResult] = useState<
-    Record<string, any>
-  >({});
-  const [latestExportCallId, setLatestExportCallId] = useState<string>('');
   const [stepOutput, setStepOutput] = useState<FrontendStepOutput | null>(null);
   const [mappedExportResult, setMappedExportResult] = useState<Record<
     string,
@@ -137,9 +134,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   > | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [backendMessage, setBackendMessage] = useState<string>('');
-  const [currentStepFormValues, setCurrentStepFormValues] = useState<
-    z.infer<typeof FormSchema>
-  >({});
   const [hasCompletedAllSteps, setHasCompletedAllSteps] =
     useState<boolean>(false);
   const [structuredInputFormData, setStructuredInputFormData] =
@@ -164,27 +158,27 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   const userParams = useMemo(
     () => ({
       user_email: userData.email,
-      workflow_id: project?.id || null,
-      video_hash: project?.video_hash || null,
+      workflow_id: workflow?.id || '',
+      project_id: workflow?.project_id,
+      project_name: workflow?.project_name,
+      video_hash: workflow?.video_hash || null,
     }),
-    [userData.email, project]
+    [userData.email, workflow]
   );
   const fetchedInitialState = useRef(false);
   const allowRunningFromCurrentStepIndexChange = useRef(false);
-  const prevExportResult = useRef<{
-    [key: string]: CutTranscriptLinearWorkflowStepOutputExportResultValue;
-  }>();
+  const prevExportResult = useRef<ExportResults>();
   const prevExportCallId = useRef<string>();
 
   useEffect(() => {
-    async function fetchAndSetProject() {
-      const project = await getWorkflowDetails(projectId);
-      setProject(project);
+    async function fetchAndSetWorkflow() {
+      const workflow = await getWorkflowDetails(workflowId);
+      setWorkflow(workflow);
     }
-    if (projectId) {
-      fetchAndSetProject();
+    if (workflowId) {
+      fetchAndSetWorkflow();
     }
-  }, [projectId]);
+  }, [workflowId]);
   useEffect(() => {
     async function fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput() {
       // since we include currentStepIndex as a dependency
@@ -222,7 +216,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       fetchedInitialState.current = true;
     }
     fetchLatestStateAndMaybeSetCurrentStepIndexAndStepOutput();
-  }, [userData, userParams, project?.video_hash, currentStepIndex]);
+  }, [userData, userParams, workflow?.video_hash, currentStepIndex]);
 
   const prevTrueStepIndex = useRef<number>(trueStepIndex);
 
@@ -240,7 +234,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
             if (currentSubstep) {
               const newIndex = stepIndexFromName(
                 currentSubstep.step_name,
-                latestState.all_steps
+                latestState?.all_steps || []
               );
               setCurrentStepIndex(newIndex);
             }
@@ -331,14 +325,11 @@ export default function MainStepper({ projectId }: { projectId: string }) {
         lastOutput.export_result &&
         lastOutput.export_result != prevExportResult.current
       ) {
-        setLatestExportResult(lastOutput.export_result);
-
         prevExportResult.current = lastOutput.export_result;
       } else if (
         lastOutput.export_call_id &&
         lastOutput.export_call_id != prevExportCallId.current
       ) {
-        setLatestExportCallId(lastOutput.export_call_id);
         prevExportCallId.current = lastOutput.export_call_id;
       }
     }
@@ -346,8 +337,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   }, [latestState, currentStepIndex, isLoading, advanceStep]);
 
   useEffect(() => {
-    setUserFeedbackRequest(stepOutput?.user_feedback_request || '');
-
     if (stepOutput === null) {
       setChatMessages([]);
       return;
@@ -382,57 +371,6 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     ''
   );
 
-  const revertStepTo = useCallback(
-    async (stepIndex: number) => {
-      setIsLoading(true);
-      if (!latestState || !latestState.all_steps) {
-        throw new Error(
-          "can't revert unless latestState.all_steps is available"
-        );
-      }
-      const stepName = stepNameFromIndex(latestState.all_steps, stepIndex);
-      const success = await revertStepToInBackend({
-        step_name: stepName,
-        ...userParams,
-      } as RevertStepToParams);
-      if (success) {
-        activePromptDispatch({ type: 'restart', value: '' });
-        const latestState = await getLatestState(userParams.workflow_id);
-        setLatestState(latestState);
-        setCurrentStepIndex(stepIndexFromState(latestState));
-      }
-      setIsLoading(false);
-      return success;
-    },
-    [latestState, userParams]
-  );
-
-  async function retryStep(data: z.infer<typeof FormSchema>) {
-    // TODO: stepperFormValues.feedback is cut off- doesn't include last character
-    setIsLoading(true);
-    if (trueStepIndex > currentStepIndex) {
-      const success = await revertStepTo(currentStepIndex + 1);
-      if (!success) {
-        setIsLoading(false);
-        return;
-      }
-    }
-    const stepData: StepData = {
-      user_input:
-        data.feedback !== undefined && data.feedback !== null
-          ? data.feedback
-          : '',
-      streaming: true,
-      force_restart: false,
-      ignore_running_workflows: true,
-      retry_step: true,
-    };
-    try {
-      await step(userParams, stepData, handleStepStream);
-    } catch (error) {
-      console.error('error in step', error);
-    }
-  }
   // TODO combine this method with the form once we have structured input
   async function advanceOrRetryStep(options: { useStructuredInput: boolean }) {
     // if (options.stepIndex === null || options.stepIndex === undefined) {
@@ -483,7 +421,11 @@ export default function MainStepper({ projectId }: { projectId: string }) {
               stepOutput.full_conversation.length - 1
             ].value
           : '';
-        setCurrentStepIndex(stepIndexFromState(finalState));
+        let currentStepIndex = -1;
+        if (finalState) {
+          currentStepIndex = stepIndexFromState(finalState);
+        }
+        setCurrentStepIndex(currentStepIndex);
         setAIMessageCallback(aiMessage);
       });
     } catch (error) {
@@ -512,7 +454,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
       to_before_retries: toBeforeRetries,
       workflow_id: userParams.workflow_id,
     } as RevertStepParams);
-    const latestState = await getLatestState(userParams.workflowId);
+    const latestState = await getLatestState(userParams.workflow_id);
     setLatestState(latestState);
     setCurrentStepIndex(stepIndexFromState(latestState));
     setIsLoading(false);
@@ -573,7 +515,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
     }
   }
 
-  const workflowInitialized = project && latestState?.all_steps !== undefined;
+  const workflowInitialized = workflow && latestState?.all_steps !== undefined;
   function onCancelStep() {
     throw new Error('not implemented');
   }
@@ -581,7 +523,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
   return (
     <div className="flex w-full flex-col gap-4">
       <div className="flex gap-3 w-full justify-between mb-3 items-center">
-        Video: {project?.video_filename}
+        Video: {workflow?.video_filename}
         {workflowInitialized ? (
           <div className="flex gap-3 items-center">
             <Button variant="outline" onClick={restart} disabled={isLoading}>
@@ -624,6 +566,7 @@ export default function MainStepper({ projectId }: { projectId: string }) {
                       isInitialized={workflowInitialized}
                       onCancelStep={onCancelStep}
                       setUserMessage={setUserMessage}
+                      userMessage={userMessage}
                       footer={
                         <Footer
                           userMessage={userMessage}

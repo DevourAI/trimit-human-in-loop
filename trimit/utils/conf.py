@@ -12,3 +12,5 @@ if not CONFIG_IS_SET and modal.is_local():
 
     load_dotenv(DOTENV_PATH / ".env")
     os.environ["CONFIG_IS_SET"] = "true"
+
+SHARED_USER_EMAIL = "shared@shared.com"
