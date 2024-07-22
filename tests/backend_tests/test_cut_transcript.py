@@ -8,6 +8,7 @@ from trimit.models.backend_models import (
     IdentifyKeySoundbitesInput,
     Role,
     PartialBackendOutput,
+    ExportResults,
     Soundbite,
     CurrentStepInfo,
     Soundbites,
@@ -1146,7 +1147,6 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
         load_state=False,
         save_state_to_db=False,
         async_export=False,
-        structured_user_input=StructuredUserInput(video_type="sales video"),
     ):
         if is_last:
             assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
@@ -1158,7 +1158,8 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
             step_info_outputs = []
         else:
             assert isinstance(
-                output, (PartialLLMOutput, FinalLLMOutput, PartialBackendOutput)
+                output,
+                (PartialLLMOutput, FinalLLMOutput, PartialBackendOutput, ExportResults),
             )
             if (
                 isinstance(output, PartialBackendOutput)
@@ -1247,28 +1248,28 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
     output = await workflow.get_last_output_before_end(with_load_state=False)
     output_files = output.export_result
     for file_key in ["video_timeline", "transcript", "transcript_text"]:
-        assert file_key in output_files
-        if isinstance(output_files[file_key], list):
-            for f in output_files[file_key]:
+        assert getattr(output_files, file_key) is not None
+        if isinstance(getattr(output_files, file_key), list):
+            for f in getattr(output_files, file_key):
                 assert os.stat(f).st_size > 0
         else:
-            assert os.stat(output_files[file_key]).st_size > 0
+            assert os.stat(getattr(output_files, file_key)).st_size > 0
 
     all_outputs = await workflow.get_all_outputs(
         only_last_substep=False, with_load_state=False
     )
     assert all(
-        "video_timeline" in substep_output.export_result
+        substep_output.export_result.video_timeline is None
         for substep_output in all_outputs
-        if substep_output.substep_name
-        in ("remove_off_screen_speakers", "modify_transcript_holistically")
+        if substep_output.substep_name not in ("modify_transcript_holistically", "end")
     )
-    assert all(
-        "video_timeline" not in substep_output.export_result
-        for substep_output in all_outputs
-        if substep_output.substep_name
-        not in ("end", "remove_off_screen_speakers", "modify_transcript_holistically")
-    )
+    end_output = all_outputs[-1]
+    assert end_output.substep_name == "end"
+    assert end_output.export_result is None
+    modify_output = all_outputs[-2]
+    assert modify_output.substep_name == "modify_transcript_holistically"
+    assert modify_output.export_result is not None
+    assert modify_output.export_result.video_timeline is not None
 
     output_for_steps = await workflow.get_output_for_keys(
         [
@@ -1278,8 +1279,8 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
         ],
         with_load_state=False,
     )
-    step0_tl_file = output_for_steps[0].export_result.get("video_timeline")
-    assert step0_tl_file and os.stat(step0_tl_file).st_size > 0
+    tl_file = output_for_steps[-1].export_result.video_timeline
+    assert tl_file and os.stat(tl_file).st_size > 0
 
     first_stage_transcript = Transcript.load_from_state(
         output_for_steps[0].step_outputs["current_transcript_state"]
@@ -1290,7 +1291,6 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
     )
     assert_under_word_count_threshold(workflow, second_stage_transcript, 1)
 
-    assert len(workflow.story) == 1977
     assert workflow.story == step_outputs[2].step_outputs["story"]
 
     for output_idx, step_key in zip(

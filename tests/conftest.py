@@ -523,6 +523,7 @@ async def workflow_3909774043_with_transcript(
         api_call_delay=0.5,
         with_provided_user_feedback=[],
         export_video=False,
+        video_type="sales video",
     )
 
 
