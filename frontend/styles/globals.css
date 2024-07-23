@@ -33,6 +33,7 @@
     --ring: 222.2 84% 4.9%;
 
     --radius: 0.5rem;
+
   }
 
   .dark {
@@ -82,4 +83,9 @@ code {
   border: none; /* Removes any default border */
   font-family: inherit; /* Inherits font-family from body or closest styled ancestor */
   white-space: normal; /* Ensures text in code doesn't stick together */
+}
+
+.PopoverContent {
+  width: 35rem;
+  max-height: var(--radix-popover-content-available-height);
 }

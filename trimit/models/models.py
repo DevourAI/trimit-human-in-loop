@@ -19,11 +19,11 @@ from tenacity import (
 from bson.dbref import DBRef
 from pymongo import IndexModel
 import pymongo
-from beanie import Document, Link, PydanticObjectId
+from beanie import Document, Link, BackLink, PydanticObjectId
 from beanie.operators import In
-from pydantic import Field, BaseModel, field_validator
+from pydantic import Field, BaseModel
 
-from trimit.backend.models import (
+from trimit.models.backend_models import (
     CutTranscriptLinearWorkflowStepOutput,
     StepKey,
     Message,
@@ -191,7 +191,7 @@ class Video(DocumentWithSaveRetry, PathMixin):
     class Settings:
         name = "Video"
         indexes = [
-            IndexModel([("md5_hash", pymongo.ASCENDING)], unique=True),
+            IndexModel([("md5_hash", pymongo.ASCENDING)]),
             [("simple_name", pymongo.ASCENDING)],
             [
                 ("user", pymongo.ASCENDING),
@@ -671,9 +671,50 @@ class Frame(DocumentWithSaveRetry):
         return self.user.email
 
 
+class Project(DocumentWithSaveRetry):
+    user: Link[User]
+    workflow_states: list[BackLink["CutTranscriptLinearWorkflowState"]] = Field(
+        json_schema_extra={"original_field": "project"}
+    )
+    name: str
+
+    class Settings:
+        name = "Project"
+        indexes = [
+            IndexModel(
+                [("user.email", pymongo.ASCENDING), ("name", pymongo.ASCENDING)],
+                unique=True,
+            )
+        ]
+
+    @classmethod
+    async def from_user_email(cls, user_email: str, name: str):
+        user = await User.find_one(User.email == user_email)
+        if user is None:
+            raise ValueError(f"User not found: {user_email}")
+        existing_project = await Project.find_one(
+            Project.user.email == user_email, Project.name == name, fetch_links=True
+        )
+        if existing_project is not None:
+            return existing_project
+        project = cls(user=user, name=name, workflow_states=[])
+        await project.insert()
+        return project
+
+    @property
+    async def get_workflows(self):
+        from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
+
+        await self.fetch_all_links()
+        return [
+            CutTranscriptLinearWorkflow(state=state) for state in self.workflow_states
+        ]
+
+
 class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     user: Link[User]
     timeline_name: str
+    project: Link[Project] | None = None
     video: Link[Video]
     volume_dir: str
     output_folder: str
@@ -699,15 +740,14 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
     export_speaker_tagging: bool = True
 
     def create_object_id(self):
-        dumped = self.model_dump(exclude=set(["user", "video"]))
-        user_ref = self.user.to_ref()
-        if isinstance(user_ref, DBRef):
-            user_ref = user_ref.id
-        dumped["user"] = str(user_ref)
-        video_ref = self.video.to_ref()
-        if isinstance(video_ref, DBRef):
-            video_ref = video_ref.id
-        dumped["video"] = str(video_ref)
+        ref_keys = ["user", "video", "project"]
+        dumped = self.model_dump(exclude=set(ref_keys))
+        for key in ref_keys:
+            ref = getattr(self, key).to_ref()
+            if isinstance(ref, DBRef):
+                ref = ref.id
+            dumped[key] = str(ref)
+
         self_as_str = json.dumps(dumped, sort_keys=True)
         md5_hash = hashlib.md5(self_as_str.encode()).hexdigest()
         return PydanticObjectId(md5_hash[:24])
@@ -716,19 +756,24 @@ class CutTranscriptLinearWorkflowStaticState(DocumentWithSaveRetry):
 class FrontendWorkflowStaticState(CutTranscriptLinearWorkflowStaticState):
     user: Link[User] | None = None
     video: Link[Video] | None = None
+    project: Link[Project] | None = None
     user_id: PydanticObjectId
     video_id: PydanticObjectId
+    project_id: PydanticObjectId | None = None
     user_email: str
     video_hash: str
+    project_name: str | None = None
 
     @classmethod
     def from_backend_static_state(cls, backend_state):
         return cls(
             video_id=backend_state.video.id,
             user_id=backend_state.user.id,
+            project_id=backend_state.project.id if backend_state.project else None,
             video_hash=backend_state.video.md5_hash,
             user_email=backend_state.user.email,
-            **backend_state.model_dump(exclude=["video", "user"]),
+            project_name=backend_state.project.name if backend_state.project else None,
+            **backend_state.model_dump(exclude=["video", "user", "project"]),
         )
 
 
@@ -774,6 +819,13 @@ class StepOrderMixin(BaseModel):
     def user(self):
         assert isinstance(self.static_state.user, User), "User not fetched from link"
         return self.static_state.user
+
+    @property
+    def project(self):
+        assert isinstance(
+            self.static_state.project, Project
+        ), "Project not fetched from link"
+        return self.static_state.project
 
     @property
     def timeline_name(self):
@@ -899,6 +951,24 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                     ("static_state.video.length_seconds", pymongo.ASCENDING),
                     ("static_state.video.md5_hash", pymongo.ASCENDING),
                     ("static_state.timeline_name", pymongo.ASCENDING),
+                ],
+                unique=True,
+            ),
+            IndexModel(
+                [
+                    ("static_state.video.md5_hash", pymongo.ASCENDING),
+                    ("static_state.user.email", pymongo.ASCENDING),
+                    ("static_state.timeline_name", pymongo.ASCENDING),
+                    ("static_state.project", pymongo.ASCENDING),
+                ],
+                unique=True,
+            ),
+            IndexModel(
+                [
+                    ("static_state.video.md5_hash", pymongo.ASCENDING),
+                    ("static_state.user.email", pymongo.ASCENDING),
+                    ("static_state.timeline_name", pymongo.ASCENDING),
+                    ("static_state.project.name", pymongo.ASCENDING),
                 ],
                 unique=True,
             ),
@@ -1107,6 +1177,8 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         volume_dir,
         output_folder,
         length_seconds,
+        project=None,
+        project_name=None,
         **params,
     ):
         video = await Video.find_one(
@@ -1116,12 +1188,17 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             raise ValueError(
                 f"Video with hash {video_hash} and user_email {user_email} not found"
             )
+        if project is None and project_name is not None:
+            project = await Project.from_user_email(
+                user_email=user_email, name=project_name
+            )
         return await cls.find_or_create(
             video=video,
             timeline_name=timeline_name,
             volume_dir=volume_dir,
             output_folder=output_folder,
             length_seconds=length_seconds,
+            project=project,
             **params,
         )
 
@@ -1134,6 +1211,8 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         volume_dir,
         output_folder,
         length_seconds,
+        project=None,
+        project_name=None,
         **params,
     ):
         video = await Video.find_one(
@@ -1143,18 +1222,31 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             raise ValueError(
                 f"Video with hash {video_hash} and user_email {user_email} not found"
             )
+
+        if project is None and project_name is not None:
+            project = await Project.from_user_email(
+                user_email=user_email, name=project_name
+            )
         return await cls.recreate(
             video=video,
             timeline_name=timeline_name,
             volume_dir=volume_dir,
             output_folder=output_folder,
             length_seconds=length_seconds,
+            project=project,
             **params,
         )
 
     @classmethod
     async def find_or_create(
-        cls, video, timeline_name, volume_dir, output_folder, length_seconds, **params
+        cls,
+        video,
+        timeline_name,
+        volume_dir,
+        output_folder,
+        length_seconds,
+        project,
+        **params,
     ):
         print("find_or_create")
         static_state = CutTranscriptLinearWorkflowStaticState(
@@ -1164,6 +1256,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             volume_dir=volume_dir,
             output_folder=output_folder,
             length_seconds=length_seconds,
+            project=project,
             **params,
         )
         obj = cls(static_state=static_state)
@@ -1172,6 +1265,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             == video.user.email,
             CutTranscriptLinearWorkflowState.static_state.video.md5_hash
             == video.md5_hash,
+            CutTranscriptLinearWorkflowState.static_state.project.name == project.name,
             CutTranscriptLinearWorkflowState.static_state.timeline_name
             == timeline_name,
         )
@@ -1179,12 +1273,19 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         if existing is not None:
             return existing
         print("did not find, creating")
-        await obj.save()
+        await obj.insert()
         return obj
 
     @classmethod
     async def recreate(
-        cls, video, timeline_name, volume_dir, output_folder, length_seconds, **params
+        cls,
+        video,
+        timeline_name,
+        volume_dir,
+        output_folder,
+        length_seconds,
+        project=None,
+        **params,
     ):
         print("recreate")
         static_state = CutTranscriptLinearWorkflowStaticState(
@@ -1194,6 +1295,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
             volume_dir=volume_dir,
             output_folder=output_folder,
             length_seconds=length_seconds,
+            project=project,
             **params,
         )
         obj = cls(static_state=static_state)
@@ -1253,7 +1355,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
         save_to_db: bool = True,
         use_session: bool = True,
     ):
-        from trimit.backend.models import CutTranscriptLinearWorkflowStepOutput
+        from trimit.models.backend_models import CutTranscriptLinearWorkflowStepOutput
         from trimit.models import start_transaction
 
         step_name, substep_name = get_step_substep_names_from_dynamic_state_key(
@@ -1364,16 +1466,22 @@ class FrontendWorkflowProjection(BaseModel):
     video_filename: str
     length_seconds: int
     nstages: int
+    project_name: str | None = None
+    project_id: str | None = None
+    video_type: str | None = None
 
     class Settings:
         projection = {
             "id": {"$toString": "$_id"},
             "video_hash": "$static_state.video.md5_hash",
             "video_filename": "$static_state.video.high_res_user_file_path",
+            "video_type": "$static_state.video_type",
             "user_email": "$static_state.user.email",
             "timeline_name": "$static_state.timeline_name",
             "length_seconds": "$static_state.length_seconds",
             "nstages": "$static_state.nstages",
+            "project_name": "$static_state.project.name",
+            "project_id": {"$toString": "$static_state.project._id"},
         }
 
 
@@ -1532,4 +1640,4 @@ class TimelineOutput(BaseModel):
         return TimelineOutput(timeline=self.timeline + other.timeline)
 
 
-ALL_MODELS = [User, Video, Scene, Frame, CutTranscriptLinearWorkflowState]
+ALL_MODELS = [User, Video, Scene, Frame, CutTranscriptLinearWorkflowState, Project]

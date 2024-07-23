@@ -9,11 +9,14 @@ import asyncio
 import os
 from trimit.backend.transcription import Transcription
 from trimit.backend.speaker_in_frame_detection import SpeakerInFrameDetection
-from trimit.backend.models import Soundbites
-from trimit.models.models import User, Video
+from trimit.models.backend_models import (
+    Soundbites,
+    Transcript,
+    CutTranscriptLinearWorkflowStepOutput,
+)
+from trimit.models.models import User, Video, Project
 from trimit.models import get_upload_folder, maybe_init_mongo
 from trimit.utils.model_utils import save_video_with_details
-from trimit.backend.models import Transcript, CutTranscriptLinearWorkflowStepOutput
 from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 from dotenv import load_dotenv
 import shutil
@@ -356,14 +359,26 @@ def test_videos_volume_dir():
 
 
 @pytest.fixture(scope="function")
+async def project_15557970(video_15557970_with_speakers_in_frame):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await Project.from_user_email(
+        user_email=video_15557970_with_speakers_in_frame.user.email,
+        name="15557970_testimonial_test",
+    )
+
+
+@pytest.fixture(scope="function")
 async def workflow_15557970_with_transcript(
+    project_15557970,
     video_15557970_with_speakers_in_frame,
     test_videos_output_dir,
     test_videos_volume_dir,
 ):
     loop = asyncio.get_running_loop()
     await maybe_init_mongo(io_loop=loop, reinitialize=True)
-    return await CutTranscriptLinearWorkflow.from_video(
+    return await CutTranscriptLinearWorkflow.from_project(
+        project=project_15557970,
         video=video_15557970_with_speakers_in_frame,
         timeline_name="15557970_testimonial_test",
         output_folder=test_videos_output_dir,
@@ -383,13 +398,15 @@ async def workflow_15557970_with_transcript(
 
 @pytest.fixture(scope="function")
 async def workflow_15557970_with_transcript_no_export(
+    project_15557970,
     video_15557970_with_speakers_in_frame,
     test_videos_output_dir,
     test_videos_volume_dir,
 ):
     loop = asyncio.get_running_loop()
     await maybe_init_mongo(io_loop=loop, reinitialize=True)
-    return await CutTranscriptLinearWorkflow.from_video(
+    return await CutTranscriptLinearWorkflow.from_project(
+        project=project_15557970,
         video=video_15557970_with_speakers_in_frame,
         timeline_name="15557970_testimonial_test",
         output_folder=test_videos_output_dir,
@@ -472,14 +489,26 @@ async def workflow_15557970_after_second_step(workflow_15557970_after_first_step
 
 
 @pytest.fixture(scope="function")
+async def project_3909774043(video_3909774043_with_speakers_in_frame):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await Project.from_user_email(
+        user_email=video_3909774043_with_speakers_in_frame.user.email,
+        name="3909774043_testimonial_test",
+    )
+
+
+@pytest.fixture(scope="function")
 async def workflow_3909774043_with_transcript(
+    project_3909774043,
     video_3909774043_with_speakers_in_frame,
     test_videos_output_dir,
     test_videos_volume_dir,
 ):
     loop = asyncio.get_running_loop()
     await maybe_init_mongo(io_loop=loop, reinitialize=True)
-    return await CutTranscriptLinearWorkflow.from_video(
+    return await CutTranscriptLinearWorkflow.from_project(
+        project=project_3909774043,
         video=video_3909774043_with_speakers_in_frame,
         timeline_name="3909774043_testimonial_test",
         output_folder=test_videos_output_dir,
@@ -494,18 +523,21 @@ async def workflow_3909774043_with_transcript(
         api_call_delay=0.5,
         with_provided_user_feedback=[],
         export_video=False,
+        video_type="sales video",
     )
 
 
 @pytest.fixture(scope="function")
 async def workflow_3909774043_with_transcript_no_export(
+    project_3909774043,
     video_3909774043_with_speakers_in_frame,
     test_videos_output_dir,
     test_videos_volume_dir,
 ):
     loop = asyncio.get_running_loop()
     await maybe_init_mongo(io_loop=loop, reinitialize=True)
-    return await CutTranscriptLinearWorkflow.from_video(
+    return await CutTranscriptLinearWorkflow.from_project(
+        project=project_3909774043,
         video=video_3909774043_with_speakers_in_frame,
         timeline_name="3909774043_testimonial_test",
         output_folder=test_videos_output_dir,
@@ -537,7 +569,6 @@ async def workflow_3909774043_with_state_init(workflow_3909774043_with_transcrip
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert len(workflow.raw_transcript.text) == 22855
-    assert workflow.user_prompt == "make me a video"
     return workflow
 
 
@@ -551,5 +582,4 @@ async def workflow_3909774043_with_state_init_no_export(
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert len(workflow.raw_transcript.text) == 22855
-    assert workflow.user_prompt == "make me a video"
     return workflow

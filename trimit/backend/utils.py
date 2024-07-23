@@ -10,14 +10,14 @@ from pathlib import Path
 from typing import Union
 import asyncio
 from tqdm.asyncio import tqdm as tqdm_async
-from trimit.backend.models import (
+from trimit.models.backend_models import (
     Transcript,
     TranscriptChunk,
     PartialLLMOutput,
     FinalLLMOutput,
 )
 from trimit.backend.image import image
-from trimit.backend.models import Message
+from trimit.models.backend_models import Message
 from trimit.backend.memory import load_memory
 from trimit.utils.prompt_engineering import load_prompt_template_as_string
 from trimit.utils.rate_limit import rate_limited
@@ -1078,10 +1078,12 @@ async def remove_soundbites(soundbites, max_soundbites):
     ):
         if not is_last:
             yield output, is_last
-    assert isinstance(output, dict)
-    if "soundbite_indexes_to_keep" not in output:
+    assert isinstance(output, FinalLLMOutput)
+    output_raw = output.json_value
+    assert isinstance(output_raw, dict)
+    if "soundbite_indexes_to_keep" not in output_raw:
         raise ValueError("Expected 'soundbite_indexes_to_keep' in output")
-    to_keep = output["soundbite_indexes_to_keep"]
+    to_keep = output_raw["soundbite_indexes_to_keep"]
     if len(to_keep) > max_soundbites:
         soundbites.soundbites = random.sample(soundbites.soundbites, max_soundbites)
     else:

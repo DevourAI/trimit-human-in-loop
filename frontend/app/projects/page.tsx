@@ -19,7 +19,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { WorkflowCreationForm } from '@/components/ui/workflow-creation-form';
+import {
+  WorkflowCreationForm,
+  WorkflowCreationFormSchema,
+} from '@/components/ui/workflow-creation-form';
 import { useUser } from '@/contexts/user-context';
 import { useUserVideosData } from '@/contexts/user-videos-context';
 import { FrontendWorkflowProjection } from '@/gen/openapi/api';
@@ -30,17 +33,18 @@ export default function Projects() {
   const { userData, isLoggedIn, isLoading } = useUser();
   const { userVideosData } = useUserVideosData();
   const videos = userVideosData.videos;
-  const [projects, setProjects] = useState<FrontendWorkflowProjection[]>([]);
+  const [workflows, setWorkflows] = useState<FrontendWorkflowProjection[]>([]);
   const [latestWorkflowId, setLatestWorkflowId] = useState<string>('');
-  const [selectedProject, setSelectedProject] =
+  const [selectedWorkflow, setSelectedWorkflow] =
     useState<FrontendWorkflowProjection | null>(null);
   const router = useRouter();
+  const [formPopoverOpen, setFormPopoverOpen] = useState(false);
 
   useEffect(() => {
-    if (selectedProject?.id) {
-      router.push(`/builder?projectId=${selectedProject.id}`);
+    if (selectedWorkflow?.id) {
+      router.push(`/builder?workflowId=${selectedWorkflow.id}`);
     }
-  }, [router, selectedProject]);
+  }, [router, selectedWorkflow]);
 
   useEffect(() => {
     if (!isLoggedIn && !isLoading) {
@@ -50,9 +54,9 @@ export default function Projects() {
 
   useEffect(() => {
     async function fetchAndSetProjects() {
-      const projects = await listWorkflows({ user_email: userData.email });
+      const workflows = await listWorkflows({ user_email: userData.email });
       // TODO project.status
-      setProjects(projects);
+      if (workflows !== null) setWorkflows(workflows);
     }
     if (userData.email) {
       fetchAndSetProjects();
@@ -67,14 +71,17 @@ export default function Projects() {
       ...data,
     } as CreateNewWorkflowParams);
     setLatestWorkflowId(workflowId);
+    setFormPopoverOpen(false);
   }
 
+  const onOpenChange = (newOpen: boolean) => {
+    setFormPopoverOpen(newOpen);
+  };
   return (
     <AppShell title="Projects">
-      <Popover>
+      <Popover open={formPopoverOpen} onOpenChange={onOpenChange}>
         <div className="flex justify-center items-center h-full border-border border rounded-md">
-          <PopoverAnchor />
-          <PopoverContent>
+          <PopoverContent className="PopoverContent">
             <WorkflowCreationForm
               isLoading={false}
               userEmail={userData.email}
@@ -88,25 +95,29 @@ export default function Projects() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Video</TableHead>
+                <TableHead>Project Name</TableHead>
+                <TableHead>Timeline Name</TableHead>
+                <TableHead>Raw File</TableHead>
+                <TableHead>Video Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Select</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {projects.map((project) => {
+              {workflows.map((workflow) => {
                 return (
                   <TableRow
-                    key={`${project.video_hash}.${project.timeline_name}`}
+                    key={`${workflow.video_hash}.${workflow.timeline_name}`}
                   >
-                    <TableCell>{project.timeline_name}</TableCell>
-                    <TableCell>{project.video_hash}</TableCell>
+                    <TableCell>{workflow.project_name || '-'}</TableCell>
+                    <TableCell>{workflow.timeline_name}</TableCell>
+                    <TableCell>{workflow.video_filename}</TableCell>
+                    <TableCell>{workflow.video_type}</TableCell>
                     <TableCell>In Progress</TableCell>
                     <TableCell>
                       <Button
                         variant="outline"
-                        onClick={() => setSelectedProject(project)}
+                        onClick={() => setSelectedWorkflow(workflow)}
                       >
                         Select
                       </Button>
@@ -114,11 +125,13 @@ export default function Projects() {
                   </TableRow>
                 );
               })}
-              <TableRow>
-                <TableCell colSpan={3}>
-                  <PopoverTrigger>+ New project</PopoverTrigger>
-                </TableCell>
-              </TableRow>
+              <PopoverAnchor asChild>
+                <TableRow>
+                  <TableCell colSpan={3}>
+                    <PopoverTrigger>+ New project</PopoverTrigger>
+                  </TableCell>
+                </TableRow>
+              </PopoverAnchor>
             </TableBody>
           </Table>
         </div>

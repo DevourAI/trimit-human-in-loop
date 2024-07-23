@@ -23,7 +23,7 @@ export interface FooterProps {
   userParams: DownloadFileParams;
   stepName: string;
   isLoading: boolean;
-  onSubmit: () => void;
+  onSubmit: (options: { useStructuredInput: boolean }) => Promise<void>;
 }
 
 export const Footer = ({
@@ -32,22 +32,13 @@ export const Footer = ({
   undoLastStep,
   currentStepIndex,
   trueStepIndex,
-  hasCompletedAllSteps,
   totalNSteps,
   userParams,
   stepName,
   isLoading,
   onSubmit,
 }: FooterProps) => {
-  const {
-    nextStep,
-    prevStep,
-    resetSteps,
-    isDisabledStep,
-    isLastStep,
-    isOptionalStep,
-    setStep,
-  } = useStepper();
+  const { setStep } = useStepper();
   useEffect(() => {
     setStep(currentStepIndex);
   }, [currentStepIndex, setStep]);

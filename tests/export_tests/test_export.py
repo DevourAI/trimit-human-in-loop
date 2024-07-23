@@ -5,7 +5,7 @@ from trimit.export import (
 )
 from trimit.export.email import send_email_with_export_results
 from trimit.backend.utils import match_output_to_actual_transcript_fast
-from trimit.backend.models import ExportResults
+from trimit.models.backend_models import ExportResults
 from trimit.models import maybe_init_mongo
 from trimit.utils.model_utils import (
     get_generated_video_folder,

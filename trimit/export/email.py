@@ -12,7 +12,7 @@ from sendgrid.helpers.mail import (
 )
 import base64
 import os
-from trimit.backend.models import ExportResults
+from trimit.models.backend_models import ExportResults
 import mimetypes
 
 
