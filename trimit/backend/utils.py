@@ -1069,7 +1069,7 @@ async def remove_soundbites(soundbites, max_soundbites):
         "RemoveSoundbites"
     )
     output = None
-    async for output, is_last in get_agent_output(
+    async for output, is_last in get_agent_output_modal_or_local(
         prompt,
         schema=schema,
         json_mode=True,
