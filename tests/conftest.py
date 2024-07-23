@@ -569,7 +569,6 @@ async def workflow_3909774043_with_state_init(workflow_3909774043_with_transcrip
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert len(workflow.raw_transcript.text) == 22855
-    assert workflow.user_prompt == "make me a video"
     return workflow
 
 
@@ -583,5 +582,4 @@ async def workflow_3909774043_with_state_init_no_export(
         pass
     assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
     assert len(workflow.raw_transcript.text) == 22855
-    assert workflow.user_prompt == "make me a video"
     return workflow

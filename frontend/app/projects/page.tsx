@@ -38,6 +38,7 @@ export default function Projects() {
   const [selectedWorkflow, setSelectedWorkflow] =
     useState<FrontendWorkflowProjection | null>(null);
   const router = useRouter();
+  const [formPopoverOpen, setFormPopoverOpen] = useState(false);
 
   useEffect(() => {
     if (selectedWorkflow?.id) {
@@ -55,7 +56,7 @@ export default function Projects() {
     async function fetchAndSetProjects() {
       const workflows = await listWorkflows({ user_email: userData.email });
       // TODO project.status
-      setWorkflows(workflows);
+      if (workflows !== null) setWorkflows(workflows);
     }
     if (userData.email) {
       fetchAndSetProjects();
@@ -70,14 +71,17 @@ export default function Projects() {
       ...data,
     } as CreateNewWorkflowParams);
     setLatestWorkflowId(workflowId);
+    setFormPopoverOpen(false);
   }
 
+  const onOpenChange = (newOpen: boolean) => {
+    setFormPopoverOpen(newOpen);
+  };
   return (
     <AppShell title="Projects">
-      <Popover>
+      <Popover open={formPopoverOpen} onOpenChange={onOpenChange}>
         <div className="flex justify-center items-center h-full border-border border rounded-md">
-          <PopoverAnchor />
-          <PopoverContent>
+          <PopoverContent className="PopoverContent">
             <WorkflowCreationForm
               isLoading={false}
               userEmail={userData.email}
@@ -93,7 +97,8 @@ export default function Projects() {
               <TableRow>
                 <TableHead>Project Name</TableHead>
                 <TableHead>Timeline Name</TableHead>
-                <TableHead>Video</TableHead>
+                <TableHead>Raw File</TableHead>
+                <TableHead>Video Type</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Select</TableHead>
               </TableRow>
@@ -104,9 +109,10 @@ export default function Projects() {
                   <TableRow
                     key={`${workflow.video_hash}.${workflow.timeline_name}`}
                   >
-                    <TableCell>{workflow.project_name}</TableCell>
+                    <TableCell>{workflow.project_name || '-'}</TableCell>
                     <TableCell>{workflow.timeline_name}</TableCell>
-                    <TableCell>{workflow.video_hash}</TableCell>
+                    <TableCell>{workflow.video_filename}</TableCell>
+                    <TableCell>{workflow.video_type}</TableCell>
                     <TableCell>In Progress</TableCell>
                     <TableCell>
                       <Button
@@ -119,11 +125,13 @@ export default function Projects() {
                   </TableRow>
                 );
               })}
-              <TableRow>
-                <TableCell colSpan={3}>
-                  <PopoverTrigger>+ New project</PopoverTrigger>
-                </TableCell>
-              </TableRow>
+              <PopoverAnchor asChild>
+                <TableRow>
+                  <TableCell colSpan={3}>
+                    <PopoverTrigger>+ New project</PopoverTrigger>
+                  </TableCell>
+                </TableRow>
+              </PopoverAnchor>
             </TableBody>
           </Table>
         </div>

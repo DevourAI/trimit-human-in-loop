@@ -623,7 +623,7 @@ async def run_streamer(workflow, **run_params):
         method = run_function.remote_gen.aio
 
     last_result = None
-    async for partial_result, is_last in method(**run_params):
+    async for partial_result, is_last in method(workflow, **run_params):
         if last_result is not None:
             yield CutTranscriptLinearWorkflowStreamingOutput(
                 workflow_id=str(workflow.id), partial_step_output=last_result
@@ -734,7 +734,6 @@ async def run(
 
     run_params_list = [
         {
-            "project": project,
             "workflow": workflow,
             "user_input": run_input.user_input,
             "structured_user_input": run_input.structured_user_input,
@@ -749,15 +748,14 @@ async def run(
 
     print(f"Running with params: {run_params_list[0]} ({len(workflows)} variations)")
     if not run_input.streaming:
-        for workflow, run_params in zip(workflows, run_params_list):
-            run_function.spawn(workflow, **run_params)
+        for run_params in run_params_list:
+            run_function.spawn(**run_params)
     else:
         if len(workflows) > 1:
-            for workflow, run_params in zip(workflows[1:], run_params_list[1:]):
-                run_function.spawn(workflow, **run_params)
+            for run_params in run_params_list[1:]:
+                run_function.spawn(**run_params)
         return StreamingResponse(
-            run_streamer(workflows[0], **run_params_list[0]),
-            media_type="text/event-stream",
+            run_streamer(**run_params_list[0]), media_type="text/event-stream"
         )
 
 
@@ -961,7 +959,6 @@ async def get_latest_state(
 ):
     if workflow is None:
         raise HTTPException(status_code=400, detail="Workflow not found")
-    print("os.listdir(ASSETS_DIR):", os.listdir(ASSETS_DIR))
     AGENT_OUTPUT_CACHE.close()
     if not is_local():
         try:

@@ -1,5 +1,11 @@
 'use client';
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import Chat from '@/components/chat/chat';
 import { Message } from '@/components/chat/chat';
@@ -23,7 +29,6 @@ import { useUser } from '@/contexts/user-context';
 import {
   CutTranscriptLinearWorkflowStreamingOutput,
   FrontendStepOutput,
-  FrontendWorkflowProjection,
   FrontendWorkflowState,
 } from '@/gen/openapi/api';
 import {
@@ -39,6 +44,7 @@ const videoTypeExamples = [
   'Promotional sales',
   'Product review',
   'Travel vlog',
+  'Interview highlights',
 ];
 export default function OneButtonGenerate({
   initialWorkflowId,
@@ -60,6 +66,7 @@ export default function OneButtonGenerate({
   const [backendMessage, setBackendMessage] = useState<string>('');
   const [newVideoHash, setNewVideoHash] = useState<string>('');
   const [workflowId, setWorkflowId] = useState<string>(initialWorkflowId || '');
+  const [useNewWorkflowId, setUseNewWorkflowId] = useState<boolean>(false);
   const [projectId, setProjectId] = useState<string>(initialProjectId || '');
   // const [newVideoFilename, setNewVideoFilename] = useState<string>('');
   const [projectName, setProjectName] = useState<string>(
@@ -71,66 +78,87 @@ export default function OneButtonGenerate({
   const [videoType, setVideoType] = useState<string | null>(
     videoTypeExamples[0]
   );
+  const [nVariations, setNVariations] = useState<number>(1);
 
   const [latestState, setLatestState] = useState<FrontendWorkflowState | null>(
     null
   );
 
-  const [workflow, setWorkflow] = useState<FrontendWorkflowProjection | null>(
-    null
-  );
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
 
-  useEffect(() => {
-    if (workflow?.id) setWorkflowId(workflow?.id);
-    if (workflow?.id) setWorkflow(workflow);
+  async function fetchAndSetWorkflow(workflowId: string) {
+    const workflow = await getWorkflowDetails(workflowId);
     if (workflow?.video_hash) setNewVideoHash(workflow?.video_hash);
     if (workflow?.project_id) setProjectId(workflow?.project_id);
     if (workflow?.project_name) setProjectName(workflow?.project_name);
-  }, [workflow]);
+    if (workflow?.video_type) setVideoType(workflow?.video_type);
+    const state = await getLatestState(workflowId);
+    if (!state || Object.keys(state).length === 0) return;
+    setLatestState(state);
+  }
+
+  useEffect(() => {
+    if (workflowId && userData.email) {
+      fetchAndSetWorkflow(workflowId);
+    }
+  }, [workflowId, userData.email]);
 
   const userParams = useMemo(() => {
-    return {
+    const retObj = {
       user_email: userData.email,
       workflow_id: workflowId,
       project_id: projectId,
       project_name: projectName,
       video_hash: newVideoHash,
     };
+    return retObj;
   }, [userData.email, projectId, workflowId, projectName, newVideoHash]);
 
+  const prevProjectId = useRef<string | null>(null);
+  const prevNewVideoHash = useRef<string | null>(null);
+  const prevLengthSeconds = useRef<number | null>(null);
+  const prevStepOutput = useRef<FrontendStepOutput | null>(null);
+  const prevMappedExportResult = useRef<Record<string, any> | null>(null);
   useEffect(() => {
     if (!latestState) return;
     if (latestState.outputs && latestState.outputs.length) {
       // TODO do a check here that last step is "end"
-      setStepOutput(latestState.outputs[latestState.outputs.length - 2]);
+      const newStepOutput = latestState.outputs[latestState.outputs.length - 2];
+      if (newStepOutput !== prevStepOutput.current) {
+        setStepOutput(newStepOutput);
+        prevStepOutput.current = newStepOutput;
+      }
     }
     if (
       latestState.mapped_export_result &&
       latestState.mapped_export_result.length
     ) {
-      setMappedExportResult(
+      const newMappedExportResult =
         latestState.mapped_export_result[
           latestState.mapped_export_result.length - 2
-        ]
-      );
+        ];
+      if (newMappedExportResult !== prevMappedExportResult.current) {
+        setMappedExportResult(newMappedExportResult);
+        prevMappedExportResult.current = newMappedExportResult;
+      }
     }
     if (latestState.static_state) {
-      setProjectName(latestState.static_state.project_name || '');
-      setProjectId(latestState.static_state.project_id || '');
-      setNewVideoHash(latestState.static_state.video_hash);
-      setLengthSeconds(latestState.static_state.length_seconds);
+      if (latestState.static_state.project_id !== prevProjectId.current) {
+        setProjectName(latestState.static_state.project_name || '');
+        setProjectId(latestState.static_state.project_id || '');
+        prevProjectId.current = latestState.static_state.project_id || '';
+      }
+      if (latestState.static_state.video_hash !== prevNewVideoHash.current) {
+        setNewVideoHash(latestState.static_state.video_hash);
+      }
+      if (
+        latestState.static_state.length_seconds !== prevLengthSeconds.current
+      ) {
+        setLengthSeconds(latestState.static_state.length_seconds);
+        prevLengthSeconds.current = latestState.static_state.length_seconds;
+      }
     }
   }, [latestState]);
-  useEffect(() => {
-    async function fetchLatestState() {
-      if (!userParams.workflow_id) return;
-      const data = await getLatestState(userParams.workflow_id);
-      if (!data || Object.keys(data).length === 0) return;
-      setLatestState(data);
-    }
-    fetchLatestState();
-  }, [userData, userParams]);
 
   const setAIMessageCallback = (aiMessage: string) => {
     setChatMessages((prevMessages) => [
@@ -138,16 +166,6 @@ export default function OneButtonGenerate({
       { sender: 'AI', text: aiMessage },
     ]);
   };
-
-  useEffect(() => {
-    async function fetchAndSetWorkflow(workflowId: string) {
-      const workflow = await getWorkflowDetails(workflowId);
-      setWorkflow(workflow);
-    }
-    if (workflowId) {
-      fetchAndSetWorkflow(workflowId);
-    }
-  }, [workflowId]);
 
   const handleStepStream = useCallback(
     async (reader: ReadableStreamDefaultReader) => {
@@ -178,7 +196,6 @@ export default function OneButtonGenerate({
         return;
       }
       if (finalState?.id) setWorkflowId(finalState.id);
-      setLatestState(finalState);
       setIsLoading(false);
       return finalState;
     },
@@ -198,12 +215,13 @@ export default function OneButtonGenerate({
       ignore_running_workflows: true,
       video_hash: newVideoHash,
       length_seconds: lengthSeconds,
+      n_variations: nVariations,
       // timeline_name: timelineName, TODO option for this once I figure out the UI
       video_type: videoType,
       user_email: userParams.user_email,
       project_id: userParams.project_id,
       project_name: userParams.project_name,
-      workflow_id: userParams.workflow_id,
+      workflow_id: useNewWorkflowId ? '' : userParams.workflow_id,
     };
     try {
       await run(runData, async (reader) => {
@@ -231,20 +249,21 @@ export default function OneButtonGenerate({
   }
 
   const handleVideoSelected = (hash: string, filename: string) => {
-    setNewVideoHash(hash);
-    //setNewVideoFilename(filename);
-    setWorkflowId('');
+    if (hash !== newVideoHash) {
+      setNewVideoHash(hash);
+      //setNewVideoFilename(filename);
+      if (newVideoHash !== '') {
+        setUseNewWorkflowId(true);
+      }
+    }
   };
 
   const restart = () => {
-    setWorkflowId('');
+    setUseNewWorkflowId(true);
     setStepOutput(null);
     setMappedExportResult(null);
     setBackendMessage('');
     setChatMessages([]);
-    setProjectName('');
-    setLengthSeconds(120);
-    setVideoType(videoTypeExamples[0]);
     setLatestState(null);
     setMappedExportResult(null);
     setCancelStepStream(true);
@@ -273,7 +292,7 @@ export default function OneButtonGenerate({
                 id="lengthSeconds"
                 value={lengthSeconds || ''}
                 onChange={(e) => {
-                  setWorkflowId('');
+                  setUseNewWorkflowId(true);
                   setLengthSeconds(
                     e.target.value ? parseFloat(e.target.value) : null
                   );
@@ -293,7 +312,7 @@ export default function OneButtonGenerate({
                   id="videoType"
                   value={videoType || ''}
                   onChange={(e) => {
-                    setWorkflowId('');
+                    setUseNewWorkflowId(true);
                     setVideoType(e.target.value);
                   }}
                 />
@@ -327,8 +346,25 @@ export default function OneButtonGenerate({
                 id="projectName"
                 value={projectName || ''}
                 onChange={(e) => {
-                  setWorkflowId('');
+                  setUseNewWorkflowId(true);
                   setProjectName(e.target.value);
+                }}
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="max-w-full shadow-none">
+          <CardContent className="flex max-w-full p-0">
+            <div className="w-1/2 p-4">
+              <Label htmlFor="nVariations">Number of variations</Label>
+            </div>
+            <div className="w-1/2 border-l p-4">
+              <Input
+                id="nVariations"
+                value={nVariations}
+                onChange={(e) => {
+                  setNVariations(e.target.value ? parseInt(e.target.value) : 1);
                 }}
               />
             </div>

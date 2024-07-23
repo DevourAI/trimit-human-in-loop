@@ -1468,12 +1468,14 @@ class FrontendWorkflowProjection(BaseModel):
     nstages: int
     project_name: str | None = None
     project_id: str | None = None
+    video_type: str | None = None
 
     class Settings:
         projection = {
             "id": {"$toString": "$_id"},
             "video_hash": "$static_state.video.md5_hash",
             "video_filename": "$static_state.video.high_res_user_file_path",
+            "video_type": "$static_state.video_type",
             "user_email": "$static_state.user.email",
             "timeline_name": "$static_state.timeline_name",
             "length_seconds": "$static_state.length_seconds",

@@ -2469,10 +2469,8 @@ class CutTranscriptLinearWorkflow:
                 if not is_last:
                     output.chunk = partial_transcript.chunk_index
                     yield output, is_last
-            assert isinstance(output, FinalLLMOutput) and output.str_value is not None
-            soundbites = await SoundbitesChunk.from_keep_tags(
-                partial_transcript, output.str_value
-            )
+            assert isinstance(output, SoundbitesChunk)
+            soundbites = output
         yield soundbites, True
 
     # TODO figure out how to make this an async generator

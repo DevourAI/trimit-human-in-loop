@@ -248,7 +248,6 @@ async def get_agent_output(
     images: list[bytes] | None = None,
     **context,
 ):
-    AGENT_OUTPUT_CACHE.clear()
     cache_key = agent_output_cache_key_from_args(
         prompt=prompt,
         conversation=conversation,

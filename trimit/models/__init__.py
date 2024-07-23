@@ -43,7 +43,6 @@ async def maybe_init_mongo(
         MONGO_CLIENT = get_motor_client(cert_path, **motor_kwargs)
     assert MONGO_CLIENT is not None
     if os.getenv("INIT_MONGO_WITH_INDEXES", "true") == "true":
-        print("Initializing mongo with indexes")
         await init_beanie(database=MONGO_CLIENT.db_name, document_models=ALL_MODELS)
     else:
         print("Initializing mongo without indexes")

@@ -4,6 +4,7 @@ from trimit.backend.cut_transcript import (
     CutTranscriptLinearWorkflowStepInput,
     CutTranscriptLinearWorkflowStepOutput,
 )
+from trimit.backend.utils import remove_soundbites
 from trimit.models.backend_models import (
     IdentifyKeySoundbitesInput,
     Role,
@@ -12,6 +13,7 @@ from trimit.models.backend_models import (
     Soundbite,
     CurrentStepInfo,
     Soundbites,
+    SoundbitesChunk,
     Transcript,
     FinalLLMOutput,
     PartialLLMOutput,
@@ -194,6 +196,23 @@ async def test_retry_soundbites_step(workflow_3909774043_with_state_init):
     assert n_soundbites_after == n_soundbites_before - 1
     assert [sb for _, sb in workflow.current_soundbites.iter_text()] == all_other_sbs
     assert output.step_name == step_name
+
+
+async def test_remove_soundbites(workflow_3909774043_with_state_init):
+    workflow = workflow_3909774043_with_state_init
+    step_name = "identify_key_soundbites"
+    while workflow._get_last_step_with_index()[1].name != step_name:
+        async for _ in workflow.step():
+            pass
+    soundbites = workflow.current_soundbites
+    chunk = soundbites.chunks[0]
+    output = None
+    is_last = False
+    async for output, is_last in remove_soundbites(chunk, 1):
+        pass
+    assert is_last
+    assert isinstance(output, SoundbitesChunk)
+    assert len(output.soundbites) == 1
 
 
 @pytest.mark.parametrize(
