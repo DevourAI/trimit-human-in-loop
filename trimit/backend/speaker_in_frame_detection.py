@@ -9,6 +9,7 @@ from trimit.models import Video, Scene
 from trimit.utils.scene_extraction import extract_scenes_to_disk
 from trimit.utils.model_utils import get_scene_folder, get_frame_folder
 from trimit.backend.utils import get_agent_output_modal_or_local
+from trimit.models.backend_models import FinalLLMOutput
 from beanie import BulkWriter
 from pathlib import Path
 import random
@@ -194,10 +195,14 @@ class SpeakerInFrameDetection(CacheMixin):
         ):
             if is_last:
                 break
-        if not isinstance(output, dict) or "is_speaking" not in output:
+        if (
+            not isinstance(output, FinalLLMOutput)
+            or not isinstance(output.json_value, dict)
+            or "is_speaking" not in output.json_value
+        ):
             print(f"Unexpected response from GPT, returning False: {output}")
             return False
-        is_speaking = output["is_speaking"]
+        is_speaking = output.json_value["is_speaking"]
         return is_speaking
 
     def save_frame_bytes_to_cache(self, scene, frame_bytes):

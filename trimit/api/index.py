@@ -186,7 +186,7 @@ async def copy_shared_videos_to_user(user: User):
             summary=video.summary,
             speakers_in_frame=video.speakers_in_frame,
         )
-        os.makedirs(new_video.path(get_volume_dir()), exist_ok=True)
+        os.makedirs(os.path.dirname(new_video.path(get_volume_dir())), exist_ok=True)
         shutil.copyfile(video.path(get_volume_dir()), new_video.path(get_volume_dir()))
         await new_video.save()
 
@@ -198,7 +198,8 @@ async def find_or_create_user(user_email: EmailStr):
         user = User(email=user_email, name="")
         await user.save()
     # TODO indent this
-    await copy_shared_videos_to_user(user)
+    if user.email != SHARED_USER_EMAIL:
+        await copy_shared_videos_to_user(user)
     return user
 
 

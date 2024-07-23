@@ -18,7 +18,7 @@ export default function Home() {
 
   useEffect(() => {
     if (isLoggedIn) {
-      router.push('/projects');
+      router.push('/builder');
     }
   }, [isLoggedIn, router]);
 
