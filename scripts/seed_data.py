@@ -24,7 +24,6 @@ async def seed_shared_vids():
         .to_list()
     )
     shared_vid_filepaths = [vid.high_res_user_file_path for vid in shared_vids]
-    shared_vid_filepaths = []
     files = []
     for file_path in LOCAL_VIDEO_FILEPATHS:
         if os.path.basename(file_path) not in shared_vid_filepaths:
