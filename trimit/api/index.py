@@ -197,6 +197,7 @@ async def find_or_create_user(user_email: EmailStr):
     if user is None:
         user = User(email=user_email, name="")
         await user.save()
+    # TODO indent this
     await copy_shared_videos_to_user(user)
     return user
 
