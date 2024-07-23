@@ -99,6 +99,7 @@ TEMP_DIR.mkdir(parents=True, exist_ok=True)
 video_processing_call_ids = Dict.from_name(
     VIDEO_PROCESSING_CALL_IDS_DICT_NAME, create_if_missing=True
 )
+from trimit.utils.namegen import timeline_namegen, project_namegen
 
 
 class DynamicCORSMiddleware(BaseHTTPMiddleware):
@@ -707,7 +708,7 @@ async def run(
             state = await CutTranscriptLinearWorkflowState.find_or_create_from_video_hash(
                 video_hash=run_input.video_hash,
                 user_email=run_input.user_email,
-                timeline_name=str(uuid.uuid4()),
+                timeline_name=timeline_namegen(),
                 video_type=run_input.video_type or "",
                 volume_dir=get_volume_dir(),
                 output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
@@ -856,8 +857,8 @@ async def workflows(
 async def create_workflow(
     user_email: str = Form(...),
     video_hash: str = Form(...),
-    project_name: str = Form(...),
-    timeline_name: str = Form(...),
+    project_name: str = Form(None),
+    timeline_name: str = Form(None),
     length_seconds: int = Form(...),
     nstages: int = Form(2),
     video_type: str | None = Form(None),
@@ -873,8 +874,8 @@ async def create_workflow(
     state = await method(
         video_hash=video_hash,
         user_email=user_email,
-        project_name=project_name,
-        timeline_name=timeline_name,
+        project_name=project_name or project_namegen(),
+        timeline_name=timeline_name or timeline_namegen(),
         volume_dir=get_volume_dir(),
         output_folder=LINEAR_WORKFLOW_OUTPUT_FOLDER,
         length_seconds=length_seconds,

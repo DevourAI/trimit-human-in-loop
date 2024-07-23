@@ -1466,8 +1466,8 @@ class FrontendWorkflowProjection(BaseModel):
     video_filename: str
     length_seconds: int
     nstages: int
-    project_name: str
-    project_id: str
+    project_name: str | None = None
+    project_id: str | None = None
 
     class Settings:
         projection = {

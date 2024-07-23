@@ -16,6 +16,7 @@ from bson.dbref import DBRef
 from modal import is_local
 
 import trimit.utils.conf
+from trimit.utils.namegen import timeline_namegen
 from trimit.backend.utils import (
     match_output_to_actual_transcript_fast,
     remove_boundary_tags,
@@ -314,7 +315,7 @@ class CutTranscriptLinearWorkflow:
         if self.state is None:
             raise ValueError("state is None")
         new_state = self.state.model_copy()
-        new_state.static_state.timeline_name = str(uuid.uuid4())
+        new_state.static_state.timeline_name = timeline_namegen()
         await new_state.save()
         return CutTranscriptLinearWorkflow(state=new_state)
 
