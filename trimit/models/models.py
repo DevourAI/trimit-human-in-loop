@@ -45,6 +45,7 @@ from trimit.utils.model_utils import (
     get_partial_transcription,
     scene_name_from_video,
 )
+from trimit.utils.namegen import project_namegen
 
 from trimit.utils.fs_utils import async_copy
 
@@ -57,13 +58,13 @@ class DocumentWithSaveRetry(Document):
     #  @retry(
     #  stop=stop_after_attempt(5), wait=wait_random_exponential(multiplier=1, max=60)
     #  )
-    async def save_with_retry(self):
+    async def save_with_retry(self, session=None):
         try:
-            await self.save()
+            await self.save(session=session)
         except Exception as e:
             print(f"Error saving document: {e}")
             try:
-                await self.insert()
+                await self.insert(session=session)
             except Exception as e:
                 print(f"Error inserting document: {e}")
                 raise
@@ -242,22 +243,27 @@ class Video(DocumentWithSaveRetry, PathMixin):
 
     @classmethod
     async def from_user_email(
-        cls, user_email: str, md5_hash: str, overwrite: bool = False, **kwargs
+        cls,
+        user_email: str,
+        md5_hash: str,
+        overwrite: bool = False,
+        session=None,
+        **kwargs,
     ) -> "Video":
-        user = await User.find_one(User.email == user_email)
+        user = await User.find_one(User.email == user_email, session=session)
         if user is None:
             raise ValueError(f"User not found: {user_email}")
         existing_video = await Video.find_one(
-            Video.md5_hash == md5_hash, Video.user.email == user_email
+            Video.md5_hash == md5_hash, Video.user.email == user_email, session=session
         )
         if existing_video is not None:
             if not overwrite:
                 return existing_video
             else:
-                await existing_video.delete()
+                await existing_video.delete(session=session)
         simple_name = await Video.gen_simple_name(user_email)
         video = Video(md5_hash=md5_hash, simple_name=simple_name, user=user, **kwargs)
-        await video.save_with_retry()
+        await video.save_with_retry(session=session)
         return video
 
     @classmethod
@@ -688,10 +694,15 @@ class Project(DocumentWithSaveRetry):
         ]
 
     @classmethod
-    async def from_user_email(cls, user_email: str, name: str):
+    async def from_user_email(cls, user_email: str, name: str | None):
         user = await User.find_one(User.email == user_email)
         if user is None:
             raise ValueError(f"User not found: {user_email}")
+        if not name:
+            name = project_namegen()
+            print("not name, generated", name)
+        if not user_email:
+            raise ValueError("User email not provided")
         existing_project = await Project.find_one(
             Project.user.email == user_email, Project.name == name, fetch_links=True
         )

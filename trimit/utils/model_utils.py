@@ -104,13 +104,13 @@ async def save_video_with_details(
 
 
 async def check_existing_video(
-    user_email: str, video_hash: str, ignore_existing: bool = False
+    user_email: str, video_hash: str, ignore_existing: bool = False, session=None
 ):
     from trimit.models.models import Video
     from trimit.app import VOLUME_DIR
 
     existing_by_hash = await Video.find_one(
-        Video.user.email == user_email, Video.md5_hash == video_hash
+        Video.user.email == user_email, Video.md5_hash == video_hash, session=session
     )
     if existing_by_hash is not None and not ignore_existing:
         path = existing_by_hash.path(VOLUME_DIR)
