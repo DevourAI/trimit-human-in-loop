@@ -158,6 +158,7 @@ app_kwargs = dict(
     container_idle_timeout=1200,
     _experimental_boost=True,
     _experimental_scheduler=True,
+    keep_warm=1,
 )
 
 

@@ -82,6 +82,7 @@ const VideoTable: React.FC<VideoTableProps> = ({
                     video.video_hash === currentlySelectedVideoHash &&
                     'selected'
                   }
+                  onClick={() => selectVideo(video)}
                 >
                   <TableCell className="font-medium">
                     {video.filename}
