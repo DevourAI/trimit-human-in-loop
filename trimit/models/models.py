@@ -37,6 +37,8 @@ from trimit.utils.model_utils import (
     partial_transcription_words,
     get_partial_transcription,
     scene_name_from_video,
+    construct_retry_task_with_exception_type,
+    map_export_result_to_asset_path,
 )
 from trimit.utils.namegen import project_namegen
 
@@ -84,6 +86,22 @@ class PathMixin:
 
     @property
     def filename(self) -> str: ...
+
+    async def asset_path_with_copy(self, volume_dir, asset_dir):
+        retry_task = construct_retry_task_with_exception_type(FileNotFoundError)
+        volume_path = self.path(volume_dir)
+        asset_path = self.path(asset_dir)
+        try:
+            await retry_task(async_copy, volume_path, asset_path)
+        except RetryError:
+            raise FileNotFoundError(f"Failed to copy video to asset: {volume_path}")
+        return asset_path
+
+    async def asset_path_with_fallback(self, volume_dir, asset_dir):
+        try:
+            return await self.asset_path_with_copy(volume_dir, asset_dir)
+        except FileNotFoundError:
+            return self.path(volume_dir)
 
 
 class User(DocumentWithSaveRetry):
@@ -291,22 +309,6 @@ class Video(DocumentWithSaveRetry, PathMixin):
     @property
     def recorded_datetime(self):
         return self.details.create_date if self.details else None
-
-    def path(self, volume_dir):
-        upload_folder = get_upload_folder(
-            volume_dir, self.user.email, self.upload_datetime
-        )
-        file_path = upload_folder / self.filename
-        return str(file_path)
-
-    async def asset_path_with_copy(self, volume_dir, asset_dir):
-        retry_task = construct_retry_task_with_exception_type(FileNotFoundError)
-        volume_path = self.path(volume_dir)
-        asset_path = self.path(asset_dir)
-        try:
-            return await retry_task(async_copy, volume_path, asset_path)
-        except RetryError:
-            raise FileNotFoundError(f"Failed to copy video to asset: {volume_path}")
 
     def audio_path(self, volume_dir):
         audio_folder = get_audio_folder(

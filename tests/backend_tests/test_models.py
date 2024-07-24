@@ -376,3 +376,16 @@ async def test_soundbites_iter_kept_cuts(soundbites_3909774043):
     cuts = [c for c in soundbites_3909774043.iter_kept_cuts()]
     cuts_text = " ".join([c.text for c in cuts])
     assert cuts_text == soundbites_3909774043.text.replace("\n", " ")
+
+
+async def test_video_asset_path_with_fallback(video_3909774043):
+    copied_path = await video_3909774043.asset_path_with_fallback(
+        "tests/fixtures/volume", "tmp/assets"
+    )
+    fallback_path = await video_3909774043.asset_path_with_fallback(
+        "bad_volume", "tmp/assets"
+    )
+    assert copied_path == "tmp/assets/uploads/dave@hedhi.com/2024-01-01/3909774043.mp4"
+    assert (
+        fallback_path == "bad_volume/uploads/dave@hedhi.com/2024-01-01/3909774043.mp4"
+    )

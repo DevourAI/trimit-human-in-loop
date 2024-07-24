@@ -1336,15 +1336,10 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
         .to_list()
     )
     asset_copy_tasks = []
-
-    async def asset_path_with_fallback(video):
-        try:
-            return await video.asset_path_with_copy(get_volume_dir(), ASSETS_DIR)
-        except FileNotFoundError:
-            return video.path(get_volume_dir())
-
     for video in videos:
-        asset_copy_tasks.append(asset_path_with_fallback(video))
+        asset_copy_tasks.append(
+            video.asset_path_with_fallback(get_volume_dir(), ASSETS_DIR)
+        )
     asset_paths = await asyncio.gather(*asset_copy_tasks)
     data = [
         UploadedVideo(
