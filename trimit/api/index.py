@@ -1330,18 +1330,30 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
     base_url = str(URL(str(request.url)).replace(path="", query=""))
 
     await maybe_init_mongo()
+    videos = (
+        await Video.find(Video.user.email == user.email)
+        .project(VideoFileProjection)
+        .to_list()
+    )
+    asset_copy_tasks = []
+
+    async def asset_path_with_fallback(video):
+        try:
+            return await video.asset_path_with_copy(get_volume_dir(), ASSETS_DIR)
+        except FileNotFoundError:
+            return video.path(get_volume_dir())
+
+    for video in videos:
+        asset_copy_tasks.append(asset_path_with_fallback(video))
+    asset_paths = await asyncio.gather(*asset_copy_tasks)
     data = [
         UploadedVideo(
             filename=video.high_res_user_file_path,
             video_hash=video.md5_hash,
-            path=video.path(get_volume_dir()),
-            remote_url=remote_video_stream_url_for_path(
-                base_url, video.path(get_volume_dir())
-            ),
+            path=asset_path,
+            remote_url=remote_video_stream_url_for_path(base_url, asset_path),
         )
-        for video in await Video.find(Video.user.email == user.email)
-        .project(VideoFileProjection)
-        .to_list()
+        for video, asset_path in zip(videos, asset_paths)
     ]
     print("uploaded_videos:", data)
     return data

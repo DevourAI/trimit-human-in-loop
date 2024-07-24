@@ -10,6 +10,7 @@ from trimit.models import maybe_init_mongo
 from trimit.utils.model_utils import (
     get_generated_video_folder,
     get_generated_soundbite_clips_folder,
+    map_export_result_to_asset_path,
 )
 import os
 import pytest
@@ -181,3 +182,36 @@ def test_send_email_with_export_results():
     )
     assert response.status_code == 202
     assert response.body == b""
+
+
+async def test_map_export_result_to_asset_path():
+    export_results = ExportResults(
+        video_timeline="tests/fixtures/export_results/timeline.xml",
+        transcript_text="nonexistant",
+        soundbites_videos=[
+            "nonexistant",
+            "tests/fixtures/export_results/transcript.txt",
+        ],
+        speaker_tagging_clips={
+            "1": ["tests/fixtures/export_results/transcript.txt", "nonexistant"]
+        },
+    )
+    mapped = await map_export_result_to_asset_path(
+        export_results, "tests/fixtures/export_results", "tmp/assets"
+    )
+    assert mapped.video_timeline == "tmp/assets/timeline.xml"
+    assert mapped.transcript_text == "nonexistant"
+    assert mapped.soundbites_videos == ["nonexistant", "tmp/assets/transcript.txt"]
+    assert mapped.speaker_tagging_clips == {
+        "1": ["tmp/assets/transcript.txt", "nonexistant"]
+    }
+
+    assert export_results.video_timeline == "tests/fixtures/export_results/timeline.xml"
+    assert export_results.transcript_text == "nonexistant"
+    assert export_results.soundbites_videos == [
+        "nonexistant",
+        "tests/fixtures/export_results/transcript.txt",
+    ]
+    assert export_results.speaker_tagging_clips == {
+        "1": ["tests/fixtures/export_results/transcript.txt", "nonexistant"]
+    }
