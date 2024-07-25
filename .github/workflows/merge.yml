@@ -153,18 +153,6 @@ jobs:
       DEPLOYMENT_DOMAIN: ${{ github.ref == 'refs/heads/staging' && vars.VERCEL_STAGING_DOMAIN || vars.VERCEL_PREVIEW_DOMAIN }}
 
     steps:
-      # - name: Set Vercel Deploy Hook for Staging
-        # if: github.ref == 'refs/heads/staging'
-        # run: echo "VERCEL_DEPLOY_HOOK=${{ secrets.VERCEL_DEPLOY_HOOK_STAGING }}" >> $GITHUB_ENV
-
-      # - name: Set Vercel Deploy Hook for Main
-        # if: github.ref == 'refs/heads/main'
-        # run: echo "VERCEL_DEPLOY_HOOK=${{ secrets.VERCEL_DEPLOY_HOOK_MAIN }}" >> $GITHUB_ENV
-
-      # - name: Trigger Vercel Deployment
-        # if: env.VERCEL_DEPLOY_HOOK != ''
-        # run: curl -X POST $VERCEL_DEPLOY_HOOK
-
       - uses: actions/checkout@v3
 
       - uses: actions/cache@v4
@@ -191,7 +179,7 @@ jobs:
         run: echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
 
       - name: Deploy Project Artifacts to Vercel
-        run: vercel alias $DEPLOYMENT_URL $DEPLOYMENT_DOMAIN --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel alias $DEPLOYMENT_URL $DEPLOYMENT_DOMAIN --token=${{ secrets.VERCEL_TOKEN }} --scope=trimit
 
   Deploy-Production:
     runs-on: ubuntu-latest
@@ -225,5 +213,5 @@ jobs:
         run: echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
 
       - name: Deploy Project Artifacts to Vercel
-        run: vercel alias $DEPLOYMENT_URL $${ vars.VERCEL_PRODUCTION_DOMAIN } --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel alias $DEPLOYMENT_URL $${ vars.VERCEL_PRODUCTION_DOMAIN } --token=${{ secrets.VERCEL_TOKEN }} --scope=trimit
 
