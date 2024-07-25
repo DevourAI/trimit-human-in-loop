@@ -17,8 +17,6 @@
 	install_backend_dependencies_linux \
 	vercel_build
 
-export GEN_S3_BUCKET := s3://trimit-generated/frontend
-
 
 deploy_prod:
 	@MODAL_ENVIRONMENT=prod DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
@@ -28,6 +26,15 @@ deploy_staging:
 
 deploy_dev:
 	@MODAL_ENVIRONMENT=dev DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=dev ./deploy.sh
+
+seed_dev:
+	@MODAL_ENVIRONMENT=dev ENV=dev poetry run python -m scripts.seed_data
+
+seed_staging:
+	@MODAL_ENVIRONMENT=staging ENV=staging poetry run python -m scripts.seed_data
+
+seed_prod:
+	@MODAL_ENVIRONMENT=prod ENV=prod poetry run python -m scripts.seed_data
 
 test:
 	@echo "Running tests..."
@@ -81,4 +88,5 @@ openapi:
 
 
 copy_gen_to_s3:
-	aws s3 cp frontend/gen/ $$GEN_S3_BUCKET --recursive
+	@./copy_gen_to_s3.sh
+

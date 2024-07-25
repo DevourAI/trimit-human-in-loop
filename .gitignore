@@ -43,3 +43,4 @@ server.pid
 frontend/docs/openapi.yaml
 frontend/gen
 tmp
+.vercel

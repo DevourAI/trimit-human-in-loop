@@ -1,0 +1,217 @@
+name: Generate and copy openapi files to S3
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+on:
+  push:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Check changed files
+        run: |
+          if git diff HEAD~1 --cached --name-only | grep -q '\.py$'; then
+            echo "CHANGED_PY_FILES=true" >> $GITHUB_ENV
+          else
+            echo "CHANGED_PY_FILES=false" >> $GITHUB_ENV
+          fi
+          CACHE_GEN_KEY="openapi-${{ github.sha }}"
+          echo "CACHE_GEN_KEY=$CACHE_GEN_KEY" >> $GITHUB_ENV
+          PREV_CACHE_GEN_KEY="openapi-$(git rev-parse HEAD~)"
+          echo "PREV_CACHE_GEN_KEY=$PREV_CACHE_GEN_KEY" >> $GITHUB_ENV
+
+      - uses: actions/cache@v4
+        id: cache-openapi-restore
+        if: env.CHANGED_PY_FILES == 'false'
+        name: Check if previous commit cache hit
+        with:
+          path: ./frontend/gen/openapi
+          key: ${{ env.PREV_CACHE_GEN_KEY }}
+
+      - name: Set short circuit var
+        if: env.CHANGED_PY_FILES == 'false' && steps.cache-openapi-restore.outputs.cache-hit == 'true'
+        run: |
+          echo "SHORT_CIRCUIT=true" >> $GITHUB_ENV
+
+      - name: Save prev cache to new cache key
+        uses: actions/cache/save@v4
+        if: env.SHORT_CIRCUIT == 'true'
+        with:
+          path: ./frontend/gen/openapi
+          key: ${{ env.CACHE_GEN_KEY }}
+
+      - name: install-aws-cli-action
+        if: env.SHORT_CIRCUIT != 'true'
+        uses: unfor19/install-aws-cli-action@v1
+
+      - name: Verify AWS CLI installation
+        if: env.SHORT_CIRCUIT != 'true'
+        run: |
+          echo "Verifying AWS CLI installation..."
+          which aws
+          aws --version
+
+      - name: Configure AWS credentials
+        if: env.SHORT_CIRCUIT != 'true'
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+        run: |
+          aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+          aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+          aws configure set region $AWS_REGION
+        shell: bash
+
+      - uses: actions/cache@v4
+        if: env.SHORT_CIRCUIT != 'true'
+        id: cache-yarn-restore
+        name: Define a cache for the yarn install based on the dependencies lock file
+        with:
+          path: |
+            ./frontend/.yarn/cache
+            ./frontend/node_modules
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
+
+      - name: Yarn install
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-yarn-restore.outputs.cache-hit != 'true'
+        run: yarn install
+        working-directory: ./frontend
+
+      - name: Save Yarn Cache
+        id: cache-yarn-save
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-yarn-restore.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            ./frontend/.yarn/cache
+            ./frontend/node_modules
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
+
+
+      - name: Set up Python
+        if: env.SHORT_CIRCUIT != 'true'
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Poetry
+        if: env.SHORT_CIRCUIT != 'true'
+        uses: abatilo/actions-poetry@v3.0.0
+
+      - uses: actions/cache@v4
+        if: env.SHORT_CIRCUIT != 'true'
+        id: cache-poetry-restore
+        name: Define a cache for the virtual environment based on the dependencies lock file
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Install the project dependencies
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-poetry-restore.outputs.cache-hit != 'true'
+        run: poetry install
+
+      - name: Save Poetry Cache
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-poetry-restore.outputs.cache-hit != 'true'
+        id: cache-poetry-save
+        uses: actions/cache/save@v4
+        with:
+          path: ./.venv
+          key: venv-${{ hashFiles('**/poetry.lock') }}
+
+      - name: Generate OpenAPI files
+        if: env.SHORT_CIRCUIT != 'true'
+        env:
+          AUTH_SECRET_KEY: ${{ secrets.AUTH_SECRET_KEY }}
+        run: make openapi
+
+      - name: Save Generated OpenAPI files
+        if: env.SHORT_CIRCUIT != 'true'
+        id: cache-openapi-save
+        uses: actions/cache/save@v4
+        with:
+          path: ./frontend/gen/openapi
+          key: ${{ env.CACHE_GEN_KEY }}
+
+      - name: Copy files to s3
+        if: env.SHORT_CIRCUIT != 'true'
+        run: make copy_gen_to_s3
+
+  Deploy-Preview:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref != 'refs/heads/main'
+    env:
+      DEPLOYMENT_DOMAIN: ${{ github.ref == 'refs/heads/staging' && vars.VERCEL_STAGING_DOMAIN || vars.VERCEL_PREVIEW_DOMAIN }}
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/cache@v4
+        id: cache-openapi-restore
+        name: Restore generated files
+        with:
+          path: |
+            ./frontend/gen/openapi
+          key: openapi-${{ github.sha }}
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} > deployment-url.txt
+
+      - name: Set deployment url env var
+        run: echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel alias $DEPLOYMENT_URL $DEPLOYMENT_DOMAIN --token=${{ secrets.VERCEL_TOKEN }} --scope=trimit
+
+  Deploy-Production:
+    runs-on: ubuntu-latest
+    needs: build
+    if: github.ref == 'refs/heads/main'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/cache@v4
+        id: cache-openapi-restore
+        name: Restore generated files
+        with:
+          path: |
+            ./frontend/gen/openapi
+          key: openapi-${{ github.sha }}
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} > deployment-url.txt
+
+      - name: Set deployment url env var
+        run: echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel alias $DEPLOYMENT_URL $${ vars.VERCEL_PRODUCTION_DOMAIN } --token=${{ secrets.VERCEL_TOKEN }} --scope=trimit
+

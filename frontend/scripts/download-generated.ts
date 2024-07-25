@@ -20,11 +20,11 @@ function removePrefix(fullString: string, prefixToRemove: string): string {
 }
 
 function ensureDirectoryExists(filePath: string) {
-    const dirname = path.dirname(filePath);
-    if (fs.existsSync(dirname)) {
-        return true;
-    }
-    fs.mkdirSync(dirname, { recursive: true });
+  const dirname = path.dirname(filePath);
+  if (fs.existsSync(dirname)) {
+    return true;
+  }
+  fs.mkdirSync(dirname, {recursive: true});
 }
 
 async function downloadFile(bucketName: string, prefix: string, key: string, localDestDir: string): Promise<void> {
@@ -79,7 +79,9 @@ async function main() {
   if (bucketName === undefined) {
     throw new Error("must set AWS_S3_BUCKET_NAME");
   }
-  const prefix = 'frontend/';  // Set the folder path in S3
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA;
+  const shaPrefix = sha?.substring(0, 7);
+  const prefix = `frontend/${shaPrefix}/`;
   const downloadPath = './gen'; // Local directory to save downloads
 
   await downloadAllFiles(bucketName, prefix, downloadPath);
