@@ -1,0 +1,26 @@
+name: Run make copy_gen_to_s3 on Merge
+
+on:
+  push:
+    branches:
+      types: [closed]
+
+jobs:
+  build:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: install-aws-cli-action
+        uses: unfor19/install-aws-cli-action@v1
+
+      - name: Configure AWS credentials
+        run: aws configure set aws_access_key_id ${{ secrets.AWS_ACCESS_KEY_ID }} && \
+          aws configure set aws_secret_access_key ${{ secrets.AWS_SECRET_ACCESS_KEY }} && \
+          aws configure set region ${{ secrets.AWS_REGION }}
+
+      - name: Run make command
+        run: make copy_gen_to_s3
