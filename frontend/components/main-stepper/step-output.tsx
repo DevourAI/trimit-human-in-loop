@@ -141,7 +141,6 @@ const StepOutput: FC<StepOutputProps> = ({
   // }, [output.export_call_id]);
 
   const { form, exportResult } = useStructuredInputForm();
-  console.log('exportResult from form', exportResult);
   if (!output) {
     return <div className="text-muted-foreground">No outputs</div>;
   }

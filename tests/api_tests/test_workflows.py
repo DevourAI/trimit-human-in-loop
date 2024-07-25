@@ -134,9 +134,7 @@ async def test_frontend_workflow_state(workflow_15557970_with_transcript):
 
     workflow = workflow_15557970_with_transcript
     MONGO_INITIALIZED[0] = False
-    state = await FrontendWorkflowState.from_workflow(
-        workflow, TEST_VOLUME_DIR, TEST_ASSET_DIR
-    )
+    state = await FrontendWorkflowState.from_workflow(workflow, TEST_VOLUME_DIR)
     assert state.id == workflow.id
     assert state.model_dump()["id"] == str(workflow.id)
 

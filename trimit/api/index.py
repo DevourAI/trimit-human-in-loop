@@ -74,7 +74,7 @@ from trimit.utils.fs_utils import (
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_workflow
-from trimit.app import app, get_volume_dir, S3_BUCKET, volume
+from trimit.app import app, get_volume_dir, S3_BUCKET, CDN_ASSETS_PATH, volume
 from trimit.models import (
     start_transaction,
     maybe_init_mongo,
@@ -102,7 +102,7 @@ if is_local():
     os.makedirs(ASSETS_DIR, exist_ok=True)
 else:
     background_processor = BackgroundProcessor()
-    ASSETS_DIR = "/assets"
+    ASSETS_DIR = CDN_ASSETS_PATH
 
 TEMP_DIR = Path("/tmp/uploads")
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
@@ -158,7 +158,6 @@ web_app.add_middleware(SessionMiddleware, secret_key=os.environ["AUTH_SECRET_KEY
 web_app.add_middleware(DynamicCORSMiddleware)
 if not is_local():
     os.makedirs(ASSETS_DIR, exist_ok=True)
-    web_app.mount(ASSETS_DIR, StaticFiles(directory=ASSETS_DIR), name="static")
 
 
 app_kwargs = dict(
@@ -607,7 +606,6 @@ def step_endpoint(
                 await asyncio.sleep(0)
             latest_state = await workflow.get_latest_frontend_state(
                 volume_dir=get_volume_dir(),
-                asset_dir=ASSETS_DIR,
                 with_load_state=True,
                 #  with_outputs=True,
                 #  with_all_steps=True,
@@ -685,7 +683,6 @@ async def run_streamer(workflow, **run_params):
         pass
     latest_state = await workflow.get_latest_frontend_state(
         volume_dir=get_volume_dir(),
-        asset_dir=ASSETS_DIR,
         with_load_state=True,
         #  with_outputs=True,
         #  with_all_steps=True,
@@ -987,7 +984,7 @@ async def get_latest_state(
             pass
 
     return await workflow.get_latest_frontend_state(
-        volume_dir=get_volume_dir(), asset_dir=ASSETS_DIR, with_load_state=False
+        volume_dir=get_volume_dir(), with_load_state=False
     )
     #  with_outputs=with_outputs,
     #  with_all_steps=with_all_steps,
@@ -1017,9 +1014,7 @@ async def get_latest_export_results(
     except TypeError:
         pass
 
-    state = await workflow.get_latest_frontend_state(
-        volume_dir=get_volume_dir(), asset_dir=ASSETS_DIR
-    )
+    state = await workflow.get_latest_frontend_state(volume_dir=get_volume_dir())
     output_index = -1
     if state.outputs[-1].step_name == "end":
         output_index = -2
@@ -1327,21 +1322,26 @@ def remote_video_stream_url_for_path(base_url, path):
     description="TODO",
 )
 async def uploaded_videos(request: Request, user: User = Depends(find_or_create_user)):
-    base_url = str(URL(str(request.url)).replace(path="", query=""))
-
     await maybe_init_mongo()
+    videos = (
+        await Video.find(Video.user.email == user.email)
+        .project(VideoFileProjection)
+        .to_list()
+    )
+    asset_copy_tasks = []
+    for video in videos:
+        asset_copy_tasks.append(
+            video.asset_path_with_fallback(get_volume_dir(), ASSETS_DIR)
+        )
+    asset_paths = await asyncio.gather(*asset_copy_tasks)
     data = [
         UploadedVideo(
             filename=video.high_res_user_file_path,
             video_hash=video.md5_hash,
-            path=video.path(get_volume_dir()),
-            remote_url=remote_video_stream_url_for_path(
-                base_url, video.path(get_volume_dir())
-            ),
+            path=asset_path,
+            remote_url=asset_path,
         )
-        for video in await Video.find(Video.user.email == user.email)
-        .project(VideoFileProjection)
-        .to_list()
+        for video, asset_path in zip(videos, asset_paths)
     ]
     print("uploaded_videos:", data)
     return data

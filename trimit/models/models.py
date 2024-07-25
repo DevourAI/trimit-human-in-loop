@@ -1,5 +1,4 @@
 import datetime
-from collections import defaultdict
 import asyncio
 from pathlib import Path
 import json
@@ -8,14 +7,7 @@ import os
 from typing import Optional, NamedTuple, Any
 import copy
 
-from tenacity import (
-    retry,
-    stop_after_attempt,
-    wait_fixed,
-    wait_random,
-    RetryError,
-    retry_if_exception_type,
-)
+from tenacity import retry, stop_after_attempt, wait_fixed, wait_random, RetryError
 from bson.dbref import DBRef
 from pymongo import IndexModel
 import pymongo
@@ -23,6 +15,7 @@ from beanie import Document, Link, BackLink, PydanticObjectId
 from beanie.operators import In
 from pydantic import Field, BaseModel
 
+from trimit.app.app import TRIMIT_VIDEO_S3_CDN_BUCKET
 from trimit.models.backend_models import (
     CutTranscriptLinearWorkflowStepOutput,
     StepKey,
@@ -31,6 +24,7 @@ from trimit.models.backend_models import (
     PartialLLMOutput,
     FinalLLMOutput,
     PartialBackendOutput,
+    ExportResults,
 )
 from trimit.utils.model_utils import (
     filename_from_hash,
@@ -44,10 +38,13 @@ from trimit.utils.model_utils import (
     partial_transcription_words,
     get_partial_transcription,
     scene_name_from_video,
+    construct_retry_task_with_exception_type,
+    map_export_result_to_asset_path,
+    form_cdn_url_from_path,
 )
 from trimit.utils.namegen import project_namegen
 
-from trimit.utils.fs_utils import async_copy
+from trimit.utils.fs_utils import async_copy_to_s3
 
 
 class StepNotYetReachedError(ValueError):
@@ -91,6 +88,26 @@ class PathMixin:
 
     @property
     def filename(self) -> str: ...
+
+    async def asset_path_with_copy(self, volume_dir, asset_dir):
+        retry_task = construct_retry_task_with_exception_type(FileNotFoundError)
+        volume_path = self.path(volume_dir)
+        asset_path = self.path("")
+        print("asset_path_with_copy asset_path", asset_path)
+        try:
+            await retry_task(
+                async_copy_to_s3, TRIMIT_VIDEO_S3_CDN_BUCKET, volume_path, asset_path
+            )
+        except RetryError:
+            raise FileNotFoundError(f"Failed to copy video to asset: {volume_path}")
+        print("succeeded")
+        return form_cdn_url_from_path(asset_path)
+
+    async def asset_path_with_fallback(self, volume_dir, asset_dir):
+        try:
+            return await self.asset_path_with_copy(volume_dir, asset_dir)
+        except FileNotFoundError:
+            return self.path(volume_dir)
 
 
 class User(DocumentWithSaveRetry):
@@ -298,13 +315,6 @@ class Video(DocumentWithSaveRetry, PathMixin):
     @property
     def recorded_datetime(self):
         return self.details.create_date if self.details else None
-
-    def path(self, volume_dir):
-        upload_folder = get_upload_folder(
-            volume_dir, self.user.email, self.upload_datetime
-        )
-        file_path = upload_folder / self.filename
-        return str(file_path)
 
     def audio_path(self, volume_dir):
         audio_folder = get_audio_folder(
@@ -1507,66 +1517,6 @@ class FrontendStepOutput(CutTranscriptLinearWorkflowStepOutput):
         )
 
 
-async def map_export_result_to_asset_path(
-    export_result, volume_dir: str, assets_dir: str
-):
-    copy_tasks = []
-    if export_result is None:
-        return {}
-
-    mapped_export_result = {}
-
-    @retry(
-        stop=stop_after_attempt(5),
-        wait=wait_fixed(0.1) + wait_random(0, 1),
-        retry=retry_if_exception_type(FileNotFoundError),
-    )
-    async def retry_task(method, *args):
-        return await method(*args)
-
-    async def retry_without_raising(method, *args):
-        try:
-            return await retry_task(method, *args)
-        except RetryError as e:
-            print(f"RetryError, not raising: {e}")
-            return None
-
-    for filekey in export_result.model_fields_set:
-        result = getattr(export_result, filekey)
-        if isinstance(result, str):
-            asset_filepath = os.path.join(
-                assets_dir, os.path.relpath(result, volume_dir)
-            )
-            copy_tasks.append(retry_without_raising(async_copy, result, asset_filepath))
-            mapped_export_result[filekey] = asset_filepath
-        elif isinstance(result, list):
-            asset_filepaths = []
-            for filepath in result:
-                asset_filepath = os.path.join(
-                    assets_dir, os.path.relpath(filepath, volume_dir)
-                )
-                copy_tasks.append(
-                    retry_without_raising(async_copy, filepath, asset_filepath)
-                )
-                asset_filepaths.append(asset_filepath)
-            mapped_export_result[filekey] = asset_filepaths
-        elif isinstance(result, dict):
-            if isinstance(list(result.values())[0], list):
-                asset_filepaths = defaultdict(list)
-                for result_key, result_vals in result.items():
-                    for filepath in result_vals:
-                        asset_filepath = os.path.join(
-                            assets_dir, os.path.relpath(filepath, volume_dir)
-                        )
-                        copy_tasks.append(
-                            retry_without_raising(async_copy, filepath, asset_filepath)
-                        )
-                        asset_filepaths[result_key].append(asset_filepath)
-                mapped_export_result[filekey] = asset_filepaths
-    await asyncio.gather(*copy_tasks)
-    return mapped_export_result
-
-
 class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
     outputs: list[FrontendStepOutput] = Field(
         [],
@@ -1574,13 +1524,13 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
     )
     all_steps: list[ExportableStepWrapper]
     static_state: FrontendWorkflowStaticState
-    mapped_export_result: list[dict[str, Any]] = Field(
+    mapped_export_result: list[ExportResults] = Field(
         [],
         description="export result file paths in web server's asset directory, available to be served",
     )
 
     @classmethod
-    async def from_workflow(cls, workflow, volume_dir, asset_dir):
+    async def from_workflow(cls, workflow, volume_dir):
         backend_state = workflow.state
         frontend_outputs = []
         mapped_export_result_tasks = []
@@ -1592,10 +1542,10 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
             frontend_outputs.append(frontend_output)
             mapped_export_result_tasks.append(
                 map_export_result_to_asset_path(
-                    frontend_output.export_result, volume_dir, asset_dir
+                    frontend_output.export_result, volume_dir
                 )
             )
-        mapped_export_result = await asyncio.gather(*mapped_export_result_tasks)
+        mapped_export_results = await asyncio.gather(*mapped_export_result_tasks)
 
         return cls(
             outputs=frontend_outputs,
@@ -1603,7 +1553,7 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
             static_state=FrontendWorkflowStaticState.from_backend_static_state(
                 backend_state.static_state
             ),
-            mapped_export_result=mapped_export_result,
+            mapped_export_result=mapped_export_results,
             **backend_state.model_dump(exclude=["static_state", "outputs"]),
         )
 

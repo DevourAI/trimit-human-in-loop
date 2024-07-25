@@ -698,7 +698,6 @@ class CutTranscriptLinearWorkflow:
     async def get_latest_frontend_state(
         self,
         volume_dir: str,
-        asset_dir: str,
         with_load_state=True,
         #  with_outputs=False,
         #  with_all_steps=True,
@@ -708,7 +707,7 @@ class CutTranscriptLinearWorkflow:
             await self.load_state()
         if self.state is None:
             raise ValueError("state is None")
-        return await FrontendWorkflowState.from_workflow(self, volume_dir, asset_dir)
+        return await FrontendWorkflowState.from_workflow(self, volume_dir)
         #  last_step_obj = await self.get_last_substep_with_user_feedback(
         #  with_load_state=with_load_state
         #  )

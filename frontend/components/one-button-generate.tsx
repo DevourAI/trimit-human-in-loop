@@ -103,15 +103,11 @@ export default function OneButtonGenerate({
 
   useEffect(() => {
     const fetchLatestStateIfNotIsPolling = async () => {
-      console.log('fetchLatestStateIfNotIsPolling');
       if (isPolling.current) return;
-      console.log('no other polling running');
       if (!workflowId) return;
-      console.log('found workflow, getting state');
       isPolling.current = true;
       const state = await getLatestState(workflowId);
       if (state && Object.keys(state).length === 0) {
-        console.log('setting latest state');
         setLatestState(state);
       }
       isPolling.current = false;
