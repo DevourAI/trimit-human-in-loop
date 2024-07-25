@@ -2,12 +2,9 @@ name: Run make copy_gen_to_s3 on Merge
 
 on:
   push:
-    branches:
-      types: [closed]
 
 jobs:
   build:
-    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
 
     steps:
