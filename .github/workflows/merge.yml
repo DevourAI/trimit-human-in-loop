@@ -104,6 +104,8 @@ jobs:
     runs-on: ubuntu-latest
     needs: build
     if: github.ref != 'refs/heads/main'
+    env:
+      DEPLOYMENT_DOMAIN: ${{ github.ref == 'refs/heads/staging' && vars.VERCEL_STAGING_DOMAIN || vars.VERCEL_PREVIEW_DOMAIN }}
 
     steps:
       # - name: Set Vercel Deploy Hook for Staging
@@ -138,7 +140,14 @@ jobs:
         run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project Artifacts to Vercel
-        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }} > deployment-url.txt
+
+      - name: Set deployment url env var
+        run: echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel alias $DEPLOYMENT_URL $DEPLOYMENT_DOMAIN --token=${{ secrets.VERCEL_TOKEN }}
+
   Deploy-Production:
     runs-on: ubuntu-latest
     needs: build
@@ -165,4 +174,11 @@ jobs:
         run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project Artifacts to Vercel
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }} > deployment-url.txt
+
+      - name: Set deployment url env var
+        run: echo "DEPLOYMENT_URL=$(cat deployment-url.txt)" >> $GITHUB_ENV
+
+      - name: Deploy Project Artifacts to Vercel
+        run: vercel alias $DEPLOYMENT_URL $${ vars.VERCEL_PRODUCTION_DOMAIN } --token=${{ secrets.VERCEL_TOKEN }}
+
