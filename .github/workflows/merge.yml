@@ -21,8 +21,10 @@ jobs:
           else
             echo "CHANGED_PY_FILES=false" >> $GITHUB_ENV
           fi
-          echo "CACHE_GEN_KEY=openapi-${{ github.sha }}" >> $GITHUB_ENV
-          echo "PREV_CACHE_GEN_KEY=openapi-$(git rev-parse HEAD~)" >> $GITHUB_ENV
+          CACHE_GEN_KEY="openapi-${{ github.sha }}"
+          echo "CACHE_GEN_KEY=$CACHE_GEN_KEY" >> $GITHUB_ENV
+          PREV_CACHE_GEN_KEY="openapi-$(git rev-parse HEAD~)"
+          echo "PREV_CACHE_GEN_KEY=$PREV_CACHE_GEN_KEY" >> $GITHUB_ENV
 
       - uses: actions/cache@v4
         id: cache-openapi-restore
