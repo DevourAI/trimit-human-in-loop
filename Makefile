@@ -17,8 +17,6 @@
 	install_backend_dependencies_linux \
 	vercel_build
 
-export GEN_S3_BUCKET := s3://trimit-generated/frontend
-
 
 deploy_prod:
 	@MODAL_ENVIRONMENT=prod DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=prod ./deploy.sh
@@ -90,4 +88,5 @@ openapi:
 
 
 copy_gen_to_s3:
-	aws s3 cp frontend/gen/ $$GEN_S3_BUCKET --recursive
+	@./copy_gen_to_s3.sh
+
