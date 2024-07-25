@@ -38,6 +38,7 @@ import {
   run,
 } from '@/lib/api';
 import { decodeStreamAsJSON } from '@/lib/streams';
+const POLL_INTERVAL = 5000;
 
 const videoTypeExamples = [
   'Customer testimonial',
@@ -97,10 +98,38 @@ export default function OneButtonGenerate({
     setLatestState(state);
   }
 
+  const isPolling = useRef<boolean>(false);
+  const timeoutId = useRef<NodeJS.Timeout | null>(null);
+
   useEffect(() => {
+    const fetchLatestStateIfNotIsPolling = async () => {
+      console.log('fetchLatestStateIfNotIsPolling');
+      if (isPolling.current) return;
+      console.log('no other polling running');
+      if (!workflowId) return;
+      console.log('found workflow, getting state');
+      isPolling.current = true;
+      const state = await getLatestState(workflowId);
+      if (state && Object.keys(state).length === 0) {
+        console.log('setting latest state');
+        setLatestState(state);
+      }
+      isPolling.current = false;
+    };
+    const pollForLatestState = async () => {
+      await fetchLatestStateIfNotIsPolling();
+      timeoutId.current = setTimeout(pollForLatestState, POLL_INTERVAL);
+    };
+
     if (workflowId && userData.email) {
       fetchAndSetWorkflow(workflowId);
+      pollForLatestState();
     }
+    return () => {
+      if (timeoutId.current) {
+        clearTimeout(timeoutId.current);
+      }
+    };
   }, [workflowId, userData.email]);
 
   const userParams = useMemo(() => {
@@ -129,6 +158,7 @@ export default function OneButtonGenerate({
         prevStepOutput.current = newStepOutput;
       }
     }
+    console.log('got latestState', latestState);
     if (
       latestState.mapped_export_result &&
       latestState.mapped_export_result.length
@@ -137,6 +167,10 @@ export default function OneButtonGenerate({
         latestState.mapped_export_result[
           latestState.mapped_export_result.length - 2
         ];
+      console.log(
+        'got latestState and mappedExportResult',
+        newMappedExportResult
+      );
       if (newMappedExportResult !== prevMappedExportResult.current) {
         setMappedExportResult(newMappedExportResult);
         prevMappedExportResult.current = newMappedExportResult;
@@ -167,6 +201,7 @@ export default function OneButtonGenerate({
     ]);
   };
 
+  const oldWorkflowId = useRef<string | null>(workflowId);
   const handleStepStream = useCallback(
     async (reader: ReadableStreamDefaultReader) => {
       const finalState: FrontendWorkflowState | null = await decodeStreamAsJSON(
@@ -177,8 +212,20 @@ export default function OneButtonGenerate({
             reader.cancel();
             return;
           }
-          if (value && value.workflow_id && value.workflow_id !== workflowId) {
+          console.log('value.workflow_id', value.workflow_id);
+          if (
+            value &&
+            value.workflow_id &&
+            value.workflow_id !== oldWorkflowId.current
+          ) {
+            console.log(
+              'workflow_id changed',
+              value.workflow_id,
+              'oldWorkflowId',
+              oldWorkflowId.current
+            );
             setWorkflowId(value.workflow_id);
+            oldWorkflowId.current = value.workflow_id;
           }
           if (value?.partial_step_output) {
             // we can log this maybe
@@ -197,9 +244,10 @@ export default function OneButtonGenerate({
       }
       if (finalState?.id) setWorkflowId(finalState.id);
       setIsLoading(false);
+      setLatestState(finalState);
       return finalState;
     },
-    [workflowId, cancelStepStream]
+    [cancelStepStream]
   );
 
   async function runWorkflow() {

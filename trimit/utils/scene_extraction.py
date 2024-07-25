@@ -25,7 +25,7 @@ async def extract_scenes_to_disk(
         if frame_rate is None:
             raise ValueError("Could not get frame rate")
 
-    if codec is None:
+    if codec is None or not codec.strip():
         print("codec not provided. Defaulting to 'libx264'.")
         codec = "libx264"
 
