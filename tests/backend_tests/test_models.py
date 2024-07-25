@@ -385,7 +385,10 @@ async def test_video_asset_path_with_fallback(video_3909774043):
     fallback_path = await video_3909774043.asset_path_with_fallback(
         "bad_volume", "tmp/assets"
     )
-    assert copied_path == "tmp/assets/uploads/dave@hedhi.com/2024-01-01/3909774043.mp4"
+    assert (
+        copied_path
+        == "https://d3tcnlgaqbupi5.cloudfront.net/uploads/dave@hedhi.com/2024-01-01/3909774043.mp4"
+    )
     assert (
         fallback_path == "bad_volume/uploads/dave@hedhi.com/2024-01-01/3909774043.mp4"
     )

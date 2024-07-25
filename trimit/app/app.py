@@ -26,7 +26,10 @@ AGENT_OUTPUT_CACHE_DIR = os.environ.get(
 )
 HF_HOME = str(Path(get_volume_dir()) / "huggingface")
 S3_VIDEO_PATH = "/s3-videos"
+CDN_ASSETS_PATH = "/cdn-assets"
+CDN_DOMAIN = os.environ.get("TRIMIT_VIDEO_CDN_DOMAIN", "")
 S3_BUCKET = os.environ.get("TRIMIT_VIDEO_S3_BUCKET", "")
+TRIMIT_VIDEO_S3_CDN_BUCKET = os.environ.get("TRIMIT_VIDEO_S3_CDN_BUCKET", "")
 VOLUME_NAME = "trimit-human-in-loop-volume"
 LOCAL_CERT_PATH = str(ROOT_DIR / os.environ.get("MONGO_CERT_FILENAME", ""))
 CERT_PATH = str(Path(REPO_HOME) / os.environ.get("MONGO_CERT_FILENAME", ""))

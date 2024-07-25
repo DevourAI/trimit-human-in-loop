@@ -27,9 +27,12 @@ async def async_copy_from_s3(bucket, src, dst):
         await s3.download_file(bucket, src, dst)
 
 
-async def async_copy_to_s3(bucket, src, dst):
+async def async_copy_to_s3(bucket, src, dst, ignore_existing=False):
     session = aioboto3.Session()
     async with session.client("s3") as s3:
+        if not ignore_existing:
+            if await exists_in_bucket(bucket, dst):
+                return
         await s3.upload_file(src, bucket, dst)
 
 

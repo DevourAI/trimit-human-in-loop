@@ -197,13 +197,16 @@ async def test_map_export_result_to_asset_path():
         },
     )
     mapped = await map_export_result_to_asset_path(
-        export_results, "tests/fixtures/export_results", "tmp/assets"
+        export_results, "tests/fixtures/export_results"
     )
-    assert mapped.video_timeline == "tmp/assets/timeline.xml"
+    assert mapped.video_timeline == "https://d1i4vf5igkqj3d.cloudfront.net/timeline.xml"
     assert mapped.transcript_text == "nonexistant"
-    assert mapped.soundbites_videos == ["nonexistant", "tmp/assets/transcript.txt"]
+    assert mapped.soundbites_videos == [
+        "nonexistant",
+        "https://d1i4vf5igkqj3d.cloudfront.net/transcript.txt",
+    ]
     assert mapped.speaker_tagging_clips == {
-        "1": ["tmp/assets/transcript.txt", "nonexistant"]
+        "1": ["https://d1i4vf5igkqj3d.cloudfront.net/transcript.txt", "nonexistant"]
     }
 
     assert export_results.video_timeline == "tests/fixtures/export_results/timeline.xml"

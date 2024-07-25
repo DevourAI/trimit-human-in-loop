@@ -4,6 +4,7 @@ import copy
 import asyncio
 from datetime import datetime
 from pathlib import Path
+from trimit.app.app import CDN_DOMAIN, TRIMIT_VIDEO_S3_CDN_BUCKET
 
 from tenacity import (
     retry,
@@ -345,13 +346,16 @@ def construct_retry_task_with_exception_type(exception_type):
     return retry_task
 
 
+def form_cdn_url_from_path(path):
+    return f"{CDN_DOMAIN}/{path}"
+
+
 async def map_export_result_to_asset_path(
     export_result: Union[None, "trimit.models.backend_models.ExportResults"],
     volume_dir: str,
-    assets_dir: str,
 ):
     from trimit.models.backend_models import ExportResults
-    from trimit.utils.fs_utils import async_copy
+    from trimit.utils.fs_utils import async_copy_to_s3
 
     # Note that this whole function could be done recursively for a much simpler function,
     # but we would lose the concurrency.
@@ -370,9 +374,9 @@ async def map_export_result_to_asset_path(
     retry_task = construct_retry_task_with_exception_type(FileNotFoundError)
 
     async def async_copy_with_placement(src, dest, placement_callback):
-        path = dest
+        path = form_cdn_url_from_path(dest)
         try:
-            await retry_task(async_copy, src, dest)
+            await retry_task(async_copy_to_s3, TRIMIT_VIDEO_S3_CDN_BUCKET, src, dest)
         except RetryError:
             path = src
         placement_callback(path)
@@ -382,9 +386,7 @@ async def map_export_result_to_asset_path(
         setattr(mapped_export_result, filekey, copy.deepcopy(result))
 
         if isinstance(result, str):
-            asset_filepath = os.path.join(
-                assets_dir, os.path.relpath(result, volume_dir)
-            )
+            asset_filepath = os.path.relpath(result, volume_dir)
 
             copy_tasks.append(
                 async_copy_with_placement(
@@ -404,9 +406,7 @@ async def map_export_result_to_asset_path(
                 list_to_set[i] = p
 
             for i, filepath in enumerate(result):
-                asset_filepath = os.path.join(
-                    assets_dir, os.path.relpath(filepath, volume_dir)
-                )
+                asset_filepath = os.path.relpath(filepath, volume_dir)
 
                 copy_tasks.append(
                     async_copy_with_placement(
@@ -427,9 +427,7 @@ async def map_export_result_to_asset_path(
 
                 for result_key, result_vals in result.items():
                     for i, filepath in enumerate(result_vals):
-                        asset_filepath = os.path.join(
-                            assets_dir, os.path.relpath(filepath, volume_dir)
-                        )
+                        asset_filepath = os.path.relpath(filepath, volume_dir)
 
                         copy_tasks.append(
                             async_copy_with_placement(

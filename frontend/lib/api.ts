@@ -393,9 +393,13 @@ export async function getFunctionCallResults(
   return { result: 'error', message: 'No result found' };
 }
 
-export function remoteVideoStreamURLForPath(path) {
-  return `${API_URL}/video?video_path=${encodeURIComponent(path)}`;
-}
+// export function remoteVideoStreamURLForPath(path) {
+// if (!path.startsWith('http')) {
+// return `${API_URL}/video?video_path=${encodeURIComponent(path)}`;
+// } else {
+// return path;
+// }
+// }
 
 export async function getUploadedVideos(
   params: GetUploadedVideoParams

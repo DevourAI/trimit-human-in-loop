@@ -15,6 +15,7 @@ from beanie import Document, Link, BackLink, PydanticObjectId
 from beanie.operators import In
 from pydantic import Field, BaseModel
 
+from trimit.app.app import TRIMIT_VIDEO_S3_CDN_BUCKET
 from trimit.models.backend_models import (
     CutTranscriptLinearWorkflowStepOutput,
     StepKey,
@@ -39,10 +40,11 @@ from trimit.utils.model_utils import (
     scene_name_from_video,
     construct_retry_task_with_exception_type,
     map_export_result_to_asset_path,
+    form_cdn_url_from_path,
 )
 from trimit.utils.namegen import project_namegen
 
-from trimit.utils.fs_utils import async_copy
+from trimit.utils.fs_utils import async_copy_to_s3
 
 
 class StepNotYetReachedError(ValueError):
@@ -90,12 +92,16 @@ class PathMixin:
     async def asset_path_with_copy(self, volume_dir, asset_dir):
         retry_task = construct_retry_task_with_exception_type(FileNotFoundError)
         volume_path = self.path(volume_dir)
-        asset_path = self.path(asset_dir)
+        asset_path = self.path("")
+        print("asset_path_with_copy asset_path", asset_path)
         try:
-            await retry_task(async_copy, volume_path, asset_path)
+            await retry_task(
+                async_copy_to_s3, TRIMIT_VIDEO_S3_CDN_BUCKET, volume_path, asset_path
+            )
         except RetryError:
             raise FileNotFoundError(f"Failed to copy video to asset: {volume_path}")
-        return asset_path
+        print("succeeded")
+        return form_cdn_url_from_path(asset_path)
 
     async def asset_path_with_fallback(self, volume_dir, asset_dir):
         try:
@@ -1510,6 +1516,7 @@ class FrontendStepOutput(CutTranscriptLinearWorkflowStepOutput):
             **backend_outputs[-1].model_dump(),
         )
 
+
 class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
     outputs: list[FrontendStepOutput] = Field(
         [],
@@ -1517,13 +1524,13 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
     )
     all_steps: list[ExportableStepWrapper]
     static_state: FrontendWorkflowStaticState
-    mapped_export_result: ExportResults = Field(
-        ExportResults(),
+    mapped_export_result: list[ExportResults] = Field(
+        [],
         description="export result file paths in web server's asset directory, available to be served",
     )
 
     @classmethod
-    async def from_workflow(cls, workflow, volume_dir, asset_dir):
+    async def from_workflow(cls, workflow, volume_dir):
         backend_state = workflow.state
         frontend_outputs = []
         mapped_export_result_tasks = []
@@ -1535,10 +1542,10 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
             frontend_outputs.append(frontend_output)
             mapped_export_result_tasks.append(
                 map_export_result_to_asset_path(
-                    frontend_output.export_result, volume_dir, asset_dir
+                    frontend_output.export_result, volume_dir
                 )
             )
-        mapped_export_result = await asyncio.gather(*mapped_export_result_tasks)
+        mapped_export_results = await asyncio.gather(*mapped_export_result_tasks)
 
         return cls(
             outputs=frontend_outputs,
@@ -1546,7 +1553,7 @@ class FrontendWorkflowState(CutTranscriptLinearWorkflowState):
             static_state=FrontendWorkflowStaticState.from_backend_static_state(
                 backend_state.static_state
             ),
-            mapped_export_result=mapped_export_result,
+            mapped_export_result=mapped_export_results,
             **backend_state.model_dump(exclude=["static_state", "outputs"]),
         )
 
