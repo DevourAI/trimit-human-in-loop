@@ -1474,7 +1474,17 @@ class Soundbites(Transcript):
         )
         assert soundbite.start_segment_index in self.transcript.kept_segments
         if end_word_index:
+            if soundbite.end_segment_index in self.transcript.kept_segments:
+                print(
+                    "soundbite",
+                    soundbite,
+                    "end_segment_index",
+                    soundbite.end_segment_index,
+                    "kept_segments",
+                    self.transcript.kept_segments,
+                )
             assert soundbite.end_segment_index in self.transcript.kept_segments
+
         else:
             # TODO why is this happening?
             # assert soundbite.end_segment_index - 1 in self.transcript.kept_segments

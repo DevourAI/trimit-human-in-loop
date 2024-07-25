@@ -10,6 +10,15 @@ from pathlib import Path
 from torch import export
 import yaml
 
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_fixed,
+    wait_random,
+    RetryError,
+    retry_if_exception_type,
+)
+
 from pydantic import EmailStr, BaseModel, Field
 from modal.call_graph import InputStatus
 from modal.functions import FunctionCall
@@ -67,6 +76,7 @@ from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_workflow
 from trimit.app import app, get_volume_dir, S3_BUCKET, volume
 from trimit.models import (
+    start_transaction,
     maybe_init_mongo,
     Video,
     VideoHighResPathProjection,
@@ -168,11 +178,11 @@ async def maybe_user_wrapper(user_email: EmailStr | None = None):
     return await find_or_create_user(user_email)
 
 
-async def copy_shared_videos_to_user(user: User):
-    shared_videos = await Video.find(Video.user.email == SHARED_USER_EMAIL).to_list()
-    for video in shared_videos:
-        if await check_existing_video(user.email, video.md5_hash):
-            continue
+@retry(stop=stop_after_attempt(10), wait=wait_fixed(0.1) + wait_random(0, 1))
+async def copy_shared_video_to_user(video: Video, user: User):
+    async with start_transaction() as session:
+        if await check_existing_video(user.email, video.md5_hash, session=session):
+            return
         new_video = await Video.from_user_email(
             user.email,
             md5_hash=video.md5_hash,
@@ -186,10 +196,17 @@ async def copy_shared_videos_to_user(user: User):
             video_llava_description=video.video_llava_description,
             summary=video.summary,
             speakers_in_frame=video.speakers_in_frame,
+            session=session,
         )
         os.makedirs(os.path.dirname(new_video.path(get_volume_dir())), exist_ok=True)
         shutil.copyfile(video.path(get_volume_dir()), new_video.path(get_volume_dir()))
-        await new_video.save()
+        await new_video.save(session=session)
+
+
+async def copy_shared_videos_to_user(user: User):
+    shared_videos = await Video.find(Video.user.email == SHARED_USER_EMAIL).to_list()
+    for video in shared_videos:
+        await copy_shared_video_to_user(video, user)
 
 
 async def find_or_create_user(user_email: EmailStr):
