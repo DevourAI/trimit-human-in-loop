@@ -44,18 +44,19 @@ jobs:
           key: yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Yarn install
-        if: steps.cache-yarn.outputs.cache-hit != 'true'
+        if: steps.cache-yarn-restore.outputs.cache-hit != 'true'
         run: yarn install
         working-directory: ./frontend
 
       - name: Save Yarn Cache
         id: cache-yarn-save
+        if: steps.cache-yarn-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
             ./frontend/.yarn/cache
             ./frontend/node_modules
-          key: ${{ steps.cache-yarn-restore.outputs.cache-primary-key }}
+          key: yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Set up Python
         uses: actions/setup-python@v4
@@ -75,18 +76,19 @@ jobs:
         name: Define a cache for the virtual environment based on the dependencies lock file
         with:
           path: ./.venv
-          key: venv-${{ hashFiles('poetry.lock') }}
+          key: venv-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install the project dependencies
-        if: steps.cache-poetry.outputs.cache-hit != 'true'
+        if: steps.cache-poetry-restore.outputs.cache-hit != 'true'
         run: poetry install
 
       - name: Save Poetry Cache
+        if: steps.cache-poetry-restore.outputs.cache-hit != 'true'
         id: cache-poetry-save
         uses: actions/cache/save@v4
         with:
           path: ./.venv
-          key: ${{ steps.cache-poetry-restore.outputs.cache-primary-key }}
+          key: venv-${{ hashFiles('**/poetry.lock') }}
 
       - name: Generate OpenAPI files
         env:
