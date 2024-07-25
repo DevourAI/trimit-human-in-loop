@@ -36,29 +36,31 @@ jobs:
           path: ./frontend/gen/openapi
           key: ${{ env.PREV_CACHE_GEN_KEY }}
 
+      - name: Set short circuit var
+        if: env.CHANGED_PY_FILES == 'false' && steps.cache-openapi-restore.outputs.cache-hit == 'true'
+        run: |
+          echo "SHORT_CIRCUIT=true" >> $GITHUB_ENV
+
       - name: Save prev cache to new cache key
         uses: actions/cache/save@v4
-        if: env.CHANGED_PY_FILES == 'false' && steps.cache-openapi-restore.outputs.cache-hit == 'true'
+        if: env.SHORT_CIRCUIT == 'true'
         with:
           path: ./frontend/gen/openapi
           key: ${{ env.CACHE_GEN_KEY }}
 
-      - name: Short circuit workflow
-        if: env.CHANGED_PY_FILES == 'false' && steps.cache-openapi-restore.outputs.cache-hit == 'true'
-        run: exit 0
-        shell: bash
-        continue-on-error: true
-
       - name: install-aws-cli-action
+        if: env.SHORT_CIRCUIT != 'true'
         uses: unfor19/install-aws-cli-action@v1
 
       - name: Verify AWS CLI installation
+        if: env.SHORT_CIRCUIT != 'true'
         run: |
           echo "Verifying AWS CLI installation..."
           which aws
           aws --version
 
       - name: Configure AWS credentials
+        if: env.SHORT_CIRCUIT != 'true'
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -70,6 +72,7 @@ jobs:
         shell: bash
 
       - uses: actions/cache@v4
+        if: env.SHORT_CIRCUIT != 'true'
         id: cache-yarn-restore
         name: Define a cache for the yarn install based on the dependencies lock file
         with:
@@ -79,13 +82,13 @@ jobs:
           key: yarn-${{ hashFiles('**/yarn.lock') }}
 
       - name: Yarn install
-        if: steps.cache-yarn-restore.outputs.cache-hit != 'true'
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-yarn-restore.outputs.cache-hit != 'true'
         run: yarn install
         working-directory: ./frontend
 
       - name: Save Yarn Cache
         id: cache-yarn-save
-        if: steps.cache-yarn-restore.outputs.cache-hit != 'true'
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-yarn-restore.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -95,14 +98,17 @@ jobs:
 
 
       - name: Set up Python
+        if: env.SHORT_CIRCUIT != 'true'
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
 
       - name: Install Poetry
+        if: env.SHORT_CIRCUIT != 'true'
         uses: abatilo/actions-poetry@v3.0.0
 
       - uses: actions/cache@v4
+        if: env.SHORT_CIRCUIT != 'true'
         id: cache-poetry-restore
         name: Define a cache for the virtual environment based on the dependencies lock file
         with:
@@ -110,11 +116,11 @@ jobs:
           key: venv-${{ hashFiles('**/poetry.lock') }}
 
       - name: Install the project dependencies
-        if: steps.cache-poetry-restore.outputs.cache-hit != 'true'
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-poetry-restore.outputs.cache-hit != 'true'
         run: poetry install
 
       - name: Save Poetry Cache
-        if: steps.cache-poetry-restore.outputs.cache-hit != 'true'
+        if: env.SHORT_CIRCUIT != 'true' && steps.cache-poetry-restore.outputs.cache-hit != 'true'
         id: cache-poetry-save
         uses: actions/cache/save@v4
         with:
@@ -122,11 +128,13 @@ jobs:
           key: venv-${{ hashFiles('**/poetry.lock') }}
 
       - name: Generate OpenAPI files
+        if: env.SHORT_CIRCUIT != 'true'
         env:
           AUTH_SECRET_KEY: ${{ secrets.AUTH_SECRET_KEY }}
         run: make openapi
 
       - name: Save Generated OpenAPI files
+        if: env.SHORT_CIRCUIT != 'true'
         id: cache-openapi-save
         uses: actions/cache/save@v4
         with:
@@ -134,6 +142,7 @@ jobs:
           key: ${{ env.CACHE_GEN_KEY }}
 
       - name: Copy files to s3
+        if: env.SHORT_CIRCUIT != 'true'
         run: make copy_gen_to_s3
 
   Deploy-Preview:
