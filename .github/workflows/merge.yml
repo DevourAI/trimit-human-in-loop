@@ -54,6 +54,8 @@ jobs:
         run: poetry install
 
       - name: Generate OpenAPI files
+        env:
+          AUTH_SECRET_KEY: ${{ secrets.AUTH_SECRET_KEY }}
         run: make openapi
 
       - name: Copy files to s3
