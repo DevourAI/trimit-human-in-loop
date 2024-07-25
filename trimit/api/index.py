@@ -136,6 +136,8 @@ class DynamicCORSMiddleware(BaseHTTPMiddleware):
         allow_remote = origin and origin in (
             "https://trimit-human-in-loop-git-deploy-prod-trimit.vercel.app",
             "https://app.trimit.ai",
+            "https://app-staging.trimit.ai",
+            "https://app-preview.trimit.ai",
         )
         origin = origin or ""
         if allow_local or allow_remote:
