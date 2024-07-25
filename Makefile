@@ -29,6 +29,15 @@ deploy_staging:
 deploy_dev:
 	@MODAL_ENVIRONMENT=dev DEPLOY_BACKEND=true DEPLOY_FRONTEND=true ENV=dev ./deploy.sh
 
+seed_dev:
+	@MODAL_ENVIRONMENT=dev ENV=dev poetry run python -m scripts.seed_data
+
+seed_staging:
+	@MODAL_ENVIRONMENT=staging ENV=staging poetry run python -m scripts.seed_data
+
+seed_prod:
+	@MODAL_ENVIRONMENT=prod ENV=prod poetry run python -m scripts.seed_data
+
 test:
 	@echo "Running tests..."
 	ENV=test poetry run pytest -v tests $(TEST_ARGS)
