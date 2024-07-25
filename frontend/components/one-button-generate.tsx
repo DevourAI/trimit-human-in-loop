@@ -158,7 +158,6 @@ export default function OneButtonGenerate({
         prevStepOutput.current = newStepOutput;
       }
     }
-    console.log('got latestState', latestState);
     if (
       latestState.mapped_export_result &&
       latestState.mapped_export_result.length
@@ -167,10 +166,6 @@ export default function OneButtonGenerate({
         latestState.mapped_export_result[
           latestState.mapped_export_result.length - 2
         ];
-      console.log(
-        'got latestState and mappedExportResult',
-        newMappedExportResult
-      );
       if (newMappedExportResult !== prevMappedExportResult.current) {
         setMappedExportResult(newMappedExportResult);
         prevMappedExportResult.current = newMappedExportResult;
@@ -212,18 +207,11 @@ export default function OneButtonGenerate({
             reader.cancel();
             return;
           }
-          console.log('value.workflow_id', value.workflow_id);
           if (
             value &&
             value.workflow_id &&
             value.workflow_id !== oldWorkflowId.current
           ) {
-            console.log(
-              'workflow_id changed',
-              value.workflow_id,
-              'oldWorkflowId',
-              oldWorkflowId.current
-            );
             setWorkflowId(value.workflow_id);
             oldWorkflowId.current = value.workflow_id;
           }
