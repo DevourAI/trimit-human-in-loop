@@ -365,6 +365,14 @@ class VideoFileProjection(BaseModel, PathMixin):
         return self.user.email
 
 
+class UploadedVideoProjection(VideoFileProjection):
+    details: dict[str, Any]
+
+    @property
+    def duration(self):
+        return self.details.get("duration")
+
+
 class VideoUserHashProjection(BaseModel):
     _id: PydanticObjectId
     user: UserEmailProjection
@@ -687,9 +695,6 @@ class Frame(DocumentWithSaveRetry):
 
 class Project(DocumentWithSaveRetry):
     user: Link[User]
-    workflow_states: list[BackLink["CutTranscriptLinearWorkflowState"]] = Field(
-        json_schema_extra={"original_field": "project"}
-    )
     name: str
 
     class Settings:
@@ -991,6 +996,7 @@ class CutTranscriptLinearWorkflowState(DocumentWithSaveRetry, StepOrderMixin):
                 ],
                 unique=True,
             ),
+            IndexModel([("static_state.project.name", pymongo.ASCENDING)]),
         ]
 
     def __init__(self, **data):

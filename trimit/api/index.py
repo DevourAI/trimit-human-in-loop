@@ -86,7 +86,7 @@ from trimit.models import (
     Video,
     VideoHighResPathProjection,
     User,
-    VideoFileProjection,
+    UploadedVideoProjection,
     FrontendWorkflowState,
     CutTranscriptLinearWorkflowStreamingOutput,
     CutTranscriptLinearWorkflowState,
@@ -1332,7 +1332,7 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
     await maybe_init_mongo()
     videos = (
         await Video.find(Video.user.email == user.email)
-        .project(VideoFileProjection)
+        .project(UploadedVideoProjection)
         .to_list()
     )
     asset_copy_tasks = []
@@ -1347,6 +1347,7 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
             video_hash=video.md5_hash,
             path=asset_path,
             remote_url=asset_path,
+            duration=video.duration,
         )
         for video, asset_path in zip(videos, asset_paths)
     ]

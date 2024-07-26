@@ -1996,6 +1996,7 @@ class UploadedVideo(BaseModel):
     video_hash: str
     path: str
     remote_url: str
+    duration: float
 
 
 class UploadVideo(BaseModel):
