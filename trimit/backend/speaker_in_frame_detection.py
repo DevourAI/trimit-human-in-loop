@@ -97,7 +97,7 @@ class SpeakerInFrameDetection(CacheMixin):
                         speaker_to_scenes[speaker].append(scene)
                         output_file = str(Path(output_dir) / scene.filename)
                         scenes_to_detect_speaker[speaker].append(scene)
-                        if not os.path.exists(output_file):
+                        if not os.path.exists(output_file) or not use_existing_output:
                             scenes_to_write_to_disk.append(scene)
 
                 if len(scenes_to_write_to_disk) > 0:
@@ -170,6 +170,9 @@ class SpeakerInFrameDetection(CacheMixin):
                 )
                 / scene.name
             )
+            if not os.path.exists(scene.path(self.volume_dir)):
+                print(f"Scene video file does not exist: {scene.path(self.volume_dir)}")
+                continue
             frame_buffer = await extract_frames(
                 scene.path(self.volume_dir),
                 output_folder=output_folder,
@@ -182,7 +185,7 @@ class SpeakerInFrameDetection(CacheMixin):
             )
             if frame_buffer is None:
                 print(f"Could not extract frames for scene {scene.name}")
-                return False
+                continue
             assert isinstance(frame_buffer, io.BytesIO)
             _frame_bytes = frame_buffer.read()
             self.save_frame_bytes_to_cache(scene, _frame_bytes)
@@ -190,6 +193,10 @@ class SpeakerInFrameDetection(CacheMixin):
         prompt = parse_prompt_template("speaker_in_frame")
         schema = Schema({"is_speaking": bool}).json_schema("SpeakerInFrameDetection")
         output = None
+        frame_bytes = [frame for frame in frame_bytes if frame is not None]
+        print(
+            f"Detecting speaker in frame for {len(frame_bytes)} frames out of {len(scenes)} scenes"
+        )
         async for output, is_last in get_agent_output_modal_or_local(
             prompt, json_mode=True, schema=schema, images=frame_bytes
         ):
