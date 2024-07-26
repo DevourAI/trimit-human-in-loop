@@ -1878,11 +1878,7 @@ class VideoProcessingStatus(CallStatus):
 
     @classmethod
     def from_call_status(cls, status, video_hash):
-        return cls(status=status, video_hash=video_hash, **status.model_dump())
-
-
-class GetVideoProcessingStatus(BaseModel):
-    statuses: list[VideoProcessingStatus]
+        return cls(video_hash=video_hash, **status.model_dump())
 
 
 class CheckFunctionCallResults(BaseModel):
@@ -2000,6 +1996,7 @@ class UploadedVideo(BaseModel):
     video_hash: str
     path: str
     remote_url: str
+    duration: float
 
 
 class UploadVideo(BaseModel):

@@ -52,7 +52,6 @@ from trimit.models.backend_models import (
     UploadVideo,
     UploadedVideo,
     GetStepOutputs,
-    GetVideoProcessingStatus,
     CheckFunctionCallResults,
     CutTranscriptLinearWorkflowStepOutput,
     PartialBackendOutput,
@@ -69,19 +68,25 @@ from trimit.utils.fs_utils import (
     get_volume_file_path,
     get_s3_key,
     get_audio_file_path,
-    async_copy,
+    convert_video_codec,
 )
 from trimit.utils.model_utils import save_video_with_details, check_existing_video
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.api.utils import load_workflow
-from trimit.app import app, get_volume_dir, S3_BUCKET, CDN_ASSETS_PATH, volume
+from trimit.app import (
+    app,
+    get_volume_dir,
+    TRIMIT_VIDEO_S3_CDN_BUCKET,
+    CDN_ASSETS_PATH,
+    volume,
+)
 from trimit.models import (
     start_transaction,
     maybe_init_mongo,
     Video,
     VideoHighResPathProjection,
     User,
-    VideoFileProjection,
+    UploadedVideoProjection,
     FrontendWorkflowState,
     CutTranscriptLinearWorkflowStreamingOutput,
     CutTranscriptLinearWorkflowState,
@@ -413,7 +418,7 @@ def check_call_status(modal_call_id, timeout: float = 0.5, with_result=False):
 # sometime in the future we can use kafka or pubsub to push to frontend
 @web_app.get(
     "/get_video_processing_status",
-    response_model=GetVideoProcessingStatus,
+    response_model=list[VideoProcessingStatus],
     tags=["FunctionCalls"],
     summary="Get status of video processing jobs",
     description="TODO",
@@ -443,7 +448,7 @@ async def get_video_processing_status(
         check_call_status(call_id, timeout=timeout) if call_id else None
         for call_id in call_ids
     ]
-    statuses = []
+    model_statuses = []
     for call_id, video_hash, status in zip(call_ids, video_hashes, statuses):
         if status is None:
             status = CallStatus(call_id=call_id, status="done")
@@ -457,8 +462,8 @@ async def get_video_processing_status(
         video_processing_status = VideoProcessingStatus.from_call_status(
             status, video_hash
         )
-        statuses.append(video_processing_status)
-    return GetVideoProcessingStatus(statuses=statuses)
+        model_statuses.append(video_processing_status)
+    return model_statuses
 
 
 # frontend should poll for this
@@ -1327,7 +1332,7 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
     await maybe_init_mongo()
     videos = (
         await Video.find(Video.user.email == user.email)
-        .project(VideoFileProjection)
+        .project(UploadedVideoProjection)
         .to_list()
     )
     asset_copy_tasks = []
@@ -1342,10 +1347,10 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
             video_hash=video.md5_hash,
             path=asset_path,
             remote_url=asset_path,
+            duration=video.duration,
         )
         for video, asset_path in zip(videos, asset_paths)
     ]
-    print("uploaded_videos:", data)
     return data
 
 
@@ -1404,6 +1409,8 @@ async def upload_multiple_files(
         ).parent
         volume_file_path = await save_file_to_volume_as_crc_hash(file, volume_file_dir)
         print(f"Saved file to {volume_file_path}")
+        convert_video_codec(volume_file_path, codec="libx264")
+        print(f"Converted video codec to libx264")
 
         filename = Path(volume_file_path).name
         video_hash = Path(volume_file_path).stem
@@ -1431,8 +1438,10 @@ async def upload_multiple_files(
         else:
             if not is_local():
                 s3_key = get_s3_key(user, upload_datetime, Path(volume_file_path).name)
-                print(f"Saving file to {S3_BUCKET}/{s3_key}")
-                await async_copy_to_s3(S3_BUCKET, str(volume_file_path), str(s3_key))
+                print(f"Saving file to {TRIMIT_VIDEO_S3_CDN_BUCKET}/{s3_key}")
+                await async_copy_to_s3(
+                    TRIMIT_VIDEO_S3_CDN_BUCKET, str(volume_file_path), str(s3_key)
+                )
             audio_file_path = get_audio_file_path(
                 user, upload_datetime, filename, volume_dir=volume_dir
             )

@@ -17,6 +17,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { UploadedVideo } from '@/gen/openapi/api';
+import { formatDuration } from '@/lib/utils';
 
 interface VideoTableProps {
   uploadedVideos: UploadedVideo[];
@@ -34,6 +35,14 @@ const getStatusBadge = (status: string) => {
           Error
         </Badge>
       );
+    case 'uploading':
+      return (
+        <Badge variant="secondary">
+          <ClockIcon className="mr-1" />
+          Uploading
+        </Badge>
+      );
+
     case 'pending':
       return (
         <Badge variant="secondary">
@@ -70,6 +79,7 @@ const VideoTable: React.FC<VideoTableProps> = ({
               <TableHead>Filename</TableHead>
               <TableHead className="hidden md:table-cell">Thumbnail</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Duration</TableHead>
               <TableHead></TableHead>
             </TableRow>
           </TableHeader>
@@ -100,6 +110,9 @@ const VideoTable: React.FC<VideoTableProps> = ({
                           videoProcessingStatuses[video.video_hash].status
                         )
                       : getStatusBadge('done')}
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    {formatDuration(video.duration, { roundMs: true })}
                   </TableCell>
                   <TableCell>
                     <Button

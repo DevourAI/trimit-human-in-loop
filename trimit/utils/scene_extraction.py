@@ -1,4 +1,5 @@
 from pathlib import Path
+import os
 from concurrent.futures import ThreadPoolExecutor
 from trimit.utils.video_utils import get_video_info
 
@@ -46,9 +47,18 @@ async def extract_scenes_to_disk(
                 end_time = duration
             subclip = video.subclip(start_time, end_time)
             output_file = str(Path(output_dir) / scene.filename)
+            # try:
             subclip.write_videofile(
-                output_file, audio_codec="aac", codec=codec, logger=None
+                output_file, audio_codec="aac", codec="libx264", logger=None
             )
+            #  except OSError as e:
+            #  if 'Unknown encoder' in str(e):
+            #  codec = 'libx264'
+            #  subclip.write_videofile(
+            #  output_file, audio_codec="aac", codec=codec, logger=None
+            #  )
+            if not os.path.exists(output_file):
+                raise ValueError(f"Failed to write {output_file}")
             return output_file
 
     paths = []
