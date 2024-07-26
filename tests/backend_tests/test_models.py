@@ -1,5 +1,6 @@
 from trimit.backend.cut_transcript import CutTranscriptLinearWorkflow
 from trimit.models.backend_models import CutTranscriptLinearWorkflowStepOutput
+from trimit.models import Project
 import pytest
 
 pytestmark = pytest.mark.asyncio()

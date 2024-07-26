@@ -12,14 +12,15 @@ import type { GetUploadedVideoParams } from '@/lib/types';
 const POLL_INTERVAL = 5000;
 
 interface VideoSelectorProps {
-  setVideoDetails: (hash: string, filename: string) => void;
+  selectedVideo: UploadedVideo | null;
+  setSelectedVideo: (video: UploadedVideo) => void;
 }
 
-export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
+export default function VideoSelector({
+  selectedVideo,
+  setSelectedVideo,
+}: VideoSelectorProps) {
   const { userData } = useUser();
-  const [selectedVideo, setSelectedVideo] = useState<UploadedVideo | null>(
-    null
-  );
   const [uploadedVideos, setUploadedVideos] = useState<UploadedVideo[]>([]);
   const [uploadingVideo, setUploadingVideo] = useState<string | null>(null);
   const [videoProcessingStatuses, setVideoProcessingStatuses] = useState<
@@ -73,7 +74,9 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
       if (isPolling.current) return; // Ensure only one polling request in flight
       isPolling.current = true;
       const newUploadedVideos = await fetchUploadedVideos();
-      if (newUploadedVideos.length > 0) setSelectedVideo(newUploadedVideos[0]);
+      if (newUploadedVideos.length > 0 && selectedVideo === null) {
+        setSelectedVideo(newUploadedVideos[0]);
+      }
       setUploadedVideos(newUploadedVideos);
       try {
         const data = await getVideoProcessingStatuses(userData.email);
@@ -93,12 +96,6 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
               const filename = newUploadedVideos.find(
                 (video) => video.video_hash === result.video_hash
               )?.filename;
-              console.log(
-                'filename:',
-                filename,
-                'uploadingVideo:',
-                uploadingVideo
-              );
               acc[result.video_hash] = {
                 status:
                   filename === uploadingVideo ? 'uploading' : result.status,
@@ -107,7 +104,6 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
             },
             {}
           );
-          console.log('New video processing statuses:', newStatuses);
           setVideoProcessingStatuses(newStatuses);
         }
       } catch (error) {
@@ -131,13 +127,7 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
         clearTimeout(timeoutId.current);
       }
     };
-  }, [userData.email, uploadingVideo]);
-
-  useEffect(() => {
-    if (selectedVideo) {
-      setVideoDetails(selectedVideo.video_hash, selectedVideo.filename);
-    }
-  }, [selectedVideo, setVideoDetails]);
+  }, [userData.email, uploadingVideo, selectedVideo, setSelectedVideo]);
 
   return (
     <div className="grid gap-3">
@@ -154,7 +144,13 @@ export default function VideoSelector({ setVideoDetails }: VideoSelectorProps) {
                 userEmail={userData.email}
                 setUploadingVideo={setUploadingVideo}
                 setVideoDetails={(hash: string | null, filename: string) => {
-                  setVideoDetails(hash || '', filename);
+                  setSelectedVideo({
+                    video_hash: hash || '',
+                    filename,
+                    path: '',
+                    duration: 0,
+                    remote_url: '',
+                  });
                   if (
                     uploadedVideos.filter(
                       (video) => video.filename === filename

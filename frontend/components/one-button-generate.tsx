@@ -1,4 +1,5 @@
 'use client';
+import { InfoCircledIcon } from '@radix-ui/react-icons';
 import React, {
   useCallback,
   useEffect,
@@ -23,6 +24,13 @@ import { Heading } from '@/components/ui/heading';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
+import { Slider } from '@/components/ui/slider';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import VideoSelector from '@/components/ui/video-selector';
 import { StructuredInputFormProvider } from '@/contexts/structured-input-form-context';
 import { useUser } from '@/contexts/user-context';
@@ -30,6 +38,7 @@ import {
   CutTranscriptLinearWorkflowStreamingOutput,
   FrontendStepOutput,
   FrontendWorkflowState,
+  UploadedVideo,
 } from '@/gen/openapi/api';
 import {
   getLatestState,
@@ -47,6 +56,33 @@ const videoTypeExamples = [
   'Travel vlog',
   'Interview highlights',
 ];
+
+const CardLabelWithTooltip = ({
+  label,
+  tooltipText,
+  htmlFor,
+}: {
+  label: string;
+  tooltipText: string;
+  htmlFor: string;
+}) => {
+  return (
+    <div className="w-1/2 p-4">
+      <div className="flex items-center">
+        <Label htmlFor={htmlFor}>{label}</Label>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <InfoCircledIcon className="ml-2" />
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>{tooltipText}</p>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    </div>
+  );
+};
+
 export default function OneButtonGenerate({
   initialWorkflowId,
   initialProjectName,
@@ -65,7 +101,10 @@ export default function OneButtonGenerate({
   > | null>(null);
   const [userMessage, setUserMessage] = useState<string>('');
   const [backendMessage, setBackendMessage] = useState<string>('');
-  const [newVideoHash, setNewVideoHash] = useState<string>('');
+  const [selectedVideoHash, setSelectedVideoHash] = useState<string>('');
+  const [selectedVideo, setSelectedVideo] = useState<UploadedVideo | null>(
+    null
+  );
   const [workflowId, setWorkflowId] = useState<string>(initialWorkflowId || '');
   const [useNewWorkflowId, setUseNewWorkflowId] = useState<boolean>(false);
   const [projectId, setProjectId] = useState<string>(initialProjectId || '');
@@ -73,7 +112,6 @@ export default function OneButtonGenerate({
   const [projectName, setProjectName] = useState<string>(
     initialProjectName || ''
   );
-  const [lengthSeconds, setLengthSeconds] = useState<number | null>(120);
   const [cancelStepStream, setCancelStepStream] = useState<boolean>(false);
 
   const [videoType, setVideoType] = useState<string | null>(
@@ -87,9 +125,18 @@ export default function OneButtonGenerate({
 
   const [chatMessages, setChatMessages] = useState<Message[]>([]);
 
+  const durationWithMax = (defaultVal: number) => {
+    return selectedVideo?.duration
+      ? Math.min(defaultVal, Math.round(selectedVideo.duration))
+      : defaultVal;
+  };
+  const [lengthSecondsSliderValue, setLengthSecondsSliderValue] = useState<
+    number[]
+  >([durationWithMax(120)]);
+
   async function fetchAndSetWorkflow(workflowId: string) {
     const workflow = await getWorkflowDetails(workflowId);
-    if (workflow?.video_hash) setNewVideoHash(workflow?.video_hash);
+    if (workflow?.video_hash) setSelectedVideoHash(workflow?.video_hash);
     if (workflow?.project_id) setProjectId(workflow?.project_id);
     if (workflow?.project_name) setProjectName(workflow?.project_name);
     if (workflow?.video_type) setVideoType(workflow?.video_type);
@@ -134,10 +181,10 @@ export default function OneButtonGenerate({
       workflow_id: workflowId,
       project_id: projectId,
       project_name: projectName,
-      video_hash: newVideoHash,
+      video_hash: selectedVideoHash,
     };
     return retObj;
-  }, [userData.email, projectId, workflowId, projectName, newVideoHash]);
+  }, [userData.email, projectId, workflowId, projectName, selectedVideoHash]);
 
   const prevProjectId = useRef<string | null>(null);
   const prevNewVideoHash = useRef<string | null>(null);
@@ -174,12 +221,12 @@ export default function OneButtonGenerate({
         prevProjectId.current = latestState.static_state.project_id || '';
       }
       if (latestState.static_state.video_hash !== prevNewVideoHash.current) {
-        setNewVideoHash(latestState.static_state.video_hash);
+        setSelectedVideoHash(latestState.static_state.video_hash);
       }
       if (
         latestState.static_state.length_seconds !== prevLengthSeconds.current
       ) {
-        setLengthSeconds(latestState.static_state.length_seconds);
+        setLengthSecondsSliderValue([latestState.static_state.length_seconds]);
         prevLengthSeconds.current = latestState.static_state.length_seconds;
       }
     }
@@ -238,15 +285,15 @@ export default function OneButtonGenerate({
     setIsLoading(true);
     setStepOutput(null);
     setMappedExportResult(null);
-    if (newVideoHash === '') {
+    if (selectedVideoHash === '') {
       return;
     }
     const runData: LocalRunInput = {
       user_input: userMessage || '',
       streaming: true,
       ignore_running_workflows: true,
-      video_hash: newVideoHash,
-      length_seconds: lengthSeconds,
+      video_hash: selectedVideoHash,
+      length_seconds: lengthSecondsSliderValue[0],
       n_variations: nVariations,
       // timeline_name: timelineName, TODO option for this once I figure out the UI
       video_type: videoType,
@@ -280,11 +327,16 @@ export default function OneButtonGenerate({
       latestState?.all_steps[latestState.all_steps.length - 1].name || '';
   }
 
-  const handleVideoSelected = (hash: string, filename: string) => {
-    if (hash !== newVideoHash) {
-      setNewVideoHash(hash);
-      //setNewVideoFilename(filename);
-      if (newVideoHash !== '') {
+  const handleVideoSelected = (video: UploadedVideo) => {
+    if (video.video_hash !== selectedVideoHash) {
+      setSelectedVideoHash(video.video_hash);
+      setSelectedVideo(video);
+      if (video.duration) {
+        setLengthSecondsSliderValue([
+          Math.min(120, Math.floor(video.duration / 40) * 10),
+        ]);
+      }
+      if (selectedVideoHash !== '') {
         setUseNewWorkflowId(true);
       }
     }
@@ -309,157 +361,175 @@ export default function OneButtonGenerate({
       userParams={userParams}
       mappedExportResult={mappedExportResult}
     >
-      <div className="flex w-full flex-col gap-4">
-        <VideoSelector setVideoDetails={handleVideoSelected} />
+      <TooltipProvider delayDuration={100}>
+        <div className="flex w-full flex-col gap-4">
+          <VideoSelector
+            selectedVideo={selectedVideo}
+            setSelectedVideo={handleVideoSelected}
+          />
 
-        <Card className="max-w-full shadow-none">
-          <CardContent className="flex max-w-full p-0">
-            <div className="w-1/2 p-4">
-              <Label htmlFor="lengthSeconds">
-                Desired length of video (seconds)
-              </Label>
-            </div>
-            <div className="w-1/2 border-l p-4">
-              <Input
-                id="lengthSeconds"
-                value={lengthSeconds || ''}
-                onChange={(e) => {
-                  setUseNewWorkflowId(true);
-                  setLengthSeconds(
-                    e.target.value ? parseFloat(e.target.value) : null
-                  );
-                }}
+          <Card className="max-w-full shadow-none">
+            <CardContent className="flex max-w-full p-0">
+              <CardLabelWithTooltip
+                label="Desired length of video (seconds)"
+                tooltipText="The system will do its best to produce a video approximately this length."
+                htmlFor="lengthSeconds"
               />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="max-w-full shadow-none">
-          <CardContent className="flex max-w-full p-0">
-            <div className="w-1/2 p-4">
-              <Label htmlFor="videoType">Video type</Label>
-            </div>
-            <div className="w-1/2 border-l p-4">
-              <div className="flex items-center">
-                <Input
-                  id="videoType"
-                  value={videoType || ''}
-                  onChange={(e) => {
+              <div className="w-1/2 border-l p-4">
+                <Slider
+                  id="lengthSeconds"
+                  //defaultValue={[selectedVideo ? Math.min(120, Math.round(selectedVideo.duration)) : 120]}
+                  max={durationWithMax(1000)}
+                  min={10}
+                  step={10}
+                  value={lengthSecondsSliderValue}
+                  onValueChange={(value) => {
+                    setLengthSecondsSliderValue(value);
                     setUseNewWorkflowId(true);
-                    setVideoType(e.target.value);
                   }}
                 />
-
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline">Examples</Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent>
-                    {videoTypeExamples.map((videoType: string) => (
-                      <DropdownMenuItem
-                        key={videoType}
-                        onSelect={() => setVideoType(videoType)}
-                      >
-                        {videoType}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="text-center">{lengthSecondsSliderValue[0]}</div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="max-w-full shadow-none">
-          <CardContent className="flex max-w-full p-0">
-            <div className="w-1/2 p-4">
-              <Label htmlFor="workflowName">Project name (optional)</Label>
-            </div>
-            <div className="w-1/2 border-l p-4">
-              <Input
-                id="projectName"
-                value={projectName || ''}
-                onChange={(e) => {
-                  setUseNewWorkflowId(true);
-                  setProjectName(e.target.value);
-                }}
+            </CardContent>
+          </Card>
+          <Card className="max-w-full shadow-none">
+            <CardContent className="flex max-w-full p-0">
+              <CardLabelWithTooltip
+                label="Video type"
+                tooltipText="Describe any type of video you want to create or select one of the examples. This will be injected into the AI prompt and used to craft the narrative."
+                htmlFor="videoType"
               />
-            </div>
-          </CardContent>
-        </Card>
+              <div className="w-1/2 border-l p-4">
+                <div className="flex items-center">
+                  <Input
+                    id="videoType"
+                    value={videoType || ''}
+                    onChange={(e) => {
+                      setUseNewWorkflowId(true);
+                      setVideoType(e.target.value);
+                    }}
+                  />
 
-        <Card className="max-w-full shadow-none">
-          <CardContent className="flex max-w-full p-0">
-            <div className="w-1/2 p-4">
-              <Label htmlFor="nVariations">Number of variations</Label>
-            </div>
-            <div className="w-1/2 border-l p-4">
-              <Input
-                id="nVariations"
-                value={nVariations}
-                onChange={(e) => {
-                  setNVariations(e.target.value ? parseInt(e.target.value) : 1);
-                }}
-              />
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="max-w-full shadow-none">
-          <CardContent className="flex max-w-full p-0">
-            <div className="w-1/2 p-4">
-              <Heading className="mb-3" size="sm">
-                Chat
-              </Heading>
-              <Chat
-                onSubmit={runWorkflow}
-                disabled={!newVideoHash}
-                disabledMessage={'Must select a video first'}
-                isLoading={isLoading}
-                messages={chatMessages}
-                onChange={(userMessage: string) => {
-                  setUserMessage(userMessage);
-                }}
-                userMessage={userMessage}
-              />
-            </div>
-            <div className="w-1/2 border-l p-4">
-              <Heading className="mb-3" size="sm">
-                Outputs
-              </Heading>
-              {stepOutput ? (
-                <div>
-                  <StepOutput
-                    onSubmit={() => {}}
-                    isLoading={isLoading}
-                    output={stepOutput}
-                    allowModification={false}
-                    exportCallId={null}
-                    exportResult={null}
-                  />
-                  <ExportStepMenu
-                    disabled={false}
-                    userParams={userParams}
-                    stepName={stepName}
-                  />
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline">Examples</Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      {videoTypeExamples.map((videoType: string) => (
+                        <DropdownMenuItem
+                          key={videoType}
+                          onSelect={() => setVideoType(videoType)}
+                        >
+                          {videoType}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
-              ) : null}
-            </div>
-          </CardContent>
-
-          <CardFooter>
-            {isLoading && (
-              <div className="w-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
-                <Heading size="sm">
-                  We&apos;ll email you when the video is done.
-                </Heading>
-                <Button variant="default" onClick={restart}>
-                  Start Over
-                </Button>
-                {`${backendMessage || 'Interacting with AI'}...`}
-                <LoadingSpinner size="large" />
               </div>
-            )}
-          </CardFooter>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+          <Card className="max-w-full shadow-none">
+            <CardContent className="flex max-w-full p-0">
+              <CardLabelWithTooltip
+                label="Project name (optional)"
+                tooltipText="Name for a project that will contain all variations of this video, and future variations using the same project name. Useful to organize your videos."
+                htmlFor="projectName"
+              />
+
+              <div className="w-1/2 border-l p-4">
+                <Input
+                  id="projectName"
+                  value={projectName || ''}
+                  onChange={(e) => {
+                    setUseNewWorkflowId(true);
+                    setProjectName(e.target.value);
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="max-w-full shadow-none">
+            <CardContent className="flex max-w-full p-0">
+              <CardLabelWithTooltip
+                label="Number of variations"
+                tooltipText="The number of unique videos you want to generate. Each video will have a slightly different narrative and flow."
+                htmlFor="nVarations"
+              />
+
+              <div className="w-1/2 border-l p-4">
+                <Slider
+                  id="nVarations"
+                  defaultValue={[1]}
+                  max={20}
+                  min={1}
+                  step={1}
+                  onValueChange={(value) => setNVariations(value[0])}
+                />
+                <div className="text-center">{nVariations}</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card className="max-w-full shadow-none">
+            <CardContent className="flex max-w-full p-0">
+              <div className="w-1/2 p-4">
+                <Heading className="mb-3" size="sm">
+                  Chat
+                </Heading>
+                <Chat
+                  onSubmit={runWorkflow}
+                  disabled={!selectedVideoHash}
+                  disabledMessage={'Must select a video first'}
+                  isLoading={isLoading}
+                  messages={chatMessages}
+                  onChange={(userMessage: string) => {
+                    setUserMessage(userMessage);
+                  }}
+                  userMessage={userMessage}
+                />
+              </div>
+              <div className="w-1/2 border-l p-4">
+                <Heading className="mb-3" size="sm">
+                  Outputs
+                </Heading>
+                {stepOutput ? (
+                  <div>
+                    <StepOutput
+                      onSubmit={() => {}}
+                      isLoading={isLoading}
+                      output={stepOutput}
+                      allowModification={false}
+                      exportCallId={null}
+                      exportResult={null}
+                    />
+                    <ExportStepMenu
+                      disabled={false}
+                      userParams={userParams}
+                      stepName={stepName}
+                    />
+                  </div>
+                ) : null}
+              </div>
+            </CardContent>
+
+            <CardFooter>
+              {isLoading && (
+                <div className="w-full bg-background/90 flex justify-center items-center flex-col gap-3 text-sm">
+                  <Heading size="sm">
+                    We&apos;ll email you when the video is done.
+                  </Heading>
+                  <Button variant="default" onClick={restart}>
+                    Start Over
+                  </Button>
+                  {`${backendMessage || 'Interacting with AI'}...`}
+                  <LoadingSpinner size="large" />
+                </div>
+              )}
+            </CardFooter>
+          </Card>
+        </div>
+      </TooltipProvider>
     </StructuredInputFormProvider>
   );
 }
