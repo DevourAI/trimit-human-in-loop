@@ -93,14 +93,12 @@ class PathMixin:
         retry_task = construct_retry_task_with_exception_type(FileNotFoundError)
         volume_path = self.path(volume_dir)
         asset_path = self.path("")
-        print("asset_path_with_copy asset_path", asset_path)
         try:
             await retry_task(
                 async_copy_to_s3, TRIMIT_VIDEO_S3_CDN_BUCKET, volume_path, asset_path
             )
         except RetryError:
             raise FileNotFoundError(f"Failed to copy video to asset: {volume_path}")
-        print("succeeded")
         return form_cdn_url_from_path(asset_path)
 
     async def asset_path_with_fallback(self, volume_dir, asset_dir):

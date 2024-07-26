@@ -439,14 +439,6 @@ async def map_export_result_to_asset_path(
                                 ),
                             )
                         )
-            else:
-                print(
-                    f"dont know how to handle export result for filekey {filekey}: {result}"
-                )
-        else:
-            print(
-                f"dont know how to handle export result for filekey {filekey}: {result}"
-            )
+
     await asyncio.gather(*copy_tasks)
-    print("mapped_export_result", mapped_export_result)
     return mapped_export_result

@@ -34,6 +34,14 @@ const getStatusBadge = (status: string) => {
           Error
         </Badge>
       );
+    case 'uploading':
+      return (
+        <Badge variant="secondary">
+          <ClockIcon className="mr-1" />
+          Uploading
+        </Badge>
+      );
+
     case 'pending':
       return (
         <Badge variant="secondary">

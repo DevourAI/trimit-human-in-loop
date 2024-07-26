@@ -8,6 +8,8 @@ from pathlib import Path
 import os
 import zlib
 import uuid
+from tempfile import NamedTemporaryFile
+from moviepy.editor import VideoFileClip
 
 
 async def s3_file_exists(bucket, key):
@@ -105,6 +107,15 @@ async def save_file_to_volume_as_crc_hash(file: UploadFile, save_dir: Path | str
     final_path = Path(save_dir) / f"{final_hash}{ext}"
     os.rename(temp_path, final_path)
     return str(final_path)
+
+
+def convert_video_codec(video_path, codec="libx264"):
+    clip = VideoFileClip(str(video_path))
+    ext = Path(video_path).suffix
+    temp_file_name = str(uuid.uuid4()) + ext
+    temp_path = Path(video_path).parent / temp_file_name
+    clip.write_videofile(str(temp_path), codec=codec)
+    os.rename(str(temp_path), str(video_path))
 
 
 def get_volume_file_path(

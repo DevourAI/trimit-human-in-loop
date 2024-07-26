@@ -1,6 +1,7 @@
 'use client';
 import React, { ChangeEvent, useState } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
@@ -10,6 +11,7 @@ interface UploadVideoProps {
   userEmail: string;
   setVideoDetails: (hash: string, filename: string) => void;
   videoProcessingStatuses: { [key: string]: { status: string } };
+  setUploadingVideo: (hash: string | null) => void;
   setVideoProcessingStatuses: (statuses: {
     [key: string]: { status: string };
   }) => void;
@@ -17,24 +19,29 @@ interface UploadVideoProps {
 
 export default function UploadVideo({
   userEmail,
+  setUploadingVideo,
   setVideoDetails,
   videoProcessingStatuses,
   setVideoProcessingStatuses,
 }: UploadVideoProps) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const [selectedVideo, setSelectedVideo] = useState<File | null>(null);
+  const [fileToUpload, setFileToUpload] = useState<File | null>(null);
 
   const handleVideoChange = async (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0] || null;
-    if (file) {
-      setSelectedVideo(file);
+    setFileToUpload(file);
+  };
+  const upload = async () => {
+    if (fileToUpload) {
       setUploadError(null); // Clear any previous errors
       setIsUploading(true);
-      setVideoDetails('', file.name);
+      console.log('setting uploading video to', fileToUpload.name);
+      setUploadingVideo(fileToUpload.name);
+      setVideoDetails('', fileToUpload.name);
       try {
         const respData = await uploadVideoAPI({
-          videoFile: file,
+          videoFile: fileToUpload,
           userEmail,
           timelineName: 'timelineName', // Replace with actual timeline name if needed
         });
@@ -49,12 +56,13 @@ export default function UploadVideo({
             ...videoProcessingStatuses,
             ...newEntries,
           });
-          setVideoDetails(respData.video_hashes[0], file.name);
+          setVideoDetails(respData.video_hashes[0], fileToUpload.name);
         }
       } catch (error) {
         console.error('Error uploading video', error);
         setUploadError('Failed to upload video. Please try again.');
       }
+      setUploadingVideo(null);
       setIsUploading(false);
     }
   };
@@ -72,6 +80,9 @@ export default function UploadVideo({
           type="file"
           className="mt-1 cursor-pointer text-muted-foreground max-w-sm"
         />
+        <Button onClick={upload} disabled={!fileToUpload || isUploading}>
+          Upload
+        </Button>
         {isUploading && (
           <div className="flex items-center gap-1">
             <LoadingSpinner size="small" />

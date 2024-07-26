@@ -366,9 +366,10 @@ export async function getVideoProcessingStatuses(
     user_email: userEmail,
     ...options,
   });
-  if (respData && respData.result) {
-    return respData;
+  if (respData) {
+    return { result: respData };
   }
+  console.log('getVideoProcessingStatuses', respData);
   return { result: 'error', message: 'No result found' };
 }
 
