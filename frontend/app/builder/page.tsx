@@ -38,25 +38,35 @@ function BuilderInner() {
   };
   return (
     <StepperFormProvider>
-      <Switch
-        id="easy-mode"
-        checked={easyMode}
-        onCheckedChange={onCheckedChange}
-      />
-      <Label htmlFor="easy-mode">Easy Mode</Label>
-      {easyMode ? (
-        <OneButtonGenerate
-          initialProjectId={projectId}
-          initialProjectName={projectName}
-          initialWorkflowId={workflowId}
-        />
-      ) : (
-        <MainStepper
-          initialProjectId={projectId}
-          initialProjectName={projectName}
-          workflowId={workflowId}
-        />
-      )}
+      <div className="space-y-4 mb-4">
+        {' '}
+        {/* Adds vertical space between the switch and the label */}
+        <div className="flex items-center space-x-4">
+          {' '}
+          {/* Adds horizontal space between the switch and the label */}
+          <Switch
+            id="easy-mode"
+            checked={easyMode}
+            onCheckedChange={onCheckedChange}
+          />
+          <Label htmlFor="easy-mode">Easy Mode</Label>
+        </div>
+      </div>
+      <div className="space-y-4">
+        {easyMode ? (
+          <OneButtonGenerate
+            initialProjectId={projectId}
+            initialProjectName={projectName}
+            initialWorkflowId={workflowId}
+          />
+        ) : (
+          <MainStepper
+            initialProjectId={projectId}
+            initialProjectName={projectName}
+            workflowId={workflowId}
+          />
+        )}
+      </div>
     </StepperFormProvider>
   );
 }
