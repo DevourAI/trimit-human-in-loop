@@ -65,6 +65,7 @@ from trimit.utils.async_utils import async_passthrough
 from trimit.utils.fs_utils import (
     async_copy_to_s3,
     save_file_to_volume_as_crc_hash,
+    save_weblink_to_volume_as_crc_hash,
     get_volume_file_path,
     get_s3_key,
     get_audio_file_path,
@@ -1362,10 +1363,11 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
     description="TODO",
 )
 async def upload_multiple_files(
-    files: list[UploadFile] = File(...),
+    files: list[UploadFile] = File([]),
     user: User = Depends(form_user_dependency),
-    high_res_user_file_paths: list[str] = Form(...),
+    high_res_user_file_paths: list[str] = Form([]),
     timeline_name: str = Form(...),
+    web_links: list[str] = Form([]),
     overwrite: bool = Form(False),
     use_existing_output: bool = Form(True),
     reprocess: bool = Form(False),
@@ -1382,6 +1384,8 @@ async def upload_multiple_files(
         high_res_user_file_paths,
         "timeline_name",
         timeline_name,
+        "web_links",
+        web_links,
         "overwrite",
         overwrite,
         "use_existing_output",
@@ -1390,27 +1394,53 @@ async def upload_multiple_files(
         reprocess,
     )
     await maybe_init_mongo()
-    if not files:
-        raise HTTPException(status_code=400, detail="No files uploaded")
-    print(f"Received upload request for {len(files)} files")
-    print(f"high_res_user_file_paths: {high_res_user_file_paths}")
+    if not files and not web_links:
+        raise HTTPException(
+            status_code=400, detail="No files uploaded and no web links provided"
+        )
+    if files:
+        if not high_res_user_file_paths:
+            high_res_user_file_paths = [file.filename or "" for file in files]
+    print(
+        f"Received upload request for {len(files)} files and {len(web_links)} web links"
+    )
 
     upload_datetime = datetime.now()
 
     video_details = []
 
+    is_web_link_list = [False] * len(files) + [True] * len(web_links)
     # TODO allow same video for different users
 
     volume_dir = get_volume_dir()
     resp_msgs = []
-    for file, high_res_user_file_path in zip(files, high_res_user_file_paths):
+    for i, (file, high_res_user_file_path) in enumerate(
+        list(zip(files, high_res_user_file_paths)) + [(l, "") for l in web_links]
+    ):
+        is_web_link = is_web_link_list[i]
         volume_file_dir = Path(
             get_volume_file_path(user, upload_datetime, "temp", volume_dir=volume_dir)
         ).parent
-        volume_file_path = await save_file_to_volume_as_crc_hash(file, volume_file_dir)
+        if is_web_link:
+            assert isinstance(file, str)
+            try:
+                volume_file_path, high_res_path, tmp_audio_path = (
+                    await save_weblink_to_volume_as_crc_hash(file, volume_file_dir)
+                )
+                # TODO here
+            except NotImplementedError as e:
+                raise HTTPException(status_code=400, detail=str(e))
+        else:
+            assert isinstance(file, UploadFile)
+            volume_file_path = await save_file_to_volume_as_crc_hash(
+                file, file.filename or "", volume_file_dir
+            )
+            high_res_path = None
+            tmp_audio_path = None
         print(f"Saved file to {volume_file_path}")
-        convert_video_codec(volume_file_path, codec="libx264")
-        print(f"Converted video codec to libx264")
+        # TODO check if weird apple codec before converting
+        # convert_video_codec(volume_file_path, codec="libx264")
+        # print(f"Converted video codec to libx264")
 
         filename = Path(volume_file_path).name
         video_hash = Path(volume_file_path).stem
@@ -1445,7 +1475,11 @@ async def upload_multiple_files(
             audio_file_path = get_audio_file_path(
                 user, upload_datetime, filename, volume_dir=volume_dir
             )
-            convert_video_to_audio(str(volume_file_path), str(audio_file_path))
+            if tmp_audio_path:
+                audio_file_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy(tmp_audio_path, audio_file_path)
+            else:
+                convert_video_to_audio(str(volume_file_path), str(audio_file_path))
 
         video_details.append(
             {
@@ -1454,6 +1488,7 @@ async def upload_multiple_files(
                 "ext": ext,
                 "upload_datetime": upload_datetime,
                 "high_res_user_file_path": high_res_user_file_path,
+                "high_res_local_file_path": high_res_path,
                 "high_res_user_file_hash": "",
                 "existing": existing,
             }
@@ -1477,6 +1512,7 @@ async def upload_multiple_files(
                 upload_datetime=video_detail["upload_datetime"],
                 high_res_user_file_path=video_detail["high_res_user_file_path"],
                 high_res_user_file_hash=video_detail["high_res_user_file_hash"],
+                high_res_local_file_path=video_detail["high_res_local_file_path"],
                 volume_file_path=video_detail["volume_file_path"],
                 overwrite=overwrite,
             )

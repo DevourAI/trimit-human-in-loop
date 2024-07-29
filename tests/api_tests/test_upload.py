@@ -86,3 +86,54 @@ async def test_upload(background_processor, client, seed_user):
         assert video.details.width == 640
         assert video.details.height == 360
         assert "processing_call_id" in response_data
+
+
+@patch("trimit.api.index.background_processor")
+async def test_upload_weblink(background_processor, client, seed_user):
+    from trimit.models import MONGO_INITIALIZED
+
+    user_email = seed_user.email
+    volume_dir = tempfile.TemporaryDirectory().name
+    upload_date = datetime.now().date()
+    local_filename = "649819196.mp4"
+    video_on_volume_path = (
+        Path(volume_dir) / "uploads" / user_email / str(upload_date) / local_filename
+    )
+    MONGO_INITIALIZED[0] = False
+    background_processor.return_value = MagicMock()
+    import trimit.app
+
+    with patch("trimit.api.index.get_volume_dir", return_value=volume_dir):
+        web_links = ["https://www.youtube.com/watch?v=L2cBvrP5Rjc"]
+        response = client.post(
+            "/upload",
+            files={},
+            data={
+                "web_links": web_links,
+                "user_email": user_email,
+                "timeline_name": "test",
+                "high_res_user_file_paths": [],
+                "force": True,
+                "use_existing_output": False,
+                "reprocess": True,
+            },
+        )
+        assert response.status_code == 200
+        response_data = response.json()
+        assert response_data["result"] == "success"
+        assert response_data["video_hashes"] == ["649819196"]
+        await maybe_init_mongo(reinitialize=True)
+        video = await Video.find_one(Video.md5_hash == "649819196")
+        assert video is not None
+        video_path = Path(video.path(volume_dir))
+        assert video_path.exists()
+        assert video.upload_datetime.date() == upload_date
+        assert video_path == video_on_volume_path
+        assert video.ext == ".mp4"
+        assert video.frame_rate == 23.976023976023978
+        assert video.duration == 665.373042
+        assert video.details is not None
+        assert video.details.frame_count == 15953
+        assert video.details.width == 640
+        assert video.details.height == 360
+        assert "processing_call_id" in response_data

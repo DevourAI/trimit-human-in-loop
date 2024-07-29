@@ -1,6 +1,7 @@
 import json
 from enum import StrEnum
-from pydantic import BaseModel, Field, model_serializer
+from pydantic import BaseModel, Field, model_serializer, ConfigDict
+import unittest
 from typing import Callable, Optional, Union, Any
 import pickle
 from trimit.utils.misc import union_list_of_intervals
@@ -2000,7 +2001,8 @@ class UploadedVideo(BaseModel):
 
 
 class UploadVideo(BaseModel):
-    processing_call_id: str | None = Field(
+    model_config = ConfigDict(arbitrary_types_allowed=True)
+    processing_call_id: Union[str, "unittest.mock.MagicMock", None] = Field(
         None,
         description="backend call_id- use this to retrieve the status of video processing from /get_video_processing_status",
     )

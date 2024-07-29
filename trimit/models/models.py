@@ -197,6 +197,7 @@ class Video(DocumentWithSaveRetry, PathMixin):
     details: Optional[VideoMetadata] = None
     high_res_user_file_path: str
     high_res_user_file_hash: Optional[str] = None
+    high_res_local_file_path: Optional[str] = None
     transcription: Optional[dict] = None
     transcription_text: Optional[str] = None
     video_llava_description: Optional[str] = None
