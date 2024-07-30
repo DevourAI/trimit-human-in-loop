@@ -324,15 +324,29 @@ export async function checkWorkflowExists(
   }
   return false;
 }
-export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
-  if (params.userEmail === '' || !params.videoFile) return {};
+
+export interface UploadVideoResponse {
+  videoHash?: string;
+  filename?: string;
+  callId?: string | null;
+}
+
+export async function uploadVideo(
+  params: UploadVideoParams
+): Promise<UploadVideoResponse> {
+  if (params.userEmail === '' || (!params.videoFile && !params.weblink))
+    return {};
   let data: UploadVideo;
   try {
+    const videoFiles = params.videoFile ? [params.videoFile] : [];
+    const weblinks = params.weblink ? [params.weblink] : [];
+    const videoFileNames = videoFiles.map((file) => file.name);
     const response = await uploadVideosApi.uploadMultipleFilesUploadPost(
-      [params.videoFile],
-      [params.videoFile.name],
       params.timelineName,
       params.userEmail,
+      videoFiles,
+      videoFileNames,
+      weblinks,
       true,
       false,
       true
@@ -341,7 +355,7 @@ export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
     data = response.data;
   } catch (error) {
     console.error(error);
-    return;
+    return {};
   }
 
   if (data.result === 'error') {
@@ -349,10 +363,12 @@ export async function uploadVideo(params: UploadVideoParams): Promise<unknown> {
   } else if (data.video_hashes && data.video_hashes.length) {
     return {
       videoHash: data.video_hashes[0],
+      filename: data.filenames ? data.filenames[0] : undefined,
+      title: data.titles ? data.titles[0] : undefined,
       callId: data.processing_call_id,
     };
   }
-  return data;
+  return {};
 }
 
 export async function getVideoProcessingStatuses(

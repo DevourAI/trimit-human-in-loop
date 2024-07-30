@@ -1348,7 +1348,8 @@ async def uploaded_videos(request: Request, user: User = Depends(find_or_create_
             video_hash=video.md5_hash,
             path=asset_path,
             remote_url=asset_path,
-            duration=video.duration,
+            duration=video.duration or 0,
+            title=video.title or "",
         )
         for video, asset_path in zip(videos, asset_paths)
     ]
@@ -1424,7 +1425,7 @@ async def upload_multiple_files(
         if is_web_link:
             assert isinstance(file, str)
             try:
-                volume_file_path, high_res_path, tmp_audio_path = (
+                volume_file_path, high_res_path, tmp_audio_path, title = (
                     await save_weblink_to_volume_as_crc_hash(file, volume_file_dir)
                 )
                 # TODO here
@@ -1435,6 +1436,7 @@ async def upload_multiple_files(
             volume_file_path = await save_file_to_volume_as_crc_hash(
                 file, file.filename or "", volume_file_dir
             )
+            title = file.filename or ""
             high_res_path = None
             tmp_audio_path = None
         print(f"Saved file to {volume_file_path}")
@@ -1489,6 +1491,7 @@ async def upload_multiple_files(
                 "upload_datetime": upload_datetime,
                 "high_res_user_file_path": high_res_user_file_path,
                 "high_res_local_file_path": high_res_path,
+                "title": title,
                 "high_res_user_file_hash": "",
                 "existing": existing,
             }
@@ -1513,6 +1516,7 @@ async def upload_multiple_files(
                 high_res_user_file_path=video_detail["high_res_user_file_path"],
                 high_res_user_file_hash=video_detail["high_res_user_file_hash"],
                 high_res_local_file_path=video_detail["high_res_local_file_path"],
+                title=video_detail["title"],
                 volume_file_path=video_detail["volume_file_path"],
                 overwrite=overwrite,
             )
@@ -1531,4 +1535,9 @@ async def upload_multiple_files(
         result="success",
         processing_call_id=call.object_id,
         video_hashes=[video_detail["video_hash"] for video_detail in video_details],
+        filenames=[
+            Path(video_detail["volume_file_path"]).name
+            for video_detail in video_details
+        ],
+        titles=[video_detail["title"] for video_detail in video_details],
     )

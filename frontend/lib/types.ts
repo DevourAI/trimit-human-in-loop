@@ -89,6 +89,7 @@ export interface UploadVideoParams {
   videoFile: File;
   userEmail: string;
   timelineName: string;
+  weblink: string;
 }
 
 export interface RedoExportResultParams {

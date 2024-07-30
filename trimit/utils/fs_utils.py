@@ -155,6 +155,7 @@ async def convert_mp3_to_wav(audio_file_path, output_dir):
     # Command to convert MP3 to WAV using FFmpeg
     command = [
         "ffmpeg",  # Command (FFmpeg)
+        "-y",
         "-i",
         audio_file_path,  # Input file (the MP3 file)
         "-acodec",
@@ -191,11 +192,12 @@ async def save_weblink_to_volume_as_crc_hash(weblink: str, save_dir: Path | str)
         )
     else:
         raise NotImplementedError("Only youtube links are supported")
+    title = Path(downloaded_low_res_path).stem.replace("low-res-", "")
     async with aiofiles.open(downloaded_low_res_path, mode="rb") as file:
         low_res_volume_path = await save_file_to_volume_as_crc_hash(
             file, os.path.basename(downloaded_low_res_path), save_dir
         )
-    return low_res_volume_path, downloaded_hi_res_path, downloaded_audio_path
+    return low_res_volume_path, downloaded_hi_res_path, downloaded_audio_path, title
 
 
 def convert_video_codec(video_path, codec="libx264"):

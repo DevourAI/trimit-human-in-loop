@@ -76,7 +76,7 @@ const VideoTable: React.FC<VideoTableProps> = ({
         <Table id="videoTable">
           <TableHeader>
             <TableRow>
-              <TableHead>Filename</TableHead>
+              <TableHead>Title/Filename</TableHead>
               <TableHead className="hidden md:table-cell">Thumbnail</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Duration</TableHead>
@@ -95,7 +95,7 @@ const VideoTable: React.FC<VideoTableProps> = ({
                   onClick={() => selectVideo(video)}
                 >
                   <TableCell className="font-medium">
-                    {video.filename}
+                    {video.title ? video.title : video.filename}
                   </TableCell>
                   <TableCell className="hidden md:table-cell">
                     <video width="320" height="240" controls>
