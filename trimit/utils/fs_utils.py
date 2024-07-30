@@ -1,5 +1,7 @@
 import aioboto3
+import asyncio
 import aiofiles
+from aiofiles.threadpool.binary import AsyncBufferedReader
 from fastapi import UploadFile
 from trimit.utils.video_utils import convert_video_to_audio
 from trimit.utils.model_utils import get_upload_folder, get_audio_folder
@@ -8,8 +10,9 @@ from pathlib import Path
 import os
 import zlib
 import uuid
-from tempfile import NamedTemporaryFile
 from moviepy.editor import VideoFileClip
+from pytubefix import YouTube
+from pytubefix.cli import on_progress
 
 
 async def s3_file_exists(bucket, key):
@@ -93,9 +96,11 @@ async def save_file_to_volume(file: UploadFile, volume_file_path: Path | str):
             await volume_buffer.write(content)
 
 
-async def save_file_to_volume_as_crc_hash(file: UploadFile, save_dir: Path | str):
+async def save_file_to_volume_as_crc_hash(
+    file: AsyncBufferedReader | UploadFile, filename: str, save_dir: Path | str
+):
     Path(save_dir).mkdir(parents=True, exist_ok=True)
-    ext = Path(file.filename).suffix
+    ext = Path(filename).suffix
     temp_file_name = str(uuid.uuid4())
     temp_path = Path(save_dir) / temp_file_name
     crc_value = 0
@@ -107,6 +112,92 @@ async def save_file_to_volume_as_crc_hash(file: UploadFile, save_dir: Path | str
     final_path = Path(save_dir) / f"{final_hash}{ext}"
     os.rename(temp_path, final_path)
     return str(final_path)
+
+
+def is_youtube_link(weblink: str):
+    return "youtube.com" in weblink or "youtu.be" in weblink
+
+
+def parse_res(stream):
+    try:
+        return int(stream.resolution.split("p")[0])
+    except (TypeError, AttributeError):
+        return 0
+
+
+async def download_youtube_video(weblink: str, save_dir: Path | str):
+    yt = YouTube(weblink, on_progress_callback=on_progress)
+    streams = [
+        s
+        for s in yt.streams.filter(mime_type="video/mp4").order_by("resolution").desc()
+    ]
+    if any(s for s in streams if parse_res(s) >= 360):
+        streams = [s for s in streams if parse_res(s) >= 360]
+
+    async def audio_only_task():
+        ys = yt.streams.get_audio_only()
+        return ys.download(mp3=True, filename_prefix="audio-", output_path=save_dir)
+
+    async def low_res_task():
+        return streams[-1].download(filename_prefix="low-res-", output_path=save_dir)
+
+    async def hi_res_task():
+        return streams[0].download(filename_prefix="hi-res-", output_path=save_dir)
+
+    return await asyncio.gather(low_res_task(), hi_res_task(), audio_only_task())
+
+
+async def convert_mp3_to_wav(audio_file_path, output_dir):
+    ext = Path(audio_file_path).suffix
+    output_file_path = os.path.join(
+        output_dir, os.path.basename(audio_file_path).replace(ext, ".wav")
+    )
+    # Command to convert MP3 to WAV using FFmpeg
+    command = [
+        "ffmpeg",  # Command (FFmpeg)
+        "-y",
+        "-i",
+        audio_file_path,  # Input file (the MP3 file)
+        "-acodec",
+        "pcm_s16le",  # Audio codec for WAV (pcm_s16le for 16-bit PCM)
+        "-ar",
+        "44100",  # Audio sample rate (44100Hz is a common sample rate)
+        "-ac",
+        "2",  # Number of audio channels (2 for stereo)
+        output_file_path,  # Output file (the WAV file)
+    ]
+
+    # Execute the command asynchronously
+    # Run the command with asyncio subprocess
+    process = await asyncio.create_subprocess_exec(
+        *command, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE
+    )
+
+    # Wait for the subprocess to finish
+    _, stderr = await process.communicate()
+
+    if process.returncode == 0:
+        return output_file_path
+    else:
+        raise ValueError(f"Error during conversion: {stderr.decode()}")
+
+
+async def save_weblink_to_volume_as_crc_hash(weblink: str, save_dir: Path | str):
+    if is_youtube_link(weblink):
+        downloaded_low_res_path, downloaded_hi_res_path, downloaded_audio_path_mp3 = (
+            await download_youtube_video(weblink, save_dir)
+        )
+        downloaded_audio_path = await convert_mp3_to_wav(
+            downloaded_audio_path_mp3, save_dir
+        )
+    else:
+        raise NotImplementedError("Only youtube links are supported")
+    title = Path(downloaded_low_res_path).stem.replace("low-res-", "")
+    async with aiofiles.open(downloaded_low_res_path, mode="rb") as file:
+        low_res_volume_path = await save_file_to_volume_as_crc_hash(
+            file, os.path.basename(downloaded_low_res_path), save_dir
+        )
+    return low_res_volume_path, downloaded_hi_res_path, downloaded_audio_path, title
 
 
 def convert_video_codec(video_path, codec="libx264"):

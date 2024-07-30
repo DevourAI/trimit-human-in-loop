@@ -16,13 +16,20 @@ interface VideoSelectorProps {
   setSelectedVideo: (video: UploadedVideo) => void;
 }
 
+interface UploadingVideo {
+  filename: string;
+  title: string;
+}
+
 export default function VideoSelector({
   selectedVideo,
   setSelectedVideo,
 }: VideoSelectorProps) {
   const { userData } = useUser();
   const [uploadedVideos, setUploadedVideos] = useState<UploadedVideo[]>([]);
-  const [uploadingVideo, setUploadingVideo] = useState<string | null>(null);
+  const [uploadingVideo, setUploadingVideo] = useState<UploadingVideo | null>(
+    null
+  );
   const [videoProcessingStatuses, setVideoProcessingStatuses] = useState<
     Record<string, { status: string }>
   >({});
@@ -51,11 +58,14 @@ export default function VideoSelector({
 
         if (uploadingVideo) {
           if (
-            videos.filter((video) => video.filename === uploadingVideo)
-              .length === 0
+            videos.filter(
+              (video) =>
+                video.filename_or_weblink === uploadingVideo.filename_or_weblink
+            ).length === 0
           ) {
             videos.push({
-              filename: uploadingVideo,
+              title: uploadingVideo.title,
+              filename: uploadingVideo.filename_or_weblink,
               video_hash: 'tmp',
             } as UploadedVideo);
           }
@@ -143,10 +153,15 @@ export default function VideoSelector({
               <UploadVideo
                 userEmail={userData.email}
                 setUploadingVideo={setUploadingVideo}
-                setVideoDetails={(hash: string | null, filename: string) => {
+                setVideoDetails={(
+                  hash: string | null,
+                  filename: string,
+                  title: string
+                ) => {
                   setSelectedVideo({
                     video_hash: hash || '',
                     filename,
+                    title,
                     path: '',
                     duration: 0,
                     remote_url: '',
