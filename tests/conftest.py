@@ -48,6 +48,7 @@ TEST_MODEL_DIR = "tests/models"
 TEST_CACHE_DIR = "tests/cache"
 TEST_HIGH_RES_DIR = "tests/fixtures/high_res"
 
+BRIAN_EMAIL = "brian@coinbase.com"
 DAVE_EMAIL = "dave@hedhi.com"
 DAVE_VIDEO_HIGH_RES_HASHES = [
     "2464358268",
@@ -87,9 +88,10 @@ TIMELINE_NAME = "test_timeline"
 
 
 async def create_user():
-    user1 = User(
-        name="brian armstrong", email="brian@coinbase.com", password="password"
-    )
+    user1 = await User.find_one(User.email == BRIAN_EMAIL)
+    if user1 is not None:
+        return user1
+    user1 = User(name="brian armstrong", email=BRIAN_EMAIL, password="password")
     await user1.insert()
     return user1
 

@@ -87,6 +87,8 @@ async def save_video_with_details(
     high_res_user_file_path: str,
     volume_file_path: str,
     high_res_user_file_hash: str | None = None,
+    high_res_local_file_path: str | None = None,
+    title: str = "",
     overwrite: bool = False,
 ):
     from trimit.utils.video_utils import get_video_details
@@ -108,6 +110,8 @@ async def save_video_with_details(
             upload_datetime=upload_datetime,
             high_res_user_file_path=high_res_user_file_path,
             high_res_user_file_hash=high_res_user_file_hash,
+            high_res_local_file_path=high_res_local_file_path,
+            title=title,
             details=details,
             overwrite=overwrite,
         )

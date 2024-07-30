@@ -197,12 +197,14 @@ class Video(DocumentWithSaveRetry, PathMixin):
     details: Optional[VideoMetadata] = None
     high_res_user_file_path: str
     high_res_user_file_hash: Optional[str] = None
+    high_res_local_file_path: Optional[str] = None
     transcription: Optional[dict] = None
     transcription_text: Optional[str] = None
     video_llava_description: Optional[str] = None
     user: User
     summary: Optional[str] = None
     speakers_in_frame: Optional[list[str]] = None
+    title: Optional[str] = None
 
     class Settings:
         name = "Video"
@@ -224,6 +226,12 @@ class Video(DocumentWithSaveRetry, PathMixin):
                 unique=True,
             ),
             [("high_res_user_file_path", pymongo.ASCENDING)],
+            [("user", pymongo.ASCENDING), ("title", pymongo.ASCENDING)],
+            [
+                ("user", pymongo.ASCENDING),
+                ("project", pymongo.ASCENDING),
+                ("title", pymongo.ASCENDING),
+            ],
             [("user", pymongo.ASCENDING)],
             [
                 ("user", pymongo.ASCENDING),
@@ -355,6 +363,7 @@ class VideoFileProjection(BaseModel, PathMixin):
     upload_datetime: datetime.datetime
     high_res_user_file_path: str
     ext: str
+    title: str | None = None
 
     @property
     def filename(self):
@@ -366,11 +375,11 @@ class VideoFileProjection(BaseModel, PathMixin):
 
 
 class UploadedVideoProjection(VideoFileProjection):
-    details: dict[str, Any]
+    details: Optional[dict[str, Any] | None] = None
 
     @property
     def duration(self):
-        return self.details.get("duration")
+        return self.details.get("duration") if self.details else 0
 
 
 class VideoUserHashProjection(BaseModel):
