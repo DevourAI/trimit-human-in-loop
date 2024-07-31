@@ -27,11 +27,11 @@ async def client():
 
 
 @patch("trimit.api.index.background_processor")
-async def test_upload(background_processor, client, seed_user):
+async def test_upload(background_processor, client, seed_users):
     from trimit.models import MONGO_INITIALIZED
 
     MONGO_INITIALIZED[0] = False
-    user_email = seed_user.email
+    user_email = seed_users[0].email
     background_processor.return_value = MagicMock()
     import trimit.app
 
@@ -89,10 +89,10 @@ async def test_upload(background_processor, client, seed_user):
 
 
 @patch("trimit.api.index.background_processor")
-async def test_upload_weblink(background_processor, client, seed_user):
+async def test_upload_weblink(background_processor, client, seed_users):
     from trimit.models import MONGO_INITIALIZED
 
-    user_email = seed_user.email
+    user_email = seed_users[0].email
     volume_dir = tempfile.TemporaryDirectory().name
     upload_date = datetime.now().date()
     local_filename = "649819196.mp4"
