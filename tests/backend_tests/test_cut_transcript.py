@@ -1358,3 +1358,46 @@ async def test_run_no_db_save(workflow_3909774043_with_transcript):
                 step_outputs[output_idx].step_outputs["current_transcript_state"]
             ).kept_word_count
         )
+
+
+async def test_run_no_db_save_cio(seed_users, workflow_1636732485_with_transcript):
+    workflow = workflow_1636732485_with_transcript
+
+    user_input = "executive perspectives: what it takes to be a CIO in the age of AI"
+    step_outputs = []
+    str_outputs_by_step = {}
+    step_info_outputs_by_step = {}
+
+    str_outputs = []
+    step_info_outputs = []
+    final_llm_outputs = []
+    async for output, is_last in step_workflow_ignoring_feedback_request(
+        workflow,
+        user_input=user_input,
+        load_state=True,
+        save_state_to_db=True,
+        async_export=False,
+    ):
+        if is_last:
+            assert isinstance(output, CutTranscriptLinearWorkflowStepOutput)
+            step_outputs.append(output)
+            step_key = f"{output.step_name}.{output.substep_name}"
+            str_outputs_by_step[step_key] = str_outputs
+            step_info_outputs_by_step[step_key] = step_info_outputs
+            str_outputs = []
+            step_info_outputs = []
+        else:
+            assert isinstance(
+                output,
+                (PartialLLMOutput, FinalLLMOutput, PartialBackendOutput, ExportResults),
+            )
+            if (
+                isinstance(output, PartialBackendOutput)
+                and output.current_substep is not None
+            ):
+                step_info_outputs.append(output.current_substep)
+            elif isinstance(output, PartialLLMOutput):
+                str_outputs.append(output)
+            elif isinstance(output, FinalLLMOutput):
+                final_llm_outputs.append(output)
+    assert len(step_outputs)
