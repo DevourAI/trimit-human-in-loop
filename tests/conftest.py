@@ -50,6 +50,8 @@ TEST_HIGH_RES_DIR = "tests/fixtures/high_res"
 
 BRIAN_EMAIL = "brian@coinbase.com"
 DAVE_EMAIL = "dave@hedhi.com"
+BEN_USER = "ben@trimit.ai"
+
 DAVE_VIDEO_HIGH_RES_HASHES = [
     "2464358268",
     "2072360807",
@@ -87,13 +89,17 @@ DAVE_FULL_VIDEO_PATHS = [
 TIMELINE_NAME = "test_timeline"
 
 
-async def create_user():
+async def create_users():
     user1 = await User.find_one(User.email == BRIAN_EMAIL)
-    if user1 is not None:
-        return user1
-    user1 = User(name="brian armstrong", email=BRIAN_EMAIL, password="password")
-    await user1.insert()
-    return user1
+    if user1 is None:
+        user1 = User(name="brian armstrong", email=BRIAN_EMAIL, password="password")
+        await user1.insert()
+
+    user2 = await User.find_one(User.email == BEN_USER)
+    if user2 is None:
+        user2 = User(name="ben schreck", email=BEN_USER, password="password")
+        await user2.insert()
+    return [user1, user2]
 
 
 # TODO change md5_hashes to crc hashes in file names to get these tests to pass again
@@ -163,8 +169,8 @@ async def mongo_connect():
 
 
 @pytest.fixture(scope="session")
-async def seed_user(mongo_connect):
-    return await create_user()
+async def seed_users(mongo_connect):
+    return await create_users()
 
 
 @pytest.fixture(autouse=auto_seed_mock_data, scope="session")
@@ -200,6 +206,11 @@ async def video_15557970(seed_mock_data):
 @pytest.fixture(scope="session")
 async def video_3909774043(seed_mock_data):
     return await Video.find_one(Video.md5_hash == "3909774043")
+
+
+@pytest.fixture(scope="session")
+async def video_1636732485(seed_mock_data):
+    return await Video.find_one(Video.md5_hash == "1636732485")
 
 
 @pytest.fixture(scope="session")
@@ -256,6 +267,11 @@ async def video_3909774043_with_transcription(transcription, video_3909774043):
 
 
 @pytest.fixture(scope="session")
+async def video_1636732485_with_transcription(transcription, video_1636732485):
+    return await video_with_transcription(transcription, video_1636732485)
+
+
+@pytest.fixture(scope="session")
 async def video_15557970_with_speakers_in_frame(
     speaker_in_frame_detection, video_15557970_with_transcription
 ):
@@ -270,6 +286,15 @@ async def video_3909774043_with_speakers_in_frame(
 ):
     return await video_with_speakers_in_frame(
         speaker_in_frame_detection, video_3909774043_with_transcription
+    )
+
+
+@pytest.fixture(scope="session")
+async def video_1636732485_with_speakers_in_frame(
+    speaker_in_frame_detection, video_1636732485_with_transcription
+):
+    return await video_with_speakers_in_frame(
+        speaker_in_frame_detection, video_1636732485_with_transcription
     )
 
 
@@ -501,6 +526,16 @@ async def project_3909774043(video_3909774043_with_speakers_in_frame):
 
 
 @pytest.fixture(scope="function")
+async def project_1636732485(video_1636732485_with_speakers_in_frame):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await Project.from_user_email(
+        user_email=video_1636732485_with_speakers_in_frame.user.email,
+        name="1636732485_cio",
+    )
+
+
+@pytest.fixture(scope="function")
 async def workflow_3909774043_with_transcript(
     project_3909774043,
     video_3909774043_with_speakers_in_frame,
@@ -513,6 +548,35 @@ async def workflow_3909774043_with_transcript(
         project=project_3909774043,
         video=video_3909774043_with_speakers_in_frame,
         timeline_name="3909774043_testimonial_test",
+        output_folder=test_videos_output_dir,
+        volume_dir=test_videos_volume_dir,
+        new_state=True,
+        length_seconds=120,
+        nstages=2,
+        first_pass_length=6 * 60,
+        max_partial_transcript_words=800,
+        max_word_extra_threshold=50,
+        max_iterations=3,
+        api_call_delay=0.5,
+        with_provided_user_feedback=[],
+        export_video=False,
+        video_type="sales video",
+    )
+
+
+@pytest.fixture(scope="function")
+async def workflow_1636732485_with_transcript(
+    project_1636732485,
+    video_1636732485_with_speakers_in_frame,
+    test_videos_output_dir,
+    test_videos_volume_dir,
+):
+    loop = asyncio.get_running_loop()
+    await maybe_init_mongo(io_loop=loop, reinitialize=True)
+    return await CutTranscriptLinearWorkflow.from_project(
+        project=project_1636732485,
+        video=video_1636732485_with_speakers_in_frame,
+        timeline_name="1636732485_cio",
         output_folder=test_videos_output_dir,
         volume_dir=test_videos_volume_dir,
         new_state=True,

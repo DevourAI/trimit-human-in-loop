@@ -1394,6 +1394,7 @@ async def upload_multiple_files(
         "reprocess",
         reprocess,
     )
+    web_links = [l for l in web_links if l]
     await maybe_init_mongo()
     if not files and not web_links:
         raise HTTPException(
@@ -1432,7 +1433,6 @@ async def upload_multiple_files(
             except NotImplementedError as e:
                 raise HTTPException(status_code=400, detail=str(e))
         else:
-            assert isinstance(file, UploadFile)
             volume_file_path = await save_file_to_volume_as_crc_hash(
                 file, file.filename or "", volume_file_dir
             )

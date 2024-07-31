@@ -2,6 +2,7 @@ import json
 from enum import StrEnum
 from pydantic import BaseModel, Field, model_serializer, ConfigDict
 import unittest
+import unittest.mock
 from typing import Callable, Optional, Union, Any
 import pickle
 from trimit.utils.misc import union_list_of_intervals
